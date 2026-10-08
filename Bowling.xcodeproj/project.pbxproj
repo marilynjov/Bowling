@@ -6,8 +6,15 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8F3D6A35307710280041C3D2 /* 2026-10-07-program-roadmap.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */; };
+		8F3D6A36307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Bowling.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bowling.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-10-07-phase-1-core-scoring-design.md"; sourceTree = "<group>"; };
+		8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-10-07-program-roadmap.md"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +38,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* Bowling */,
+				8F3D6A34307710280041C3D2 /* docs */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +49,39 @@
 				000000000000000000000120 /* Bowling.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8F3D6A2F307710280041C3D2 /* plans */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = plans;
+			sourceTree = "<group>";
+		};
+		8F3D6A32307710280041C3D2 /* specs */ = {
+			isa = PBXGroup;
+			children = (
+				8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */,
+				8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */,
+			);
+			path = specs;
+			sourceTree = "<group>";
+		};
+		8F3D6A33307710280041C3D2 /* superpowers */ = {
+			isa = PBXGroup;
+			children = (
+				8F3D6A2F307710280041C3D2 /* plans */,
+				8F3D6A32307710280041C3D2 /* specs */,
+			);
+			path = superpowers;
+			sourceTree = "<group>";
+		};
+		8F3D6A34307710280041C3D2 /* docs */ = {
+			isa = PBXGroup;
+			children = (
+				8F3D6A33307710280041C3D2 /* superpowers */,
+			);
+			path = docs;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,6 +143,8 @@
 		000000000000000140000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
+				8F3D6A35307710280041C3D2 /* 2026-10-07-program-roadmap.md in Resources */,
+				8F3D6A36307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */

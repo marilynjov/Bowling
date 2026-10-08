@@ -23,8 +23,13 @@ day and see numbers that are correct.
 - Sessions tagged practice, league, tournament, or casual, with center, league, oil
   pattern, lanes, and notes.
 - Ball tagging per game with a per-roll override for spare balls.
-- A personal arsenal with maintenance dates and derived games-per-ball.
-- Multiple bowlers in one session on one phone, as local names.
+- A personal arsenal with full ball specs, a photo, a maintenance log with resurface
+  reminders, and a per-ball detail screen showing performance as a strike ball and as a
+  spare ball, by oil pattern and center, over time, plus a side-by-side comparison of
+  all balls.
+- Multiple bowlers in one session on one phone, as local names. Their games live only on
+  this phone in phase 1. Sending a game to the other bowler's own account by email
+  invitation is a phase 7 feature; the schema reserves fields for it.
 - Statistics: average, high game, high series, strike percentage, spare percentage over
   spare attempts, makeable spares versus splits, leaves by pin and conversion per leave,
   every missed spare listed with date and ball, strike rate and average by frame number,
@@ -80,6 +85,7 @@ String?` exists on every model for phase 7 publishing and is unused in phase 1.
 | name | String | |
 | isOwner | Bool | Exactly one owner, created at first launch. Enforced in the repository, not the schema |
 | handedness | enum right, left, unknown | Used by stats to label leaves |
+| email | String? | Reserved for phase 7 game invitations. Not shown in phase 1 |
 | createdAt | Date | |
 | games | [Game]? | inverse of Game.bowler |
 
@@ -115,6 +121,8 @@ A session's series total is the sum of its games' final scores for one bowler.
 | createdAt, updatedAt | Date | |
 | sourceImageData | Data? | Reserved for phase 4 |
 | scanConfidence | Double? | Reserved for phase 4 |
+| invitationStatus | enum none, sent, accepted, declined, expired | Default none. Reserved for phase 7 game invitations |
+| scoredByName | String? | Reserved for phase 7. Set on the recipient's copy of an accepted invitation |
 
 ### Frame
 
@@ -147,14 +155,48 @@ A session's series total is the sum of its games' final scores for one bowler.
 | brand | String | |
 | weightPounds | Int | 6 through 16 |
 | coverstock | enum plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other | |
+| coverstockName | String | Manufacturer's coverstock name, for example "SPEC Solid" |
+| coreType | enum symmetric, asymmetric, pancake, unknown | Pancake is the plastic spare-ball core |
+| coreName | String | Manufacturer's core name, for example "Shape-Lock HD" |
+| rg | Double? | Radius of gyration from the manufacturer sheet, typically 2.4 to 2.6 |
+| differential | Double? | Typically 0.00 to 0.06 |
+| intermediateDifferential | Double? | Asymmetric cores only. Also called mass bias differential on spec sheets |
+| intendedRole | enum strike, spare, both | Default strike. Drives which stats lead on the detail screen and which picker the ball appears in first |
+| serialNumber | String | |
+| colorDescription | String | Free text |
+| imageData | Data? | Photo of the ball, downscaled on save |
+| releaseDate | Date? | Manufacturer release date, month precision |
 | purchaseDate | Date? | |
-| lastResurfaceDate | Date? | |
-| surfaceGrit | String | Free text, for example "2000 polished" |
+| factoryFinish | String | Out-of-box surface, for example "2000 Abralon". Current surface starts from this on add |
+| surfaceGrit | String | Current surface, for example "2000 polished" |
+| resurfaceIntervalGames | Int? | Reminder threshold. Nil means no reminder |
 | isRetired | Bool | Retired balls stay for history but are hidden from pickers |
 | notes | String | |
+| maintenance | [MaintenanceEvent]? | cascade delete |
 
-Games bowled per ball is derived: count of games where defaultBall is this ball, plus
-games where any roll overrides to it, counted once per game.
+Drilling layout values and hand measurements (matrix row 43) are not fields in phase 1;
+they go in `notes` until phase 8 adds them properly.
+
+### MaintenanceEvent
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | |
+| ball | Ball? | |
+| date | Date | |
+| kind | enum resurface, polish, oilExtraction, plugAndRedrill, other | |
+| surfaceGritAfter | String | Optional text, copied to Ball.surfaceGrit on save when non-empty |
+| gamesOnBallAtTime | Int | Snapshot of games bowled when the event was logged |
+| notes | String | |
+
+Derived values, computed by the repository:
+
+- **Games bowled** is the count of games where defaultBall is this ball, plus games where
+  any roll overrides to it, counted once per game.
+- **Games since last resurface** is games bowled since the most recent event of kind
+  resurface, or since purchase if none.
+- **Resurface due** is true when `resurfaceIntervalGames` is set and games since last
+  resurface meets or exceeds it.
 
 ### BowlingCenter, League, OilPattern
 
@@ -169,8 +211,9 @@ phase 8 library.
 - Deleting a Session deletes its Games, Frames, and Rolls (cascade).
 - Deleting a Bowler who has games is refused with an explanation; the user can delete
   the games first. The owner can never be deleted.
-- Deleting a Ball nullifies references on Games and Rolls. The user is warned with the
-  count of affected games and offered "retire instead".
+- Deleting a Ball nullifies references on Games and Rolls and deletes its
+  MaintenanceEvents. The user is warned with the count of affected games and offered
+  "retire instead".
 - Deleting a Center, League, or Pattern nullifies references and warns the same way.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
@@ -311,8 +354,38 @@ Each section of the Stats screen states how many games it is based on.
 - **What if I made every single-pin spare**: for each pinByPin game, rewrite every missed
   single-pin leave as a converted spare, rescore with `Scorer`, and report the resulting
   average next to the real one with the difference. Matrix row 30.
-- **Ball stats**: when a ball filter is set, all of the above for games or rolls using
-  that ball. Games bowled per ball appears in Arsenal.
+- **Ball stats**: when a ball filter is set on the Stats screen, all of the above for
+  games or rolls using that ball.
+
+### Ball report
+
+`StatsEngine.ballReport(for ball: BallID, games: [GameRecord]) -> BallReport` powers the
+ball detail screen. A ball has two roles in the data: the ball a first ball was thrown
+with, and the ball a spare attempt was thrown with. Every roll resolves its ball as the
+roll override if present, otherwise the game's default ball, so the report is exact even
+when a bowler switches balls mid-game.
+
+- **Usage**: games bowled, first balls thrown, spare attempts thrown, first and last date
+  used, games since last resurface, resurface due flag.
+- **As a strike ball**, over first balls thrown with it: strike %, first-ball average,
+  head pin rate, and the average of games where it was the default ball. The average is
+  labeled "games with this ball as main ball" because spares may have used another ball.
+- **As a spare ball**, over spare attempts thrown with it: spare conversion %,
+  single-pin conversion %, split conversion %, and the leaves table restricted to those
+  attempts, with the same tap-through to occurrences.
+- **By condition**: strike % and first-ball average grouped by oil pattern, and
+  separately by center. A group displays only when it has at least 10 first balls;
+  smaller groups are summed into "Other" so the user sees why a pattern is missing.
+  This answers matrix row 11's "how do I score with this ball on this pattern".
+- **Over time**: strike % per session since purchase, charted, with maintenance events
+  drawn as markers on the date axis. This is how a bowler sees reaction fade and whether
+  a resurface brought it back.
+- **Comparison**: `StatsEngine.compareBalls(games:) -> [BallComparisonRow]` returns, for
+  every non-retired ball, games bowled, average as main ball, strike %, first-ball
+  average, and spare conversion %, each with its sample size, for a sortable table.
+
+The ball report honors the global stats filter for date range, bowler, event type,
+center, league, and pattern, so a bowler can ask "this ball, this league, this season".
 
 ### Filters
 
@@ -404,10 +477,36 @@ example "Enter pins to see leaves".
 
 ### Arsenal
 
-List of balls with name, brand, weight, games bowled, and days since resurface. Add and
-edit form with the fields in section 3. Retire and delete with the warnings in the
-deletion rules. Tapping a ball shows its stats, which is the Stats screen with the ball
-filter preset.
+**List.** Active balls, then a collapsed "Retired" group. Each row shows the photo or a
+colored placeholder, name, brand, weight, intended role, games bowled, and a "Resurface
+due" badge when applicable. A toolbar button opens **Compare**, a sortable table built
+from the comparison rows in section 6 with a column picker for small screens. Another
+opens the add form.
+
+**Ball detail.** Sections top to bottom:
+
+1. **Header**: photo, name, brand, weight, coverstock and core type, intended role,
+   current surface, serial number, and an Edit button.
+2. **Specs**: coverstock name, core name, RG, differential, intermediate differential,
+   factory finish, release date, purchase date, color, notes.
+   Empty optional values are hidden rather than shown as blanks.
+3. **Maintenance**: games since last resurface against the interval with a progress bar,
+   the maintenance log newest first, and a "Log maintenance" button. Logging a resurface
+   or polish with a grit value updates the ball's current surface.
+4. **Performance**: the ball report from section 6. The strike-ball block leads when the
+   intended role is strike, the spare-ball block leads when it is spare, both show
+   regardless. A filter chip row at the top of this section mirrors the Stats filter so
+   the user can narrow by date range, league, pattern, or center without leaving the ball.
+5. **By condition**: two small tables, by pattern and by center.
+6. **Over time**: the strike % chart with maintenance markers.
+7. **Recent games**: the last ten games using this ball, linking into History.
+
+Retire and delete live in the Edit form, with the warnings in the deletion rules.
+
+**Add and edit form.** Fields from section 3 grouped as Identity (name, brand, weight,
+color, serial, photo), Construction (coverstock, coverstock name, core type, core name, RG,
+differential, intermediate differential, factory finish, release date), Use (intended
+role, purchase date, current surface, resurface interval), and Notes. Only name and weight are required.
 
 ### Settings
 
@@ -440,6 +539,10 @@ home.
   a fixture table, plus the washouts and a sample of larger leaves. StatsEngine: a fixture
   set of about twenty games across the three entry modes with hand-computed expected
   values for every stat, including the what-if recomputation and the applicability rules.
+  Ball report: a fixture where one ball is the default and another overrides on spare
+  attempts, asserting that first balls and spare attempts are attributed to the right
+  ball, that groups under 10 first balls fold into "Other", and that games since last
+  resurface counts only games after the latest resurface event.
 - **BowlingData**: in-memory `ModelContainer` tests for repositories, deletion rules,
   conversion to and from BowlingCore value types, filter predicates, and the owner-bowler
   invariant.

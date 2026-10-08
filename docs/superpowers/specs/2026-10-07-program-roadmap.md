@@ -25,7 +25,8 @@ gaps no competitor fills, which this app should own:
 | Personal sync | iCloud via SwiftData CloudKit integration | Free, no accounts, restores history on a new device |
 | Shared and social backend | Supabase, introduced in phase 5 (multi-device team scoring) or phase 7 (social), whichever comes first | Open source and self-hostable on the developer's PC for development; hosted tier for production. Postgres makes leaderboards plain SQL. Firebase cannot be self-hosted |
 | Source of truth | Always the device and iCloud. The server only holds copies of what must be shared | A server outage never blocks scoring |
-| Other bowlers on one phone | Local names, no account required, ever | Matches how lane consoles work. Optional account linking arrives with phase 7 |
+| Other bowlers on one phone | Local names until accounts exist in phase 7. From then on, a game scored for someone else reaches their own history only through an email invitation they accept in their own account | Anyone who wants their games in the app must have an account. Scoring a friend's game on your phone stays possible, but it lands in their history only when they accept it |
+| Game invitations | The scorer enters the friend's email. The app always replies "invitation sent" and never reveals whether that email has an account. If it does, the request appears in the friend's app to accept or decline. If not, the friend gets an email inviting them to join, and the game waits for them until they sign up or the invitation expires after 30 days | Confirming that an email has an account would let anyone discover who uses the app. Routing unknown emails into a sign-up invitation also brings new accounts in |
 | State and testing | Observation, Swift Testing, Swift Charts | Current Apple stack, no third-party dependencies until a phase truly needs one |
 | Monetization | Undecided, everything free through phase 3 | Decide at phase 4. Competitors charge for photo scan and league tools |
 
@@ -72,7 +73,8 @@ is a configuration change and not a migration:
   once phase 2 promotes the CloudKit schema to production.
 - Fields reserved for later phases exist from phase 1 where cheap: `remoteID` on every
   entity for publishing to the server, `sourceImageData` and `scanConfidence` on Game for
-  photo scan, `rotationSlot` on Frame for Baker.
+  photo scan, `rotationSlot` on Frame for Baker, `email` on Bowler and `invitationStatus`
+  on Game for game invitations.
 
 ## Working rhythm for every phase
 
@@ -96,6 +98,10 @@ Matrix rows 1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 15, 18, 19, 28, 29, 30.
   sessions and game scorecards. Stats with a filter bar and sections. Arsenal. Scoring
   screen with scorecard strip, tappable pin deck, strike, spare and miss shortcuts, undo,
   per-roll ball picker, and a switch to count-only or final-score entry.
+- Ball detail screen in Arsenal: header and full specs (brand, weight, coverstock, core,
+  RG, differential, surface, photo), maintenance log with resurface reminders,
+  performance as a strike ball and as a spare ball, results by oil pattern and center,
+  a strike % chart over time, and recent games. A Compare table shows all balls side by side.
 - Backend: none. SwiftData local store.
 - Packages created: BowlingCore and BowlingData, both tested.
 - Done when a perfect game, an all-spares game, and every tenth-frame variant score
@@ -181,16 +187,30 @@ Matrix rows 25, 24, 26, 31.
 
 Matrix rows 17, 34, 35.
 
+- Accounts: Sign in with Apple or email. Every social feature requires one. Local-only
+  use without an account remains possible for phases 1 through 6 features.
+- Game invitations: when a session has a bowler other than the owner, the owner can
+  attach an email to that bowler, once, and the app remembers it for next time. On
+  finishing the game the app sends an invitation per the decision table above. The
+  recipient sees pending invitations on Home, with the scorecard, and accepts or declines.
+  Accepting copies the game into their own history as a game they own, marked "scored by
+  <name>" and attributed to the sender's center, league, and pattern where those exist in
+  the recipient's data, otherwise created. Declining discards the invitation. The
+  sender's copy is unaffected either way. Invitations expire after 30 days.
 - Frontend: profile, friend search and follow, feed of friends' recent games, challenge
-  creation with format and dates, leaderboards by center and overall.
-- Backend: Supabase. Tables for profiles, follows, published games, challenges, entries,
-  leaderboard snapshots. Row-level security so a user reads only what they follow or
-  what is public. A scheduled function recomputes leaderboards. Published games are
-  summaries copied from the device, never the source of truth.
+  creation with format and dates, leaderboards by center and overall, pending
+  invitations inbox.
+- Backend: Supabase. Tables for profiles, follows, published games, invitations,
+  challenges, entries, leaderboard snapshots. Row-level security so a user reads only
+  what they follow, what is public, or invitations addressed to them. A scheduled
+  function recomputes leaderboards and expires invitations. Published games are
+  summaries copied from the device, never the source of truth. Invitation emails go
+  through Supabase Auth's email provider.
 - Also required: account deletion, privacy policy, content reporting, age gating. This is
   the first phase where user content is visible to others.
-- Done when two accounts can follow each other, see each other's games, and complete a
-  challenge.
+- Done when two accounts can follow each other, see each other's games, complete a
+  challenge, and a game scored on one phone for the other person appears in their
+  history after they accept the invitation.
 
 ### Phase 8: Reference and coaching
 
