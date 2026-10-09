@@ -2,33 +2,53 @@
 
 Date: 2026-10-07
 Status: approved in conversation, pending written review
-Owner: Marilyn Joven (solo developer)
 
 ## Purpose
 
-A bowling tracker for any bowler, from casual to competitive, that covers as much of
-the 50-feature market matrix (`Bowling App Feature Matrix.xlsx`) as is feasible for one
-developer, in priority order of the matrix's tiers. The matrix also identifies three
-gaps no competitor fills, which this app should own:
+A bowling tracker for any bowler, from casual to competitive, that covers as much of the
+52-feature market matrix (`bowling_app_feature_matrix.xlsx`) as one developer can,
+sequenced by dependencies and cost first and by the matrix's importance tiers second.
+Cheap features that reuse the scoring engine ship early even when their tier is lower;
+tier 1 features that need infrastructure (iCloud, photo scan) follow as soon as their
+foundations exist.
 
-1. Spare percentage measured over spare attempts only (row 12).
-2. Each missed spare linked to its date and the ball used (row 18).
-3. Photo scan that lets the bowler correct misreads and keeps the original photo (Photo Scan tab).
+### Gaps this app should own
+
+The matrix marks these as not built by any competitor:
+
+1. Spare percentage measured over spare attempts only (phase 1a).
+2. Each missed spare linked to its date and the ball used (phase 1b).
+3. Custom date ranges on every stat (phase 1b).
+4. Custom per-frame yes/no questions (phase 6).
+5. Baker for any roster size, with individual stats (phase 5).
+
+And these as only partly built, scattered across separate apps:
+
+6. Photo scan that lets the bowler correct misreads and keeps the original photo (phase 4).
+7. Ball detail page combining specs, the bowler's own setup, and per-ball performance
+   (phase 1b).
+8. Scoring a friend's game so it lands in the friend's own history (phase 7).
+
+Recommended matrix change: add a fixed `ID` column (F01, F02, ...) that never changes, so
+documents can cite features without depending on rank.
 
 ## Decisions
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Platform | iOS only, SwiftUI only | Solo developer, Apple frameworks cover every phase through 6 |
-| Minimum iOS | 18 | Supports iPhone XS and newer. Liquid Glass appears automatically on iOS 26+, custom glass behind availability checks |
+| Platform | iOS only, SwiftUI only | Solo developer; Apple frameworks cover every phase through 6. Android users are reached only through the invitation landing page (phase 7) |
+| Minimum iOS | 18 | Supports iPhone XS and newer. Liquid Glass appears automatically on iOS 26+. iOS 26-only APIs (custom glass, Vision document recognition) sit behind availability checks with a fallback |
 | Persistence | SwiftData, local store | Native, offline by default, syncs through iCloud in phase 2 with no server |
 | Personal sync | iCloud via SwiftData CloudKit integration | Free, no accounts, restores history on a new device |
-| Shared and social backend | Supabase, introduced in phase 5 (multi-device team scoring) or phase 7 (social), whichever comes first | Open source and self-hostable on the developer's PC for development; hosted tier for production. Postgres makes leaderboards plain SQL. Firebase cannot be self-hosted |
-| Source of truth | Always the device and iCloud. The server only holds copies of what must be shared | A server outage never blocks scoring |
-| Other bowlers on one phone | Local names until accounts exist in phase 7. From then on, a game scored for someone else reaches their own history only through an email invitation they accept in their own account | Anyone who wants their games in the app must have an account. Scoring a friend's game on your phone stays possible, but it lands in their history only when they accept it |
-| Game invitations | The scorer enters the friend's email. The app always replies "invitation sent" and never reveals whether that email has an account. If it does, the request appears in the friend's app to accept or decline. If not, the friend gets an email inviting them to join, and the game waits for them until they sign up or the invitation expires after 30 days | Confirming that an email has an account would let anyone discover who uses the app. Routing unknown emails into a sign-up invitation also brings new accounts in |
+| Shared and social backend | Supabase, introduced with the first feature that needs people-to-people data: multi-device team scoring (phase 5) or social (phase 7) | Open source and self-hostable on the developer's PC for development; hosted tier for production. Postgres makes leaderboards plain SQL. Firebase cannot be self-hosted |
+| Source of truth | The device and iCloud, except for a live shared team game, where the server copy is authoritative until the game is finished; each device then saves its own local copy | A server outage never blocks personal scoring, and two phones scoring one team game cannot overwrite each other |
+| Accounts | Introduced with the backend (phase 5 or 7). Sign in with Apple or email | Everything in phases 1 to 4 and 6 works without an account |
+| Other bowlers on one phone | Local names until accounts exist. After that, a game scored for someone else reaches their own history only through an invitation they accept in their own account | Anyone who wants their games in the app must have an account |
+| Game invitations | The scorer enters the friend's email. The server emails a one-time claim link; whichever signed-in account opens it receives the game. The app always replies "invitation sent" and never reveals whether that email has an account. Unclaimed invitations and their email addresses are deleted after 30 days | Email matching fails for Hide My Email relay addresses. A claim link works with any account, does not leak who uses the app, and brings in new sign-ups |
+| Invitation email delivery | Supabase Edge Function plus a transactional email provider with a custom domain | Supabase Auth's built-in sender allows about 2 emails per hour and is meant for auth flows, not game notifications |
 | State and testing | Observation, Swift Testing, Swift Charts | Current Apple stack, no third-party dependencies until a phase truly needs one |
-| Monetization | Undecided, everything free through phase 3 | Decide at phase 4. Competitors charge for photo scan and league tools |
+| Monetization | Undecided, everything free through phase 3 | Decide at phase 4, when the first paid infrastructure (cloud scan mode) appears. Competitors charge for photo scan and league tools |
+| Release gate | TestFlight from phase 1a; public App Store release only after phase 2 | Data loss is the top complaint across competing apps; the app must not reach the public without backup |
 
 ## Code organization
 
@@ -41,10 +61,10 @@ Bowling/
       Scoring/                   live scoring screen, pin deck, scorecard
       Sessions/                  history list, session detail, new session flow
       Stats/                     dashboards, filters, charts
-      Arsenal/                   balls and maintenance
+      Arsenal/                   balls, ball detail, maintenance
       Settings/
     Components/                  shared views: PinDeckView, ScorecardStrip, StatTile
-    Resources/                   assets, string catalog
+    Resources/                   assets, string catalog, bundled reference data
   Packages/
     BowlingCore/                 scoring rules, leave classification, stats engine (pure Swift)
     BowlingData/                 SwiftData models, repositories, import and export codecs
@@ -62,19 +82,39 @@ reused by widgets, a watch app, or server functions.
 
 ## Domain model rules that every phase depends on
 
-The phase 1 schema carries every later phase. Rules, fixed from day one so iCloud sync
-is a configuration change and not a migration:
+The phase 1a schema carries every later phase. Once phase 2 promotes the CloudKit schema
+to production, attributes and entities can only be added, never renamed or removed. Every
+rule below must therefore hold from the first build.
 
-- All relationships optional.
-- Every attribute has a default value.
-- No unique constraints.
-- Identities are UUIDs generated on device.
-- The schema is only ever added to. Attributes and entities are never renamed or removed
-  once phase 2 promotes the CloudKit schema to production.
-- Fields reserved for later phases exist from phase 1 where cheap: `remoteID` on every
-  entity for publishing to the server, `sourceImageData` and `scanConfidence` on Game for
-  photo scan, `rotationSlot` on Frame for Baker, `email` on Bowler and `invitationStatus`
-  on Game for game invitations.
+CloudKit compatibility:
+
+- All relationships optional, and every relationship declares an explicit inverse.
+- No Deny delete rules. Use Nullify or Cascade.
+- Every attribute has a default value or is optional.
+- No unique constraints. Identities are UUIDs generated on device.
+- No reliance on relationship order. CloudKit does not preserve it, so order is stored
+  explicitly: `gameIndex` on Game within its Session, `frameIndex` on Frame, `rollIndex`
+  on Roll. Every query that displays a game sorts by these.
+
+Storage:
+
+- Binary data never lives on a frequently synced entity. Photos go in their own entities
+  (`GamePhoto`, `BallPhoto`) with `@Attribute(.externalStorage)`, linked by relationship,
+  so syncing a game does not move a photo and photos do not bloat the user's iCloud.
+- Bundled reference data (oil patterns in phase 8, any future catalog) lives in a
+  separate local ModelConfiguration that does not sync. User data references it by a
+  stable string key such as `patternKey`, never by relationship. This prevents every
+  device creating and syncing its own duplicate copy.
+
+Reserved fields, added in phase 1a where cheap:
+
+- `remoteID` on every user-data entity, for publishing to the server.
+- On Game: `scanConfidence`, `entryMode` (pins, count, or final score), and
+  `invitationStatus`.
+- On Roll: `pinsDown` count and an optional `pinsStandingMask`, so scanned games
+  (count only) and pin-level games share one model.
+- On Frame: `rotationSlot`, for Baker.
+- On Bowler: `email`, for invitations.
 
 ## Working rhythm for every phase
 
@@ -83,145 +123,218 @@ is a configuration change and not a migration:
 3. Build on a feature branch, tests first.
 4. TestFlight to a handful of real bowlers.
 5. Merge to `main`, tag the phase, move on. `main` always builds.
+6. Compare actual time against the phase's time box and recalibrate the remaining
+   estimates.
 
-Cross-cutting from phase 1: Dynamic Type and VoiceOver on the pin deck and scorecard, a
-String Catalog, a privacy manifest, crash reporting (Sentry is configured in the
-developer's environment).
+Cross-cutting from phase 1a: Dynamic Type and VoiceOver on the pin deck and scorecard, a
+String Catalog, a privacy manifest that declares the crash reporter's data (Sentry is
+configured in the developer's environment), crash reporting.
 
 ## Phases
 
-### Phase 1: Core scoring and stats, on device
+Time boxes are initial estimates for one developer working part time on the app and
+should be recalibrated after phase 1a.
 
-Matrix rows 1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 15, 18, 19, 28, 29, 30.
+### Phase 1a: Scoring engine and core stats, on device (4 to 6 weeks)
+
+Features: frame-by-frame and pin-by-pin entry; final-score-only entry; offline scoring;
+average, high game and series, strike and spare percentages; pin leaves and spare
+conversion by leave; spare percentage over spare attempts only; makeable spares versus
+splits; practice versus competition separation.
 
 - Frontend: four tabs. Home with current averages and a start button. History with
-  sessions and game scorecards. Stats with a filter bar and sections. Arsenal. Scoring
-  screen with scorecard strip, tappable pin deck, strike, spare and miss shortcuts, undo,
-  per-roll ball picker, and a switch to count-only or final-score entry.
-- Ball detail screen in Arsenal: header and full specs (brand, weight, coverstock, core,
-  RG, differential, surface, photo), maintenance log with resurface reminders,
-  performance as a strike ball and as a spare ball, results by oil pattern and center,
-  a strike % chart over time, and recent games. A Compare table shows all balls side by side.
-- Backend: none. SwiftData local store.
+  sessions and game scorecards. Stats with sections. Arsenal as a simple ball list (full
+  arsenal in 1b). Scoring screen with scorecard strip, tappable pin deck, strike, spare,
+  foul and miss shortcuts, undo, per-roll ball picker, and a switch to count-only or
+  final-score entry.
+- Backend: none. SwiftData local store built to every domain model rule above.
 - Packages created: BowlingCore and BowlingData, both tested.
-- Done when a perfect game, an all-spares game, and every tenth-frame variant score
-  correctly in tests, every stat above renders from fixture data, and a full league
-  night can be entered offline.
-- Risk: the pin deck interaction is the make-or-break UX. Iterate on it with real bowlers.
+- Done when a perfect game, an all-spares game, a game with fouls, and every
+  tenth-frame variant score correctly in tests; every stat above renders from fixture
+  data; and a full league night can be entered offline.
+- Risk: the pin deck interaction is the make-or-break UX. Iterate on it with real
+  bowlers before starting 1b.
 
-Detailed design: `2026-10-07-phase-1-core-scoring-design.md`.
+Detailed design: `2026-10-07-phase-1-core-scoring-design.md` (update to the 1a and 1b
+split and the new model rules).
 
-### Phase 2: iCloud backup and sync
+### Phase 1b: Analysis, arsenal, and ball detail (3 to 5 weeks)
 
-Matrix row 4.
+Features: ball and pattern tagging per game; tag and filter by ball, pattern, center, or
+league; personal arsenal with maintenance dates; ball detail page; each missed spare
+linked to its date and ball; custom date ranges; strike rate by frame number and average
+per frame; head pin rate and clean game rate; "what if I made every single-pin spare"
+average; CSV export.
+
+- Stats gets a filter bar with any saved tag and a custom date range.
+- Ball detail screen in Arsenal: header and full specs (brand, weight, coverstock, core,
+  RG, differential, surface, photo), maintenance log with resurface reminders through
+  local notifications, performance as a strike ball and as a spare ball, results by oil
+  pattern and center, a strike percentage chart over time, and recent games. A Compare
+  table shows all balls side by side.
+- Tapping any leave in Stats lists every occurrence with date, event, and ball.
+- CSV export of games, frames, and tags through the file exporter, so TestFlight users
+  have a manual backup before phase 2.
+- Done when every stat renders from fixture data under any combination of filters, and
+  an exported CSV opens correctly in Numbers and Excel.
+
+### Phase 2: iCloud backup and sync (1 to 2 weeks)
+
+Features: cloud backup and sync.
 
 - Frontend: sync status in Settings, clear message when no iCloud account is signed in.
-- Backend: iCloud and background modes capabilities, CloudKit enabled on the SwiftData
-  configuration, CloudKit schema initialized in development then promoted to production.
-  Last writer wins is the built-in conflict rule and is acceptable for personal data.
-- Done when a game entered on one device appears on another, and a fresh install
-  restores full history.
-- Risk: the CloudKit schema is additive only once promoted. Phase 1's model must be right.
+- Backend: iCloud and background modes capabilities, CloudKit enabled on the user-data
+  SwiftData configuration only (not the reference-data store), CloudKit schema
+  initialized in development, reviewed against the domain model rules, then promoted to
+  production. Last writer wins is the built-in conflict rule and is acceptable for
+  personal data.
+- Done when a game entered on one device appears on another with frames in the correct
+  order, a fresh install restores full history including photos, and no reference data
+  appears in the user's iCloud.
+- Gate: first public App Store release happens here.
+- Risk: the schema is additive only once promoted. Review the model against every rule
+  above before promoting.
 
-### Phase 3: Share and move data
+### Phase 3: Share and move data (2 to 3 weeks)
 
-Matrix rows 20, 38, 39.
+Features: shareable score images; import history from other apps.
 
 - Frontend: scorecard image renderer with pins-left marks, shared through the system
-  share sheet. CSV export of games, frames, and tags through the file exporter. CSV
-  import that previews rows and asks for confirmation.
-- Backend: none. Import parsers for SnapStrike and BowlSheet CSV live in BowlingData
-  with sample files as test fixtures.
-- Done when exporting then re-importing a history produces identical stats.
+  share sheet. CSV import that previews rows, detects duplicates by date, center, and
+  score, tags each game with its source app, and ends with a summary such as "Imported
+  1,240 games, 980 with pin data".
+- Backend: none. Import parsers for this app's own CSV, SnapStrike CSV, and BowlSheet CSV
+  live in BowlingData with sample files as test fixtures. PinPal backup import is a
+  stretch goal if real users provide sample backup files.
+- Done when exporting then re-importing a history produces identical stats, and
+  importing the same file twice creates no duplicates.
 
-### Phase 4: Photo scan of the lane monitor
+### Phase 4: Photo scan of the lane monitor (4 to 6 weeks)
 
-Matrix row 6 and the Photo Scan tab. The feature most likely to make a bowler switch apps.
+Features: photo of the scoreboard turned into a game, with correction and the original
+photo kept.
 
 - Frontend: camera or photo picker, a review screen showing the photo beside the
-  reconstructed scorecard, tap any frame to correct, save. Original photo stays attached
-  to the game.
-- On-device pipeline in a new ScanKit package: Vision document and table recognition to
-  find the score grid, text recognition for names and marks, a parser that turns X, /,
-  and digits into rolls, and the phase 1 scoring engine to verify that the reconstructed
-  frames reproduce the printed totals. A mismatch flags the frame instead of saving silently.
-- Optional cloud mode: opt-in call to a vision model for dark or animated displays. Needs
-  one serverless function to hold the API key. This is the first place a hosted component
-  appears; decide then whether it is Supabase or a single cloud function.
-- Scanned games are per-ball count mode because pin identity cannot be read from a
-  monitor. The stats engine already handles that mode.
-- Done when a test set of at least thirty monitor photos from different scoring systems
-  reconstructs with every mismatch flagged and none silently wrong.
+  reconstructed scorecard, tap any frame to correct, save. The original photo is stored
+  as a GamePhoto linked to the game.
+- On-device pipeline in a new ScanKit package, with two grid-detection paths:
+  - iOS 26 and later: Vision `RecognizeDocumentsRequest` to find the score table.
+  - iOS 18 to 25: `RecognizeTextRequest` plus ScanKit's own grid detection, clustering
+    recognized text boxes into rows (bowlers) and columns (frames).
+  - Both paths feed one parser that turns X, /, F, -, and digits into rolls, and the
+    BowlingCore engine checks that the reconstructed frames reproduce the printed totals.
+- Verification rules: a total mismatch flags the frame. Because a spare frame's total is
+  the same whatever the first ball was, a matching total does not prove the first ball
+  was read correctly, so any character recognized below a confidence threshold is also
+  flagged. Nothing flagged is saved without the bowler confirming it.
+- Optional cloud mode: opt-in call to a vision model for dark or animated displays,
+  through one serverless function that holds the API key. Decide at this phase whether
+  that function is a Supabase Edge Function or a standalone cloud function.
+- Scanned games are count mode (`pinsStandingMask` empty) because pin identity cannot be
+  read reliably from a monitor. The stats engine already handles that mode.
+- Done when a test set of at least 60 monitor photos (at least 10 from each of Brunswick,
+  QubicaAMF, and Steltronic systems, across lighting, angle, and dark or animated
+  displays) reconstructs with no silently wrong total, and both grid-detection paths pass
+  the same test set.
+- Decide monetization before starting this phase.
 
-### Phase 5: League and team
+### Phase 5: League and team (4 to 6 weeks)
 
-Matrix rows 14, 22, 33, 21.
+Features: league standings; Baker team scoring; Baker for any roster size with individual
+stats; several devices scoring one team game.
 
 - Frontend: league setup with handicap rule, roster, and schedule. Standings computed
   from entered scores. Baker mode with configurable roster size and rotation,
   substitutions, and per-bowler stats drawn from their own frames.
 - Logic: LeagueKit package with USBC-style handicap math, standings, and Baker rotation.
-  Baker reuses the phase 1 engine with frames owned by different bowlers.
+  Baker reuses the BowlingCore engine with frames owned by different bowlers.
 - Multi-device team scoring is the last item and the first that needs people-to-people
   data. SwiftData cannot share records between iCloud accounts, so this item introduces
-  the Supabase backend with Sign in with Apple, a shared game table, and realtime updates.
-  It can be deferred to phase 7 to ship the rest of phase 5 without a server.
-- Done when a league secretary can run a season's standings from the app, and a
-  five-bowler Baker game scores correctly in tests.
+  the Supabase backend, accounts (Sign in with Apple or email), a shared game table, and
+  realtime updates. While a shared game is live the server copy is authoritative; when
+  it finishes, each participating device saves its own local copy.
+- If this item ships, the account compliance work listed under phase 7 (deletion,
+  privacy policy, age gating, under-13 handling) ships with it. School teams are a target
+  user for Baker, so under-13 handling is not optional here.
+- This item can be deferred to phase 7 to ship the rest of phase 5 without a server.
+- Done when a league secretary can run a season's standings from the app, five-, six-,
+  and seven-bowler Baker games score correctly in tests, and (if built) two phones
+  scoring one team game never lose or duplicate a frame.
 
-### Phase 6: Practice tools
+### Phase 6: Practice tools (3 to 4 weeks)
 
-Matrix rows 25, 24, 26, 31.
+Features: manual stopwatch speed; speed and rev rate from recorded video; delayed instant
+replay; custom per-frame questions.
 
 - Frontend: stopwatch ball speed with a distance setting, video speed and rev tool where
   the bowler marks release and arrival frames, delayed instant replay with a 5 to 30
-  second delay, custom per-frame yes/no questions shown during scoring and summarized
-  in Stats.
-- Logic: PracticeKit package on AVFoundation. Replay records continuously and plays back
-  from a moving offset.
+  second delay, custom per-frame yes/no questions shown during scoring and summarized in
+  Stats.
+- Logic: PracticeKit package on AVFoundation. Replay writes the camera feed to short
+  segment files on disk and plays back from a moving offset, deleting segments older
+  than the delay window. Frames are never buffered in memory. The video tool reports its
+  timing resolution (frame rate), since 30 fps limits speed accuracy.
 - Backend: none. Videos stay on device and are not synced, with a note to the user.
-- Done when replay runs with the configured delay for a full practice session without
-  memory growth.
+- Done when replay runs with the configured delay for a 90-minute practice session
+  without memory growth or thermal shutdown on the oldest supported iPhone.
 
-### Phase 7: Social and competition
+### Phase 7: Social and competition (6 to 8 weeks)
 
-Matrix rows 17, 34, 35.
+Features: follow friends; online tournaments and friend challenges; rankings and
+leaderboards; scoring friends' games into their own accounts.
 
-- Accounts: Sign in with Apple or email. Every social feature requires one. Local-only
-  use without an account remains possible for phases 1 through 6 features.
-- Game invitations: when a session has a bowler other than the owner, the owner can
-  attach an email to that bowler, once, and the app remembers it for next time. On
-  finishing the game the app sends an invitation per the decision table above. The
-  recipient sees pending invitations on Home, with the scorecard, and accepts or declines.
-  Accepting copies the game into their own history as a game they own, marked "scored by
-  <name>" and attributed to the sender's center, league, and pattern where those exist in
-  the recipient's data, otherwise created. Declining discards the invitation. The
-  sender's copy is unaffected either way. Invitations expire after 30 days.
+- Accounts: introduced here if phase 5 did not already. Every social feature requires
+  one. Local-only use without an account remains possible for all features from phases
+  1 to 4 and 6.
+- Game invitations:
+  - When a session has a bowler other than the owner, the owner can attach an email to
+    that bowler, once, and the app remembers it.
+  - On finishing the game, the app calls an Edge Function that stores the invitation and
+    emails a one-time claim link through the transactional email provider. The app always
+    shows "invitation sent".
+  - Opening the link in the app while signed in to any account claims the game for that
+    account, which works with Hide My Email addresses. If the recipient is signed in,
+    the pending invitation also appears in their Home inbox.
+  - Accepting copies the game into the recipient's history as a game they own, marked
+    "scored by <name>" and attributed to the sender's center, league, and pattern where
+    those exist in the recipient's data, otherwise created. Declining discards it. The
+    sender's copy is unaffected either way.
+  - Opening the link on Android or a desktop shows a web page with the scorecard and
+    explains that the app is iOS only.
+  - Abuse limits: invitations per sender per day are capped, every email includes an
+    opt-out that blocks further invitations to that address, and unclaimed invitations
+    and their email addresses are deleted after 30 days.
 - Frontend: profile, friend search and follow, feed of friends' recent games, challenge
-  creation with format and dates, leaderboards by center and overall, pending
-  invitations inbox.
+  creation with format and dates, leaderboards by center and overall, pending invitations
+  inbox.
 - Backend: Supabase. Tables for profiles, follows, published games, invitations,
-  challenges, entries, leaderboard snapshots. Row-level security so a user reads only
-  what they follow, what is public, or invitations addressed to them. A scheduled
-  function recomputes leaderboards and expires invitations. Published games are
-  summaries copied from the device, never the source of truth. Invitation emails go
-  through Supabase Auth's email provider.
-- Also required: account deletion, privacy policy, content reporting, age gating. This is
-  the first phase where user content is visible to others.
+  challenges, entries, leaderboard snapshots, blocks. Row-level security so a user reads
+  only what they follow, what is public, or invitations addressed to them, and never
+  content from users who blocked them. A scheduled function recomputes leaderboards and
+  expires invitations. Published games are summaries copied from the device, never the
+  source of truth. Custom SMTP is configured before any production email is sent.
+- Also required: in-app account deletion, privacy policy covering third-party emails
+  entered by users, content reporting, user blocking, age gating with under-13 handling
+  (COPPA in the US) and a matching App Store age rating. Get a legal review of consent
+  rules for invitation emails in the launch countries.
 - Done when two accounts can follow each other, see each other's games, complete a
-  challenge, and a game scored on one phone for the other person appears in their
-  history after they accept the invitation.
+  challenge, block each other, and a game scored on one phone for the other person
+  (including one signed in with Hide My Email) appears in their history after they open
+  the claim link and accept.
 
-### Phase 8: Reference and coaching
+### Phase 8: Reference and coaching (4 to 6 weeks)
 
-Matrix rows 40, 41, 42, 43, 37, 32. A grab bag; reorder freely.
+Features: oil pattern library; ball path simulator; catalog of commercial balls; layouts
+and drilling specs; bowling alley finder; AI coach. A grab bag; reorder freely.
 
-- Oil pattern library seeded from published PBA and Kegel pattern sheets as bundled JSON,
-  linked to the OilPattern entity from phase 1.
-- Alley finder using MapKit's bowling point-of-interest category. Also lets the user pick
-  a center from the map in the new-session flow.
+- Oil pattern library as bundled JSON in the non-synced reference store, referenced from
+  user data by `patternKey`. Confirm permission from Kegel or the PBA before bundling
+  their published pattern sheets.
+- Alley finder using MapKit's bowling point-of-interest category (available from iOS
+  18). Also lets the user pick a center from the map in the new-session flow.
 - Drilling layouts and hand measurements as fields on Ball.
-- Ball catalog only if a licensable data source is found.
+- Ball catalog only if a licensable data source is found; otherwise specs stay
+  user-entered on the ball detail page.
 - Ball path simulator as a simple two-dimensional model. The matrix notes a competitor's
   developer considers accurate prediction unreliable; present it as illustrative.
 - AI coach as a serverless function that receives a stats summary and returns a practice
@@ -229,18 +342,80 @@ Matrix rows 40, 41, 42, 43, 37, 32. A grab bag; reorder freely.
 
 ## Deferred, with reasons
 
-| Row | Feature | Reason |
-|---|---|---|
-| 7 | Automatic import from center scoring systems | Needs a data partnership with each scoring vendor |
-| 16 | Live scoring from other lanes and centers | Same vendor dependency |
-| 23 | Phone camera ball tracking on a tripod | Research-grade computer vision project |
-| 27 | Ball data and pinfall in one shot record | Depends on 23 or 48 |
-| 36 | Compare with pros | Needs licensed PBA and PWBA data |
-| 44 | Paying league dues | Payments product for treasurers, not a bowler feature |
-| 45 | League admin platform | Web product for secretaries |
-| 46 | USBC digital card | USBC's own app |
-| 47 | Coach dashboard | Revisit after phase 7 when accounts exist |
-| 48, 49 | Specto sensor data and gamified drills | Needs Kegel hardware and API access |
-| 50 | Predicting ball reaction | Unsolved problem per the matrix |
+| Feature | Reason |
+|---|---|
+| Automatic import from the center's scoring system | Needs a data partnership with each scoring vendor |
+| Live scoring from other lanes and centers | Same vendor dependency |
+| Phone camera ball tracking on a tripod | Research-grade computer vision project |
+| Ball data and pinfall stored together in one shot record | Depends on camera or sensor ball tracking |
+| Compare yourself with pros | Needs licensed PBA and PWBA data |
+| Paying league dues in the app | Payments product for treasurers, not a bowler feature |
+| League admin platform | Web product for secretaries |
+| USBC digital card and certified average | USBC's own app |
+| Coach dashboard | Revisit after phase 7 when accounts exist |
+| Sensor installed in the center; gamified practice drills | Need Kegel hardware and API access |
+| Predicting ball reaction from ball, revs, and pattern | Unsolved problem per the matrix |
 
-Revisit each after phases 1 through 4 ship.
+Revisit each after phases 1a through 4 ship.
+
+## Appendix A: Feature to phase mapping
+
+Ranks are from the 52-feature matrix as of 2026-10-08. If the matrix is re-ranked, update
+this column; the phase sections above cite features by name only.
+
+| Rank | Feature | Tier | Phase |
+|---|---|---|---|
+| 1 | Frame-by-frame and pin-by-pin entry | 1 | 1a |
+| 2 | Final-score-only entry | 1 | 1a |
+| 3 | Average, high game and series, strike % and spare % | 1 | 1a |
+| 4 | Cloud backup and sync | 1 | 2 |
+| 5 | Offline scoring | 1 | 1a |
+| 6 | Photo of the scoreboard turned into a game | 1 | 4 |
+| 7 | Automatic import from the center's scoring system | 1 | Deferred |
+| 8 | Pin leaves and spare conversion by leave | 1 | 1a |
+| 9 | Practice vs competition separation | 1 | 1a |
+| 10 | Ball and pattern tagging per game | 1 | 1b |
+| 11 | Score friends' games into their own accounts | 2 | 7 |
+| 12 | Tag and filter by ball, pattern, center, or league | 2 | 1b |
+| 13 | Spare % measured over spare attempts only | 2 | 1a |
+| 14 | Makeable spares vs splits | 2 | 1a |
+| 15 | League standings in the app | 2 | 5 |
+| 16 | Personal arsenal with maintenance dates | 2 | 1b |
+| 17 | Ball detail page (specs, setup, and performance per ball) | 2 | 1b |
+| 18 | Live scoring from other lanes and centers | 2 | Deferred |
+| 19 | Follow friends | 2 | 7 |
+| 20 | Each missed spare linked to its date and ball | 2 | 1b |
+| 21 | Custom date ranges | 2 | 1b |
+| 22 | Shareable score images | 2 | 3 |
+| 23 | Several devices scoring one team game | 2 | 5 (or 7) |
+| 24 | Baker team scoring | 2 | 5 |
+| 25 | Phone camera on a tripod | 3 | Deferred |
+| 26 | Speed and rev rate from recorded video | 3 | 6 |
+| 27 | Manual stopwatch speed | 3 | 6 |
+| 28 | Delayed instant replay | 3 | 6 |
+| 29 | Ball data and pinfall stored together in one shot record | 3 | Deferred |
+| 30 | Strike rate by frame number, average per frame | 3 | 1b |
+| 31 | Head pin rate, clean game rate | 3 | 1b |
+| 32 | "What if I made every single-pin spare" average | 3 | 1b |
+| 33 | Custom per-frame questions | 3 | 6 |
+| 34 | AI coach | 3 | 8 |
+| 35 | Baker for 6 or 7 bowlers, with individual stats | 3 | 5 |
+| 36 | Online tournaments and friend challenges | 3 | 7 |
+| 37 | Rankings and leaderboards | 3 | 7 |
+| 38 | Compare yourself with pros | 3 | Deferred |
+| 39 | Bowling alley finder | 3 | 8 |
+| 40 | CSV export | 4 | 1b |
+| 41 | Import history from other apps | 4 | 3 |
+| 42 | Oil pattern library | 4 | 8 |
+| 43 | Ball path simulator | 4 | 8 |
+| 44 | Catalog of commercial balls | 4 | 8 |
+| 45 | Layouts and drilling specs | 4 | 8 |
+| 46 | Paying league dues in the app | 4 | Deferred |
+| 47 | League admin platform | 4 | Deferred |
+| 48 | USBC digital card and certified average | 4 | Deferred |
+| 49 | Coach dashboard | 4 | Deferred |
+| 50 | Sensor installed in the center | 4 | Deferred |
+| 51 | Gamified practice drills | 4 | Deferred |
+| 52 | Predicting ball reaction from ball, revs, and pattern | 4 | Deferred |
+
+Totals: 40 features planned across phases 1a to 8, 12 deferred.

@@ -1,11 +1,34 @@
 # Phase 1 Design: Core Scoring and Stats, On Device
 
-Date: 2026-10-07
-Status: approved in conversation, pending written review
-Roadmap: `2026-10-07-program-roadmap.md`
-Matrix rows covered: 1, 2, 3, 5, 8, 9, 10, 11, 12, 13, 15, 18, 19, 28, 29, 30
+Date: 2026-10-08 (revises 2026-10-07)
+Status: revised after review, pending written approval
+Roadmap: `2026-10-08-program-roadmap.md`
+Sub-phases: 1a (scoring engine and core stats) and 1b (analysis, arsenal, ball detail)
 
-## 1. Purpose
+## 0. Changes from the 2026-10-07 version
+
+1. Split into phase 1a and phase 1b, each with its own scope and done criteria (section 1).
+   CSV export moves into 1b.
+2. Matrix features are cited by name. The roadmap's Appendix A maps names to ranks.
+3. Model rules for CloudKit made explicit: every relationship has an inverse and a
+   declared delete rule, no Deny rules, enums stored as raw strings with an unknown
+   fallback (section 3.1).
+4. Photos move off Game and Ball into `GamePhoto` and `BallPhoto` with external storage.
+5. OilPattern links to the phase 8 bundled library through `patternKey` instead of being
+   filled by it.
+6. Duplicate handling after sync is designed now (owner merge, named-entity merge) so
+   phase 2 only implements it (section 3.4).
+7. BowlingCore value types renamed `RollRecord` and `FrameRecord` so they never collide
+   with the SwiftData models `Roll` and `Frame`.
+8. Fouls are modeled (`Roll.isFoul`) and scored per the USBC rule.
+9. Stats default to competition games; practice and casual are excluded unless the
+   filter includes them.
+10. League gains optional season start and end dates, which define "this season".
+11. Entry mode rule made consistent: switching modes is allowed only before the first roll.
+12. Resurface reminders use a local notification as well as the badge.
+13. Ordering fields renamed to match the roadmap: `gameIndex`, `frameIndex`, `rollIndex`.
+
+## 1. Purpose and scope
 
 Let any bowler record games on an iPhone, offline, at the level of detail they have time
 for, and see every statistic that can be computed from what they entered. Everything in
@@ -16,34 +39,51 @@ which pins fell on every ball, in less time than it takes to walk back from the 
 return; a casual bowler types one final score in ten seconds; both open Stats the next
 day and see numbers that are correct.
 
-### In scope
+### Phase 1a: scoring engine and core stats
 
+Matrix features: frame-by-frame and pin-by-pin entry; final-score-only entry; offline
+scoring; average, high game and series, strike and spare percentages; pin leaves and
+spare conversion by leave; spare percentage over spare attempts only; makeable spares
+versus splits; practice versus competition separation.
+
+- The complete schema from section 3, including every 1b and reserved field. The schema
+  is not promoted to CloudKit production until phase 2, but it is designed once, here.
 - Frame-by-frame, pin-by-pin entry with automatic frame advance and tenth-frame handling.
-- Per-ball count entry (how many pins fell, without which ones) and final-score-only entry.
+- Per-ball count entry and final-score-only entry.
+- Fouls.
 - Sessions tagged practice, league, tournament, or casual, with center, league, oil
   pattern, lanes, and notes.
-- Ball tagging per game with a per-roll override for spare balls.
-- A personal arsenal with full ball specs, a photo, a maintenance log with resurface
-  reminders, and a per-ball detail screen showing performance as a strike ball and as a
-  spare ball, by oil pattern and center, over time, plus a side-by-side comparison of
-  all balls.
-- Multiple bowlers in one session on one phone, as local names. Their games live only on
-  this phone in phase 1. Sending a game to the other bowler's own account by email
-  invitation is a phase 7 feature; the schema reserves fields for it.
-- Statistics: average, high game, high series, strike percentage, spare percentage over
-  spare attempts, makeable spares versus splits, leaves by pin and conversion per leave,
-  every missed spare listed with date and ball, strike rate and average by frame number,
-  clean game rate, head pin rate, first-ball average, open frame rate, the "what if I made
-  every single-pin spare" average, trend over time.
-- Filters on every stats screen: date range with presets and custom, event type, bowler,
-  ball, oil pattern, center, league.
-- Editing and deleting past games and sessions.
+- Multiple bowlers in one session on one phone, as local names.
+- A basic arsenal: add a ball with name, weight, and intended role; pick a default ball
+  per game and override per roll.
+- Stats screen sections: overview, trend, strikes and spares, leaves table with
+  split, makeable, and single-pin conversion. Filters: date presets, event type, bowler.
+- History with editing and deleting of games and sessions.
+- Home, Settings, first-launch flow.
+
+### Phase 1b: analysis, arsenal, and ball detail
+
+Matrix features: ball and pattern tagging per game; tag and filter by ball, pattern,
+center, or league; personal arsenal with maintenance dates; ball detail page; each missed
+spare linked to its date and ball; custom date ranges; strike rate by frame number and
+average per frame; head pin rate and clean game rate; "what if I made every single-pin
+spare" average; CSV export.
+
+- Full ball add and edit form, ball photo, maintenance log, resurface reminders, ball
+  detail screen with the ball report, Compare table, retire.
+- Full filter set on Stats and on the ball detail screen: custom date range, ball, oil
+  pattern, center, league.
+- Leave occurrence list (tap a leave to see every occurrence with date and ball).
+- By-frame section, head pin rate, clean game rate, first-ball average, open frame rate,
+  what-if section.
+- CSV export of games, frames, rolls, and tags from Settings.
 
 ### Out of scope for phase 1
 
-iCloud sync (phase 2), sharing and CSV (phase 3), photo scan (phase 4), handicap,
-standings and Baker (phase 5), practice tools (phase 6), anything with accounts (phase 7),
-pattern and ball libraries (phase 8), monetization.
+iCloud sync (phase 2), share images and CSV import (phase 3), photo scan (phase 4),
+handicap, standings and Baker (phase 5), practice tools (phase 6), anything with accounts
+including sending a game to another bowler (phase 7), pattern and ball libraries (phase
+8), monetization.
 
 ## 2. Architecture
 
@@ -57,13 +97,15 @@ BowlingData: SwiftData models, repositories          (Packages/BowlingData)
 BowlingCore: value types, scoring, leaves, stats     (Packages/BowlingCore, pure Swift)
 ```
 
-- **BowlingCore** has no dependency on SwiftData, SwiftUI, or Foundation beyond basics.
-  It defines the value types (`PinSet`, `Roll`, `Frame`, `GameRecord`) and the three
-  engines: `Scorer`, `LeaveClassifier`, `StatsEngine`. Every function is deterministic
-  and unit tested.
+- **BowlingCore** has no dependency on SwiftData or SwiftUI. It defines the value types
+  (`PinSet`, `RollRecord`, `FrameRecord`, `GameRecord`) and the three engines: `Scorer`,
+  `LeaveClassifier`, `StatsEngine`. Every function is deterministic and unit tested. The
+  `Record` suffix keeps these names distinct from the SwiftData models in files that
+  import both packages.
 - **BowlingData** defines the SwiftData `@Model` classes, the `ModelContainer` setup, and
   repositories that fetch models and convert them to BowlingCore value types for the
-  engines. It also owns the demo fixture data used by previews and tests.
+  engines. It owns the demo fixture data used by previews and tests, and the CSV codec
+  (1b).
 - **App target** contains only views, feature models, and navigation. Feature models are
   `@Observable` classes that hold screen state, call repositories, and run engines. Views
   never touch `ModelContext` directly except through `@Query` for simple lists.
@@ -73,148 +115,218 @@ persistence, and phases 4 and 5 reuse them for scan verification and Baker scori
 
 ## 3. Domain model
 
-All SwiftData models follow the roadmap rules: optional relationships, defaults on every
-attribute, no unique constraints, UUID identities, additive-only schema. `remoteID:
-String?` exists on every model for phase 7 publishing and is unused in phase 1.
+### 3.1 Rules every model follows
 
-### Bowler
+These come from the roadmap and must hold before phase 2 promotes the CloudKit schema.
+
+- **Identity**: `id: UUID` generated on device. No unique constraints.
+- **Defaults**: every attribute has a default value or is optional.
+- **Relationships**: all optional, every one with an explicit inverse declared on one
+  side with `@Relationship(inverse:)`, every one with a declared delete rule of Nullify
+  or Cascade. Never Deny; refusals happen in repositories (section 3.3).
+- **Ordering**: CloudKit does not preserve relationship order. Order lives in
+  `Game.gameIndex`, `Frame.frameIndex`, and `Roll.rollIndex`. Every fetch and every
+  conversion to BowlingCore sorts by these fields; nothing relies on array order.
+- **Enums**: stored as a raw `String` attribute with a computed Swift enum property.
+  Unknown raw values decode to an `unknown` or default case instead of failing, so an
+  older app version that receives a case added later keeps working. Raw strings also
+  make SwiftData predicates simple.
+- **Binary data**: never on a frequently synced entity. Photos live in `GamePhoto` and
+  `BallPhoto`, with `@Attribute(.externalStorage)`, downscaled on save.
+- **Reference data**: bundled libraries (phase 8) live in a separate, non-synced
+  ModelConfiguration. User data references them by stable string key, never by
+  relationship.
+- **Timestamps**: `createdAt` and `updatedAt` on every entity, for CSV export, duplicate
+  merging, and debugging sync.
+- **Publishing**: `remoteID: String?` on every entity, unused until phase 5 or 7.
+- **Additive only**: once phase 2 promotes the schema, attributes and entities are never
+  renamed or removed.
+
+### 3.2 Entities
+
+Common fields `id`, `createdAt`, `updatedAt`, and `remoteID` are omitted from the tables
+below but exist on every entity.
+
+#### Bowler
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
 | name | String | |
-| isOwner | Bool | Exactly one owner, created at first launch. Enforced in the repository, not the schema |
-| handedness | enum right, left, unknown | Used by stats to label leaves |
+| isOwner | Bool | One owner per user. Enforced in the repository, with a merge rule after sync (section 3.4) |
+| handedness | String raw: right, left, unknown | Default unknown |
 | email | String? | Reserved for phase 7 game invitations. Not shown in phase 1 |
-| createdAt | Date | |
-| games | [Game]? | inverse of Game.bowler |
+| games | [Game]? | Inverse of Game.bowler |
 
-### Session
+#### Session
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
 | date | Date | Start of the outing |
-| eventType | enum practice, league, tournament, casual | Default casual |
-| center | BowlingCenter? | |
-| league | League? | Only meaningful when eventType is league |
-| oilPattern | OilPattern? | |
+| eventType | String raw: practice, league, tournament, casual | Default casual |
+| center | BowlingCenter? | Inverse of BowlingCenter.sessions |
+| league | League? | Only meaningful when eventType is league. Inverse of League.sessions |
+| oilPattern | OilPattern? | Inverse of OilPattern.sessions |
 | lanes | String | Free text, for example "17-18" |
 | notes | String | |
-| games | [Game]? | ordered by Game.orderInSession |
+| games | [Game]? | Inverse of Game.session. Sorted by Game.gameIndex |
 
 A session's series total is the sum of its games' final scores for one bowler.
 
-### Game
+#### Game
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
 | session | Session? | |
 | bowler | Bowler? | |
-| orderInSession | Int | 1-based |
-| entryMode | enum pinByPin, countOnly, finalOnly | Fixed at creation; a game can be upgraded from countOnly to pinByPin by editing but never silently |
-| defaultBall | Ball? | |
+| gameIndex | Int | 1-based order within the session for this bowler |
+| entryMode | String raw: pinByPin, countOnly, finalOnly | Fixed once the first roll exists (section 8) |
+| defaultBall | Ball? | Inverse of Ball.gamesAsDefault |
 | finalScore | Int | Cached. Computed by the Scorer for pinByPin and countOnly; typed by the user for finalOnly |
 | isComplete | Bool | True when all ten frames are finished or when finalOnly |
-| frames | [Frame]? | Zero frames when finalOnly |
-| createdAt, updatedAt | Date | |
-| sourceImageData | Data? | Reserved for phase 4 |
+| frames | [Frame]? | Inverse of Frame.game. Zero frames when finalOnly |
+| photo | GamePhoto? | Inverse of GamePhoto.game. Reserved for phase 4 |
 | scanConfidence | Double? | Reserved for phase 4 |
-| invitationStatus | enum none, sent, accepted, declined, expired | Default none. Reserved for phase 7 game invitations |
+| invitationStatus | String raw: none, sent, accepted, declined, expired | Default none. Reserved for phase 7 |
 | scoredByName | String? | Reserved for phase 7. Set on the recipient's copy of an accepted invitation |
 
-### Frame
+#### Frame
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
 | game | Game? | |
-| index | Int | 1 through 10 |
-| rolls | [Roll]? | ordered by Roll.index |
+| frameIndex | Int | 1 through 10 |
+| rolls | [Roll]? | Inverse of Roll.frame. Sorted by Roll.rollIndex |
 | rotationSlot | Int? | Reserved for Baker in phase 5 |
 
-### Roll
+#### Roll
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
 | frame | Frame? | |
-| index | Int | 1 through 3 |
-| pinsDownMask | Int | Ten-bit mask, bit n-1 is pin n. For countOnly games this is 0 and `pinCount` carries the number |
-| pinCount | Int | Pins knocked down on this roll. Always set, derived from the mask when pins are known |
-| pinsKnown | Bool | True in pinByPin mode |
-| ball | Ball? | Override for this roll. Nil means the game's default ball |
+| rollIndex | Int | 1 through 3 |
+| pinsDownMask | Int | Ten-bit mask, bit n-1 is pin n. 0 for countOnly rolls and fouls |
+| pinCount | Int | Pins credited on this roll. Always set; derived from the mask when pins are known; 0 on a foul |
+| pinsKnown | Bool | True in pinByPin mode. False for countOnly and for phase 4 scanned games |
+| isFoul | Bool | Default false. See section 4 |
+| ball | Ball? | Override for this roll; nil means the game's default ball. Inverse of Ball.rollsAsOverride |
 
-### Ball
+This design's Roll fields supersede the reserved field names listed in the roadmap.
+
+#### Ball
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
-| name | String | |
+| name | String | Required |
 | brand | String | |
-| weightPounds | Int | 6 through 16 |
-| coverstock | enum plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other | |
+| weightPounds | Int | 6 through 16. Required |
+| coverstock | String raw: plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other, unknown | Default unknown |
 | coverstockName | String | Manufacturer's coverstock name, for example "SPEC Solid" |
-| coreType | enum symmetric, asymmetric, pancake, unknown | Pancake is the plastic spare-ball core |
-| coreName | String | Manufacturer's core name, for example "Shape-Lock HD" |
-| rg | Double? | Radius of gyration from the manufacturer sheet, typically 2.4 to 2.6 |
+| coreType | String raw: symmetric, asymmetric, pancake, unknown | Pancake is the plastic spare-ball core |
+| coreName | String | Manufacturer's core name |
+| rg | Double? | Radius of gyration, typically 2.4 to 2.6 |
 | differential | Double? | Typically 0.00 to 0.06 |
-| intermediateDifferential | Double? | Asymmetric cores only. Also called mass bias differential on spec sheets |
-| intendedRole | enum strike, spare, both | Default strike. Drives which stats lead on the detail screen and which picker the ball appears in first |
+| intermediateDifferential | Double? | Asymmetric cores only. Also called mass bias differential |
+| intendedRole | String raw: strike, spare, both | Default strike. Drives which stats lead on the detail screen and picker order |
 | serialNumber | String | |
 | colorDescription | String | Free text |
-| imageData | Data? | Photo of the ball, downscaled on save |
-| releaseDate | Date? | Manufacturer release date, month precision |
+| releaseDate | Date? | Month precision |
 | purchaseDate | Date? | |
 | factoryFinish | String | Out-of-box surface, for example "2000 Abralon". Current surface starts from this on add |
 | surfaceGrit | String | Current surface, for example "2000 polished" |
 | resurfaceIntervalGames | Int? | Reminder threshold. Nil means no reminder |
 | isRetired | Bool | Retired balls stay for history but are hidden from pickers |
-| notes | String | |
-| maintenance | [MaintenanceEvent]? | cascade delete |
+| notes | String | Drilling layout and hand measurements go here until phase 8 adds fields |
+| photo | BallPhoto? | Inverse of BallPhoto.ball |
+| maintenance | [MaintenanceEvent]? | Inverse of MaintenanceEvent.ball |
+| gamesAsDefault | [Game]? | Inverse of Game.defaultBall |
+| rollsAsOverride | [Roll]? | Inverse of Roll.ball |
 
-Drilling layout values and hand measurements (matrix row 43) are not fields in phase 1;
-they go in `notes` until phase 8 adds them properly.
-
-### MaintenanceEvent
+#### GamePhoto and BallPhoto
 
 | Field | Type | Notes |
 |---|---|---|
-| id | UUID | |
+| imageData | Data | `@Attribute(.externalStorage)`. Downscaled on save |
+| game / ball | Game? / Ball? | One-to-one with its owner |
+
+BallPhoto is used in 1b. GamePhoto is created in phase 1 only by the schema; phase 4
+writes it.
+
+#### MaintenanceEvent
+
+| Field | Type | Notes |
+|---|---|---|
 | ball | Ball? | |
 | date | Date | |
-| kind | enum resurface, polish, oilExtraction, plugAndRedrill, other | |
-| surfaceGritAfter | String | Optional text, copied to Ball.surfaceGrit on save when non-empty |
+| kind | String raw: resurface, polish, oilExtraction, plugAndRedrill, other | |
+| surfaceGritAfter | String | Copied to Ball.surfaceGrit on save when non-empty |
 | gamesOnBallAtTime | Int | Snapshot of games bowled when the event was logged |
 | notes | String | |
 
 Derived values, computed by the repository:
 
-- **Games bowled** is the count of games where defaultBall is this ball, plus games where
-  any roll overrides to it, counted once per game.
-- **Games since last resurface** is games bowled since the most recent event of kind
+- **Games bowled**: count of games where defaultBall is this ball, plus games where any
+  roll overrides to it, counted once per game.
+- **Games since last resurface**: games bowled since the most recent event of kind
   resurface, or since purchase if none.
-- **Resurface due** is true when `resurfaceIntervalGames` is set and games since last
-  resurface meets or exceeds it.
+- **Resurface due**: `resurfaceIntervalGames` is set and games since last resurface meets
+  or exceeds it.
 
-### BowlingCenter, League, OilPattern
+#### BowlingCenter, League, OilPattern
 
-Each has `id`, `name`, `notes`, and `createdAt`. BowlingCenter adds optional `city` and
-optional `latitude` and `longitude` for the phase 8 map. League adds `center:
-BowlingCenter?`, `seasonLabel: String`, and `gamesPerSession: Int` default 3. OilPattern
-adds `lengthFeet: Int?` and `volumeMilliliters: Double?`, both optional, filled by the
-phase 8 library.
+Each has `name` and `notes`, and an inverse `sessions: [Session]?`.
 
-### Deletion rules
+- **BowlingCenter** adds optional `city`, `latitude`, `longitude` (phase 8 map), and
+  `leagues: [League]?` as the inverse of League.center.
+- **League** adds `center: BowlingCenter?`, `seasonLabel: String`, `seasonStart: Date?`,
+  `seasonEnd: Date?`, and `gamesPerSession: Int` default 3.
+- **OilPattern** adds `lengthFeet: Int?`, `volumeMilliliters: Double?`, and
+  `patternKey: String?`. In phase 8 the user can link a pattern they created to the
+  bundled library by setting `patternKey`; the library data itself never enters the
+  synced store.
 
-- Deleting a Session deletes its Games, Frames, and Rolls (cascade).
+### 3.3 Relationships and delete rules
+
+| From | To | Inverse | Delete rule on "From" |
+|---|---|---|---|
+| Session.games | Game | Game.session | Cascade |
+| Game.frames | Frame | Frame.game | Cascade |
+| Frame.rolls | Roll | Roll.frame | Cascade |
+| Game.photo | GamePhoto | GamePhoto.game | Cascade |
+| Ball.photo | BallPhoto | BallPhoto.ball | Cascade |
+| Ball.maintenance | MaintenanceEvent | MaintenanceEvent.ball | Cascade |
+| Ball.gamesAsDefault | Game | Game.defaultBall | Nullify |
+| Ball.rollsAsOverride | Roll | Roll.ball | Nullify |
+| Bowler.games | Game | Game.bowler | Nullify |
+| BowlingCenter.sessions | Session | Session.center | Nullify |
+| BowlingCenter.leagues | League | League.center | Nullify |
+| League.sessions | Session | Session.league | Nullify |
+| OilPattern.sessions | Session | Session.oilPattern | Nullify |
+
+Repository rules on top of the schema:
+
 - Deleting a Bowler who has games is refused with an explanation; the user can delete
   the games first. The owner can never be deleted.
-- Deleting a Ball nullifies references on Games and Rolls and deletes its
-  MaintenanceEvents. The user is warned with the count of affected games and offered
-  "retire instead".
-- Deleting a Center, League, or Pattern nullifies references and warns the same way.
+- Deleting a Ball warns with the count of affected games and offers "retire instead".
+- Deleting a Center, League, or Pattern warns with the count of affected sessions.
+
+### 3.4 Duplicates after sync (designed now, implemented in phase 2)
+
+Without unique constraints, iCloud sync can produce duplicates. Two cases are certain,
+so the design handles them now:
+
+- **Two owners.** A second device creates its own owner at first launch, then receives
+  the first device's owner through sync. Rules:
+  - First launch checks the iCloud account status. If an account is signed in, the
+    first-launch flow offers "Restore from iCloud" and waits for the initial import
+    before creating an owner.
+  - After every remote import, the repository looks for more than one owner. It keeps
+    the oldest by `createdAt` (ties broken by smaller UUID string), moves every game of
+    the others to it, copies over any non-empty fields the kept owner lacks, and deletes
+    the others. The rule is deterministic, so every device reaches the same result.
+- **Same-name centers, leagues, and patterns** created on two devices. These are not
+  merged automatically, because two centers can share a name. Settings gains a "Merge"
+  action in phase 2 that moves all sessions from one record to another and deletes the
+  empty one.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 
@@ -234,15 +346,15 @@ is all ten. Pin layout for geometry:
 
 - **pinByPin**: each roll records the exact `PinSet` that fell.
 - **countOnly**: each roll records only `pinCount`.
-- **finalOnly**: no frames, the user types `finalScore` in 0 through 300.
+- **finalOnly**: no frames; the user types `finalScore` in 0 through 300.
 
-The Scorer operates on `pinCount` so it works identically for the first two modes.
+The Scorer operates on `pinCount`, so it works identically for the first two modes.
 `LeaveClassifier` and pin-level stats require `pinsKnown`.
 
 ### Frame rules, frames 1 through 9
 
 - Roll 1: 0 through 10 pins. 10 is a strike; the frame is finished.
-- Roll 2: 0 through (10 minus roll 1). Total of 10 is a spare. In pinByPin mode roll 2's
+- Roll 2: 0 through (10 minus roll 1). A total of 10 is a spare. In pinByPin mode roll 2's
   `PinSet` must be a subset of the pins left standing after roll 1.
 
 ### Frame 10
@@ -253,27 +365,37 @@ The Scorer operates on `pinCount` so it works identically for the first two mode
   roll 3 is on a fresh rack. Otherwise the frame ends after roll 2.
 - Frame 10 pins total at most 30.
 
+### Fouls
+
+A foul delivery counts as a roll with `pinCount` 0 and `isFoul` true. Following USBC
+rules, pins knocked down by a foul are respotted, so the rack after a foul is the same as
+before it: after a first-ball foul the second ball faces all ten pins, and knocking them
+all down is scored as a spare. A foul on a second ball scores 0 for that ball and ends
+the frame as normal. The UI records a foul with the Foul shortcut, which needs no pin
+input.
+
 ### Score computation
 
 Frame score is the frame's pin count plus bonuses: a strike adds the next two rolls, a
 spare adds the next one roll, in roll order across frames. Frame 10 has no bonus beyond
-its own rolls. A frame's running total is `nil` until its bonus rolls exist, and the UI
-shows a blank for pending frames exactly like a lane monitor does. Final score is the
-tenth frame's running total; maximum 300.
+its own rolls. A frame's running total is nil until its bonus rolls exist, and the UI
+shows a blank for pending frames as a lane monitor does. Final score is the tenth frame's
+running total; maximum 300.
 
 ### Validation
 
 `Scorer.validate(_ game: GameRecord) -> [ScoringError]` returns every violation: a roll
-over the pins available, a roll 2 subset violation in pinByPin mode, frames out of order,
-a frame 10 third roll that is not earned, a frame with rolls after a strike in frames 1
-through 9. Repositories refuse to save invalid games. The scoring UI prevents the user
-from entering an invalid roll in the first place by disabling pins that are already down.
+over the pins available, a roll 2 subset violation in pinByPin mode, frames or rolls out
+of order or with duplicate indices, a frame 10 third roll that is not earned, a roll
+after a strike in frames 1 through 9, a foul with a non-zero pin count. Repositories
+refuse to save invalid games. The scoring UI prevents invalid input in the first place
+by disabling pins that are already down.
 
 ### Marks for display
 
-Per roll, `Mark` is one of `strike`, `spare`, `count(Int)`, or `gutter` (zero on a roll
-where pins were available). Fouls are not modeled in phase 1; a foul is entered as a zero.
-Split leaves show the count with a split indicator when pins are known.
+Per roll, `Mark` is one of `strike`, `spare`, `count(Int)`, `gutter` (zero on a roll where
+pins were available), or `foul` (shown as F). Split leaves show the count with a split
+indicator when pins are known.
 
 ## 5. Leave classification (BowlingCore `LeaveClassifier`)
 
@@ -294,12 +416,17 @@ Rules, applied in order:
      8-9, 9-10; or
    - a down pin stands directly in front of two standing pins, using the pairs 1 in front
      of 2 and 3, 2 of 4 and 5, 3 of 5 and 6, 4 of 7 and 8, 5 of 8 and 9, 6 of 9 and 10.
+
    Otherwise `makeable`.
 
-The second clause follows USBC Rule 2's example that the 4-5 is a split when the 2 pin
-is down. It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin in front
-is down. If real bowlers disagree with any case, the adjacency and in-front tables are
-the only thing to edit, and the test suite pins every two-pin and three-pin combination.
+The second clause follows USBC's split definition, for example the 4-5 is a split when
+the 2 pin is down. It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin
+in front is down. If real bowlers disagree with any case, the adjacency and in-front
+tables are the only thing to edit, and the test suite pins every two-pin and three-pin
+combination.
+
+A foul first ball leaves no leave, because the rack is respotted; its spare attempt is
+counted against a full rack (section 6).
 
 Names use ascending pin numbers joined by hyphens: "7-10", "4-7-10", "3-6-10".
 
@@ -309,6 +436,15 @@ Input: `[GameRecord]` already filtered, plus the filter description for labeling
 `StatsReport`, a value type with every number below and the sample size each number was
 computed from. Every figure shows its denominator in the UI, for example "63% of 41
 attempts", because bowlers distrust percentages without counts.
+
+### Default scope: competition games
+
+Practice games distorting averages is a recurring complaint about competing apps. The
+default `StatsFilter` therefore includes event types league and tournament only, shown as
+a "Competition" chip in the filter bar. One tap switches to "All games" or any custom
+combination of practice, league, tournament, and casual. Home's tiles show the
+competition average with the all-games average beneath it. The choice of default is
+stored in Settings.
 
 ### Which games count for what
 
@@ -320,80 +456,86 @@ attempts", because bowlers distrust percentages without counts.
 
 Each section of the Stats screen states how many games it is based on.
 
-### Definitions
+### Definitions (1a)
 
 - **Average**: sum of final scores divided by games. Also shown for the last 10, 30, and
   all games in the filter.
 - **High game**: maximum final score, with date and session.
 - **High series**: for each session and bowler, sum of final scores. Reported per game
-  count (three-game series, four-game series) and the default display is the count that
-  matches the league's `gamesPerSession` when a league filter is set, otherwise three.
+  count (three-game series, four-game series); the default display is the count matching
+  the league's `gamesPerSession` when a league filter is set, otherwise three.
 - **Trend**: average per session over time, charted, with a rolling average of the last
   nine games overlaid.
 - **First balls**: every roll 1 in frames 1 through 9, roll 1 in frame 10, and any frame 10
   roll on a fresh rack. A game has 10 to 12 first balls.
 - **Strike %**: strikes divided by first balls.
-- **Spare attempts**: first balls that left pins standing and were followed by a second
-  roll on the same rack.
-- **Spare %**: spares divided by spare attempts. This is the attempts-only definition
-  from matrix row 12 and is the only spare percentage shown.
+- **Spare attempts**: first balls that left pins standing (including a foul, which leaves
+  all ten) and were followed by a second roll on the same rack.
+- **Spare %**: spares divided by spare attempts. This is the only spare percentage shown.
 - **Split %**: spare attempts classified split divided by spare attempts. **Split
   conversion %**: splits converted divided by splits.
 - **Makeable conversion %**: makeable and single-pin leaves converted divided by their
   count. **Single-pin conversion %** reported separately.
-- **Open frame %**: frames 1 through 10 with neither strike nor spare divided by frames.
-- **Clean game %**: games with zero open frames divided by games.
-- **Head pin rate**: first balls where pin 1 fell divided by first balls.
-- **First-ball average**: mean pin count on first balls.
 - **Leaves table**: for each distinct `Leave`, count, conversions, conversion rate, sorted
-  by count. Tapping a leave lists every occurrence with date, session, frame number, and
-  the ball used on the spare attempt, which satisfies matrix row 18. A "left most, made
-  least" callout highlights the leave with the highest count times miss rate.
+  by count. A "left most, made least" callout highlights the leave with the highest count
+  times miss rate.
+- **Fouls**: count per game, shown in the strikes and spares section when non-zero.
+
+### Definitions (1b)
+
+- **Open frame %**: frames with neither strike nor spare divided by frames.
+- **Clean game %**: games with zero open frames divided by games.
+- **Head pin rate**: first balls where pin 1 fell divided by first balls, excluding fouls.
+- **First-ball average**: mean pin count on first balls.
+- **Leave occurrences**: tapping a leave lists every occurrence with date, session, frame
+  number, and the ball used on the spare attempt.
 - **By frame number**: for frames 1 through 10, strike rate on roll 1 and mean pins in the
   frame excluding bonuses.
 - **What if I made every single-pin spare**: for each pinByPin game, rewrite every missed
   single-pin leave as a converted spare, rescore with `Scorer`, and report the resulting
-  average next to the real one with the difference. Matrix row 30.
-- **Ball stats**: when a ball filter is set on the Stats screen, all of the above for
-  games or rolls using that ball.
+  average next to the real one with the difference.
+- **Ball stats**: when a ball filter is set, all of the above for games or rolls using
+  that ball.
 
-### Ball report
+### Ball report (1b)
 
 `StatsEngine.ballReport(for ball: BallID, games: [GameRecord]) -> BallReport` powers the
-ball detail screen. A ball has two roles in the data: the ball a first ball was thrown
-with, and the ball a spare attempt was thrown with. Every roll resolves its ball as the
-roll override if present, otherwise the game's default ball, so the report is exact even
-when a bowler switches balls mid-game.
+ball detail screen. Every roll resolves its ball as the roll override if present,
+otherwise the game's default ball, so the report is exact even when a bowler switches
+balls mid-game.
 
 - **Usage**: games bowled, first balls thrown, spare attempts thrown, first and last date
   used, games since last resurface, resurface due flag.
 - **As a strike ball**, over first balls thrown with it: strike %, first-ball average,
-  head pin rate, and the average of games where it was the default ball. The average is
-  labeled "games with this ball as main ball" because spares may have used another ball.
+  head pin rate, and the average of games where it was the default ball, labeled "games
+  with this ball as main ball".
 - **As a spare ball**, over spare attempts thrown with it: spare conversion %,
   single-pin conversion %, split conversion %, and the leaves table restricted to those
   attempts, with the same tap-through to occurrences.
 - **By condition**: strike % and first-ball average grouped by oil pattern, and
   separately by center. A group displays only when it has at least 10 first balls;
-  smaller groups are summed into "Other" so the user sees why a pattern is missing.
-  This answers matrix row 11's "how do I score with this ball on this pattern".
+  smaller groups are summed into "Other".
 - **Over time**: strike % per session since purchase, charted, with maintenance events
-  drawn as markers on the date axis. This is how a bowler sees reaction fade and whether
-  a resurface brought it back.
+  drawn as markers on the date axis.
 - **Comparison**: `StatsEngine.compareBalls(games:) -> [BallComparisonRow]` returns, for
   every non-retired ball, games bowled, average as main ball, strike %, first-ball
-  average, and spare conversion %, each with its sample size, for a sortable table.
+  average, and spare conversion %, each with its sample size.
 
-The ball report honors the global stats filter for date range, bowler, event type,
-center, league, and pattern, so a bowler can ask "this ball, this league, this season".
+The ball report honors the stats filter, so a bowler can ask "this ball, this league,
+this season".
 
 ### Filters
 
-`StatsFilter` has date range (presets this week, this month, last 30 days, this season
-which is league-defined or the last 9 months, all time, custom start and end), event
-types, bowler, ball, oil pattern, center, league. The repository applies filters as
-SwiftData predicates where possible and the rest in memory. Ball filter matches a game if
-its default ball or any roll override is the ball.
+`StatsFilter` has date range, event types, bowler, ball, oil pattern, center, league.
+
+- 1a: date presets (this week, this month, last 30 days, this season, all time), event
+  types, bowler.
+- 1b: custom start and end dates, ball, oil pattern, center, league.
+
+"This season" uses the selected league's `seasonStart` and `seasonEnd` when a league
+filter is set and both dates exist; otherwise the last 9 months. The repository applies
+filters as SwiftData predicates where possible and the rest in memory. The ball filter
+matches a game if its default ball or any roll override is the ball.
 
 ## 7. Screens
 
@@ -401,166 +543,217 @@ Root is a `TabView` with Home, History, Stats, Arsenal. Settings is reachable fr
 toolbar. On iOS 26 and later the tab bar is Liquid Glass automatically. Custom components
 use `glassEffect` behind an availability check and a thin material otherwise.
 
-### Home
+### Home (1a)
 
-- Headline tiles: average (all time and last 30 days), high game, high series, strike %,
-  spare %, with sample sizes.
+- Headline tiles: competition average with all-games average beneath, high game, high
+  series, strike %, spare %, each with sample size.
 - Large "Start session" button, and "Quick score" for a final-score-only game.
+- "Resume session" when an incomplete session exists.
 - Recent sessions list, three rows, linking into History.
-- Empty state on first launch asks for the owner's name and handedness, then shows a
-  short explanation of the three entry modes.
+- First launch: if an iCloud account is signed in, offer "Restore from iCloud" (active
+  from phase 2; in phase 1 it is hidden). Otherwise ask for the owner's name and
+  handedness, then show a short explanation of the three entry modes.
 
-### New session
+### New session (1a)
 
 A form: date defaults to now, event type segmented control, center picker with inline
 create, league picker shown only for league type, oil pattern picker with inline create,
 lanes text field, bowlers (owner preselected, add others by name), default ball per
 bowler, entry mode default pinByPin. "Start" creates the session and the first game for
 each bowler and opens Scoring. The last-used center, league, pattern, and ball are
-remembered per event type.
+remembered per event type in UserDefaults, not in the synced store.
 
-### Scoring
+### Scoring (1a)
 
 The core screen. Layout top to bottom:
 
 1. **Bowler strip** when the session has more than one bowler, showing each name and
    current score. The app rotates to the next bowler after each frame like a lane
-   console; a toggle in the toolbar turns rotation off so one bowler can finish alone.
+   console; a toolbar toggle turns rotation off so one bowler can finish alone.
 2. **Scorecard strip**: ten frames in a horizontal row, each showing marks and running
    total, the current frame highlighted. Tapping a finished frame enters edit mode on it.
-3. **Pin deck**: ten pins in the triangle, large tap targets. Pins already down on this
-   rack are dimmed and disabled. Tapping toggles a pin between standing and fallen.
-   Default on each roll is all available pins standing, so the bowler taps what fell. A
-   setting flips this so the bowler taps what is left standing, which many prefer for
-   spares.
-4. **Shortcuts**: Strike, Spare (fills all remaining), Miss (zero), Undo, and the ball
-   chip showing the current ball with a tap to override for this roll.
-5. **Next**: records the pins currently marked as fallen and advances to the next roll.
-   Strike, Spare, and Miss record and advance immediately without needing "Next". A
-   setting makes a tapped pin deck auto-advance when the marked count makes a spare.
+3. **Pin deck**: ten pins in the triangle. Pins already down on this rack are dimmed and
+   disabled. Tapping toggles a pin between standing and fallen. Default on each roll is
+   all available pins standing, so the bowler taps what fell. A setting flips this so the
+   bowler taps what is left standing.
+4. **Shortcuts**: Strike, Spare (fills all remaining), Miss (zero), Foul, Undo, and the
+   ball chip showing the current ball with a tap to override for this roll.
+5. **Next**: records the pins currently marked as fallen and advances. Strike, Spare,
+   Miss, and Foul record and advance immediately. A setting makes the deck auto-advance
+   when the marked count makes a spare.
 
 Count mode replaces the pin deck with a 0 through 10 numeric pad limited to pins
-available. The user can switch a game from count to pin mode before any roll is entered.
+available, plus the Foul shortcut.
 
 Tenth frame shows a third roll box only when earned. Finishing frame 10 for the last
 bowler shows a game summary sheet: score, strikes, spares, opens, leaves, with "Next game"
-and "End session". "Next game" creates game `orderInSession + 1` for every bowler with the
-same default balls.
+and "End session". "Next game" creates game `gameIndex + 1` for every bowler with the same
+default balls.
 
 Scoring must work with the phone in one hand. Pin targets are at least 48 points and the
 deck fills the width of the screen.
 
-### History
+### History (1a)
 
 Sessions grouped by month, each row showing date, event type, center, bowler count, and
-scores. Session detail shows its games as scorecards per bowler with the series total,
-and allows editing session metadata. Game detail shows the full scorecard, the leaves in
-each frame with split indicators, the balls used, and an Edit button that opens Scoring
-on that game. Swipe to delete with confirmation at both levels.
+scores. Session detail shows its games as scorecards per bowler with the series total and
+allows editing session metadata. Game detail shows the full scorecard, the leaves in each
+frame with split indicators, the balls used, and an Edit button that opens Scoring on
+that game. Swipe to delete with confirmation at both levels.
 
 ### Stats
 
-Filter bar at the top, always visible, showing active filters as chips with a sheet to
-edit them. Sections, each with its sample size:
+Filter bar at the top, always visible, showing active filters as chips (default
+"Competition") with a sheet to edit them. Sections, each with its sample size:
 
-1. Overview tiles.
-2. Trend chart.
-3. Strikes and spares: strike %, spare %, open %, clean game %, first-ball average, head
-   pin rate.
-4. Leaves: the leaves table and the "left most, made least" callout. Split and makeable
-   and single-pin conversion. Tap a leave for the occurrence list.
-5. By frame: a bar chart of strike rate and a bar chart of mean pins per frame.
-6. What if: real average beside the single-pin what-if average.
+1. Overview tiles (1a).
+2. Trend chart (1a).
+3. Strikes and spares: strike %, spare %, fouls (1a); open %, clean game %, first-ball
+   average, head pin rate (1b).
+4. Leaves: the leaves table, the "left most, made least" callout, split, makeable, and
+   single-pin conversion (1a); tap a leave for the occurrence list (1b).
+5. By frame: strike rate and mean pins per frame charts (1b).
+6. What if: real average beside the single-pin what-if average (1b).
 
 Sections that do not apply to the current filter's games show a short explanation, for
 example "Enter pins to see leaves".
 
 ### Arsenal
 
-**List.** Active balls, then a collapsed "Retired" group. Each row shows the photo or a
-colored placeholder, name, brand, weight, intended role, games bowled, and a "Resurface
-due" badge when applicable. A toolbar button opens **Compare**, a sortable table built
-from the comparison rows in section 6 with a column picker for small screens. Another
-opens the add form.
+**1a: basic list and add.** Active balls with name, weight, intended role, and games
+bowled. Add form with name, weight, intended role, and brand only. This is enough for the
+per-roll ball picker and ball tagging.
 
-**Ball detail.** Sections top to bottom:
+**1b: full arsenal.**
 
-1. **Header**: photo, name, brand, weight, coverstock and core type, intended role,
-   current surface, serial number, and an Edit button.
-2. **Specs**: coverstock name, core name, RG, differential, intermediate differential,
-   factory finish, release date, purchase date, color, notes.
-   Empty optional values are hidden rather than shown as blanks.
-3. **Maintenance**: games since last resurface against the interval with a progress bar,
-   the maintenance log newest first, and a "Log maintenance" button. Logging a resurface
-   or polish with a grit value updates the ball's current surface.
-4. **Performance**: the ball report from section 6. The strike-ball block leads when the
-   intended role is strike, the spare-ball block leads when it is spare, both show
-   regardless. A filter chip row at the top of this section mirrors the Stats filter so
-   the user can narrow by date range, league, pattern, or center without leaving the ball.
-5. **By condition**: two small tables, by pattern and by center.
-6. **Over time**: the strike % chart with maintenance markers.
-7. **Recent games**: the last ten games using this ball, linking into History.
-
-Retire and delete live in the Edit form, with the warnings in the deletion rules.
-
-**Add and edit form.** Fields from section 3 grouped as Identity (name, brand, weight,
-color, serial, photo), Construction (coverstock, coverstock name, core type, core name, RG,
-differential, intermediate differential, factory finish, release date), Use (intended
-role, purchase date, current surface, resurface interval), and Notes. Only name and weight are required.
+- **List.** Active balls, then a collapsed "Retired" group. Each row shows the photo or a
+  colored placeholder, name, brand, weight, intended role, games bowled, and a "Resurface
+  due" badge. A toolbar button opens **Compare**, a sortable table built from the
+  comparison rows, with a column picker for small screens.
+- **Ball detail.** Sections top to bottom:
+  1. Header: photo, name, brand, weight, coverstock and core type, intended role, current
+     surface, serial number, Edit button.
+  2. Specs: coverstock name, core name, RG, differential, intermediate differential,
+     factory finish, release date, purchase date, color, notes. Empty optional values
+     are hidden.
+  3. Maintenance: games since last resurface against the interval with a progress bar,
+     the maintenance log newest first, and a "Log maintenance" button. Logging a
+     resurface or polish with a grit value updates the ball's current surface.
+  4. Performance: the ball report. The strike-ball block leads when the intended role is
+     strike, the spare-ball block leads when it is spare; both show regardless. A filter
+     chip row mirrors the Stats filter.
+  5. By condition: two small tables, by pattern and by center.
+  6. Over time: the strike % chart with maintenance markers.
+  7. Recent games: the last ten games using this ball, linking into History.
+- **Add and edit form.** Identity (name, brand, weight, color, serial, photo),
+  Construction (coverstock, coverstock name, core type, core name, RG, differential,
+  intermediate differential, factory finish, release date), Use (intended role, purchase
+  date, current surface, resurface interval), Notes. Only name and weight are required.
+  Retire and delete live here, with the warnings from section 3.3.
+- **Resurface reminder.** When a saved game pushes a ball to or past its interval, the
+  badge appears and a local notification is scheduled. The app asks for notification
+  permission the first time the user sets a resurface interval, not at launch.
 
 ### Settings
 
-Owner profile, pin entry default (tap fallen or tap standing), auto-advance on marks,
-bowler rotation default, data management (delete all data with double confirmation),
-about and version. A placeholder row for iCloud sync says "Coming soon" so phase 2 has a
-home.
+- 1a: owner profile, pin entry default (tap fallen or tap standing), auto-advance on
+  marks, bowler rotation default, default stats scope (competition or all games), delete
+  all data with double confirmation, about and version, and a placeholder row for iCloud
+  sync that says "Coming soon".
+- 1b: "Export CSV" under data management, writing one file per entity type (sessions,
+  games, frames, rolls, balls, maintenance) zipped, through the system file exporter.
+  Stable column names and the entity UUIDs are included so phase 3 can re-import the
+  export without duplicates.
 
 ## 8. Error handling and edge cases
 
 - Invalid roll input is impossible through the UI and rejected by the repository if it
   arrives any other way.
-- An unfinished game is saved after every roll so nothing is lost if the app is killed.
-  Home shows "Resume session" when an incomplete session exists.
-- Editing an earlier frame rescoring: later rolls are re-validated. Any later roll that
-  becomes invalid (for example a second roll that now exceeds the pins available) is
-  cleared from that roll onward and the user is told which frames need re-entry.
-- Changing a game from countOnly to pinByPin after rolls exist is refused; the user is
-  offered to clear the game's rolls first.
+- An unfinished game is saved after every roll, so nothing is lost if the app is killed.
+- Editing an earlier frame re-validates later rolls. Any later roll that becomes invalid
+  is cleared from that roll onward, and the user is told which frames need re-entry.
+- Entry mode can be changed only before the game's first roll. After that, changing mode
+  is refused and the user is offered to clear the game's rolls first. There is no
+  automatic upgrade from countOnly to pinByPin.
 - A session with no games is deleted automatically if the user backs out before any roll.
 - Stats on zero games show empty-state copy, never NaN or division by zero.
 - Dates use the device calendar and time zone; stats filters compare by calendar day.
+- Unknown raw enum values from a newer app version display as "Other" and are preserved
+  unchanged on save.
 
 ## 9. Testing
 
-- **BowlingCore**: Swift Testing with parameterized cases. Scorer: perfect game 300, all
-  spares with 5 count 150, all gutters 0, all nines 90, alternating strikes and spares,
-  every tenth-frame branch, pending running totals, each validation error. LeaveClassifier:
-  every one-pin, two-pin, and three-pin combination with head pin down is asserted against
-  a fixture table, plus the washouts and a sample of larger leaves. StatsEngine: a fixture
-  set of about twenty games across the three entry modes with hand-computed expected
-  values for every stat, including the what-if recomputation and the applicability rules.
-  Ball report: a fixture where one ball is the default and another overrides on spare
-  attempts, asserting that first balls and spare attempts are attributed to the right
-  ball, that groups under 10 first balls fold into "Other", and that games since last
-  resurface counts only games after the latest resurface event.
-- **BowlingData**: in-memory `ModelContainer` tests for repositories, deletion rules,
-  conversion to and from BowlingCore value types, filter predicates, and the owner-bowler
-  invariant.
+### Phase 1a
+
+- **Scorer**: Swift Testing with parameterized cases. Perfect game 300, all spares with
+  5 count 150, all gutters 0, all nines 90, alternating strikes and spares, every
+  tenth-frame branch, pending running totals, each validation error. Fouls: first-ball
+  foul followed by a full-rack spare, second-ball foul, foul in each tenth-frame
+  position.
+- **LeaveClassifier**: every one-pin, two-pin, and three-pin combination with the head
+  pin down (129 cases) asserted against a fixture table, plus the washouts and a sample
+  of larger leaves.
+- **StatsEngine (1a stats)**: a fixture set of about twenty games across the three entry
+  modes, with fouls and all event types, with hand-computed expected values, including
+  the competition default scope and the applicability rules.
+- **BowlingData**: in-memory `ModelContainer` tests for repositories, delete rules,
+  repository refusals, conversion to and from BowlingCore value types, filter
+  predicates, the owner invariant, and unknown enum values round-tripping.
+- **Ordering**: a test that inserts frames and rolls in shuffled order and asserts that
+  conversion to `GameRecord` and the computed score are unchanged.
 - **App target**: a UI test that creates a session, enters a full pin-by-pin game, and
-  checks the final score on the summary sheet. Snapshot-free; assertions on accessibility
-  identifiers.
-- **Previews**: every screen has a preview backed by the demo fixture data.
+  checks the final score on the summary sheet. Assertions on accessibility identifiers.
+- **Previews**: every 1a screen has a preview backed by the demo fixture data.
+
+### Phase 1b
+
+- **StatsEngine (1b stats)**: extend the fixture set with hand-computed values for
+  every 1b definition, including the what-if recomputation.
+- **Ball report**: a fixture where one ball is the default and another overrides on
+  spare attempts, asserting correct attribution of first balls and spare attempts, that
+  groups under 10 first balls fold into "Other", and that games since last resurface
+  counts only games after the latest resurface event.
+- **CSV export**: export the fixture set and assert stable columns, row counts, and
+  UUIDs.
+- **Owner merge rule**: a BowlingData test that creates two owners with games on each
+  and asserts the deterministic merge result, so phase 2 only wires it to remote import.
+- **Previews**: every 1b screen.
 
 ## 10. Accessibility and localization
 
 - Every pin is an accessibility element labeled "Pin 7, standing" or "Pin 7, down", and
   the deck exposes a summary like "6 pins standing: 4, 7, 8, 9, 10".
-- Scorecard frames are labeled with frame number, marks, and running total.
-- All text uses text styles so Dynamic Type works; the pin deck and scorecard adapt layout
-  at accessibility sizes rather than truncating.
+- Scorecard frames are labeled with frame number, marks, and running total; a foul reads
+  as "foul".
+- All text uses text styles so Dynamic Type works; the pin deck and scorecard adapt
+  layout at accessibility sizes rather than truncating.
 - All user-visible strings go through a String Catalog from the first commit.
 
-## 11. Open decisions
+## 11. Done criteria
 
-None outstanding for this phase. The split classification table is the item most likely
-to need adjustment after real-bowler testing, and the design isolates it for that reason.
+### Phase 1a is done when
+
+- A perfect game, an all-spares game, games with fouls, and every tenth-frame variant
+  score correctly in tests.
+- Every 1a stat renders from fixture data, with the competition default applied.
+- A full three-game league night for two bowlers can be entered offline, pin by pin.
+- Real bowlers on TestFlight have used the pin deck for at least one league night and
+  their feedback has been addressed. The pin deck is the make-or-break interaction.
+
+### Phase 1b is done when
+
+- Every stat in section 6 renders from fixture data under any combination of filters.
+- The ball detail screen shows correct strike-ball and spare-ball attribution for the
+  mixed-ball fixture.
+- A resurface reminder fires when a game crosses a ball's interval.
+- An exported CSV opens correctly in Numbers and Excel and contains every entity's UUID.
+- The owner merge rule passes its test.
+- The schema has been reviewed against every rule in section 3.1, because phase 2 locks
+  it.
+
+## 12. Open decisions
+
+- **Split table.** The classification tables are the item most likely to need adjustment
+  after real-bowler testing; the design isolates them for that reason.
+- **Casual games.** Casual is excluded from the competition default alongside practice.
+  If testers treat casual as competition, change the default; nothing else depends on it.
