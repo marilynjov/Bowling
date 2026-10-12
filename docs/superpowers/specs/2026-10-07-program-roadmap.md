@@ -26,7 +26,8 @@ And these as only partly built, scattered across separate apps:
 
 6. Photo scan that lets the bowler correct misreads and keeps the original photo (phase 4).
 7. Ball detail page combining specs, the bowler's own setup, and per-ball performance
-   (phase 1b).
+   (phase 1b; until phase 8 adds drilling layout and hand measurement fields, the setup
+   lives in the ball's notes).
 8. Scoring a friend's game so it lands in the friend's own history (phase 7).
 
 Recommended matrix change: add a fixed `ID` column (F01, F02, ...) that never changes, so
@@ -109,10 +110,10 @@ Storage:
 Reserved fields, added in phase 1a where cheap:
 
 - `remoteID` on every user-data entity, for publishing to the server.
-- On Game: `scanConfidence`, `entryMode` (pins, count, or final score), and
+- On Game: `scanConfidence`, `entryMode` (`pinByPin`, `countOnly`, or `finalOnly`), and
   `invitationStatus`.
-- On Roll: `pinsDown` count and an optional `pinsStandingMask`, so scanned games
-  (count only) and pin-level games share one model.
+- On Roll: `pinCount`, `pinsDownMask`, and `pinsKnown`, so scanned games (count only)
+  and pin-level games share one model.
 - On Frame: `rotationSlot`, for Baker.
 - On Bowler: `email`, for invitations.
 
@@ -140,7 +141,7 @@ should be recalibrated after phase 1a.
 Features: frame-by-frame and pin-by-pin entry; final-score-only entry; offline scoring;
 average, high game and series, strike and spare percentages; pin leaves and spare
 conversion by leave; spare percentage over spare attempts only; makeable spares versus
-splits; practice versus competition separation.
+splits; practice versus competition separation; ball and pattern tagging per game.
 
 - Frontend: four tabs. Home with current averages and a start button. History with
   sessions and game scorecards. Stats with sections. Arsenal as a simple ball list (full
@@ -155,16 +156,14 @@ splits; practice versus competition separation.
 - Risk: the pin deck interaction is the make-or-break UX. Iterate on it with real
   bowlers before starting 1b.
 
-Detailed design: `2026-10-07-phase-1-core-scoring-design.md` (update to the 1a and 1b
-split and the new model rules).
+Detailed design: `2026-10-07-phase-1-core-scoring-design.md`.
 
 ### Phase 1b: Analysis, arsenal, and ball detail (3 to 5 weeks)
 
-Features: ball and pattern tagging per game; tag and filter by ball, pattern, center, or
-league; personal arsenal with maintenance dates; ball detail page; each missed spare
-linked to its date and ball; custom date ranges; strike rate by frame number and average
-per frame; head pin rate and clean game rate; "what if I made every single-pin spare"
-average; CSV export.
+Features: tag and filter by ball, pattern, center, or league; personal arsenal with
+maintenance dates; ball detail page; each missed spare linked to its date and ball;
+custom date ranges; strike rate by frame number and average per frame; head pin rate and
+clean game rate; "what if I made every single-pin spare" average; CSV export.
 
 - Stats gets a filter bar with any saved tag and a custom date range.
 - Ball detail screen in Arsenal: header and full specs (brand, weight, coverstock, core,
@@ -200,9 +199,10 @@ Features: cloud backup and sync.
 Features: shareable score images; import history from other apps.
 
 - Frontend: scorecard image renderer with pins-left marks, shared through the system
-  share sheet. CSV import that previews rows, detects duplicates by date, center, and
-  score, tags each game with its source app, and ends with a summary such as "Imported
-  1,240 games, 980 with pin data".
+  share sheet. CSV import that previews rows, detects duplicates (by entity UUID for
+  this app's own export, by date, center, and score for other apps), tags each game with
+  its source app, and ends with a summary such as "Imported 1,240 games, 980 with pin
+  data".
 - Backend: none. Import parsers for this app's own CSV, SnapStrike CSV, and BowlSheet CSV
   live in BowlingData with sample files as test fixtures. PinPal backup import is a
   stretch goal if real users provide sample backup files.
@@ -230,7 +230,12 @@ photo kept.
 - Optional cloud mode: opt-in call to a vision model for dark or animated displays,
   through one serverless function that holds the API key. Decide at this phase whether
   that function is a Supabase Edge Function or a standalone cloud function.
-- Scanned games are count mode (`pinsStandingMask` empty) because pin identity cannot be
+- Abuse protection: the function is reachable without an account and every call costs
+  money, so each request carries an App Attest assertion (DeviceCheck as fallback) that
+  the function verifies, and calls are rate limited per device per day. The same
+  protection is reused by every later serverless function, including the phase 8 AI
+  coach.
+- Scanned games are count mode (`pinsKnown` false) because pin identity cannot be
   read reliably from a monitor. The stats engine already handles that mode.
 - Done when a test set of at least 60 monitor photos (at least 10 from each of Brunswick,
   QubicaAMF, and Steltronic systems, across lighting, angle, and dark or animated
@@ -338,7 +343,8 @@ and drilling specs; bowling alley finder; AI coach. A grab bag; reorder freely.
 - Ball path simulator as a simple two-dimensional model. The matrix notes a competitor's
   developer considers accurate prediction unreliable; present it as illustrative.
 - AI coach as a serverless function that receives a stats summary and returns a practice
-  plan, with the model key held server-side.
+  plan, with the model key held server-side and the phase 4 App Attest and rate-limit
+  protection in front of it.
 
 ## Deferred, with reasons
 
@@ -374,7 +380,7 @@ this column; the phase sections above cite features by name only.
 | 7 | Automatic import from the center's scoring system | 1 | Deferred |
 | 8 | Pin leaves and spare conversion by leave | 1 | 1a |
 | 9 | Practice vs competition separation | 1 | 1a |
-| 10 | Ball and pattern tagging per game | 1 | 1b |
+| 10 | Ball and pattern tagging per game | 1 | 1a |
 | 11 | Score friends' games into their own accounts | 2 | 7 |
 | 12 | Tag and filter by ball, pattern, center, or league | 2 | 1b |
 | 13 | Spare % measured over spare attempts only | 2 | 1a |

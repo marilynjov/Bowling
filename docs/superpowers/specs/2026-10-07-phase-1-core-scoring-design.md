@@ -44,7 +44,8 @@ day and see numbers that are correct.
 Matrix features: frame-by-frame and pin-by-pin entry; final-score-only entry; offline
 scoring; average, high game and series, strike and spare percentages; pin leaves and
 spare conversion by leave; spare percentage over spare attempts only; makeable spares
-versus splits; practice versus competition separation.
+versus splits; practice versus competition separation; ball and pattern tagging per
+game.
 
 - The complete schema from section 3, including every 1b and reserved field. The schema
   is not promoted to CloudKit production until phase 2, but it is designed once, here.
@@ -52,7 +53,8 @@ versus splits; practice versus competition separation.
 - Per-ball count entry and final-score-only entry.
 - Fouls.
 - Sessions tagged practice, league, tournament, or casual, with center, league, oil
-  pattern, lanes, and notes.
+  pattern, lanes, and notes. The oil pattern is recorded per session, so every game in a
+  session shares it; a bowler who changes patterns starts a new session.
 - Multiple bowlers in one session on one phone, as local names.
 - A basic arsenal: add a ball with name, weight, and intended role; pick a default ball
   per game and override per roll.
@@ -63,11 +65,10 @@ versus splits; practice versus competition separation.
 
 ### Phase 1b: analysis, arsenal, and ball detail
 
-Matrix features: ball and pattern tagging per game; tag and filter by ball, pattern,
-center, or league; personal arsenal with maintenance dates; ball detail page; each missed
-spare linked to its date and ball; custom date ranges; strike rate by frame number and
-average per frame; head pin rate and clean game rate; "what if I made every single-pin
-spare" average; CSV export.
+Matrix features: tag and filter by ball, pattern, center, or league; personal arsenal
+with maintenance dates; ball detail page; each missed spare linked to its date and ball;
+custom date ranges; strike rate by frame number and average per frame; head pin rate and
+clean game rate; "what if I made every single-pin spare" average; CSV export.
 
 - Full ball add and edit form, ball photo, maintenance log, resurface reminders, ball
   detail screen with the ball report, Compare table, retire.
@@ -210,8 +211,6 @@ A session's series total is the sum of its games' final scores for one bowler.
 | isFoul | Bool | Default false. See section 4 |
 | ball | Ball? | Override for this roll; nil means the game's default ball. Inverse of Ball.rollsAsOverride |
 
-This design's Roll fields supersede the reserved field names listed in the roadmap.
-
 #### Ball
 
 | Field | Type | Notes |
@@ -327,6 +326,12 @@ so the design handles them now:
   merged automatically, because two centers can share a name. Settings gains a "Merge"
   action in phase 2 that moves all sessions from one record to another and deletes the
   empty one.
+- **Duplicate frames or rolls.** If an unfinished game is resumed on two devices while
+  offline, sync can deliver two Frame rows with the same `frameIndex`, or two Roll rows
+  with the same `rollIndex` in one frame. After every remote import the repository keeps
+  the row with the newest `updatedAt` per index (ties broken by smaller UUID string),
+  deletes the others, and rescores the game. Repair runs before validation, so a synced
+  game is never left unsaveable.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 
@@ -413,15 +418,17 @@ Rules, applied in order:
 4. Head pin down with two or more pins. The leave is a `split` when either holds:
    - the standing pins are not connected under physical adjacency, where adjacent pairs
      are 1-2, 1-3, 2-3, 2-4, 2-5, 3-5, 3-6, 4-5, 5-6, 4-7, 4-8, 5-8, 5-9, 6-9, 6-10, 7-8,
-     8-9, 9-10; or
+     8-9, 9-10, plus the sleeper pairs 2-8 and 3-9, where one pin stands directly behind
+     the other with no pin between them; or
    - a down pin stands directly in front of two standing pins, using the pairs 1 in front
      of 2 and 3, 2 of 4 and 5, 3 of 5 and 6, 4 of 7 and 8, 5 of 8 and 9, 6 of 9 and 10.
 
    Otherwise `makeable`.
 
-The second clause follows USBC's split definition, for example the 4-5 is a split when
-the 2 pin is down. It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin
-in front is down. If real bowlers disagree with any case, the adjacency and in-front
+The sleeper pairs keep the 2-8 and 3-9 makeable: the pins do not touch, but no pin is
+down between them, so they are not splits under USBC's definition. The second clause
+follows USBC's split definition, for example the 4-5 is a split when the 2 pin is down.
+It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin in front is down. If real bowlers disagree with any case, the adjacency and in-front
 tables are the only thing to edit, and the test suite pins every two-pin and three-pin
 combination.
 
@@ -441,10 +448,14 @@ attempts", because bowlers distrust percentages without counts.
 
 Practice games distorting averages is a recurring complaint about competing apps. The
 default `StatsFilter` therefore includes event types league and tournament only, shown as
-a "Competition" chip in the filter bar. One tap switches to "All games" or any custom
+a "Competition" chip in the filter bar, but only when the selected bowler has at least
+one complete league or tournament game. Otherwise the default is "All games", so a
+bowler who only enters casual or practice games, including Quick score games (which are
+casual), still sees their stats. One tap switches to "All games" or any custom
 combination of practice, league, tournament, and casual. Home's tiles show the
-competition average with the all-games average beneath it. The choice of default is
-stored in Settings.
+competition average with the all-games average beneath it, or only the all-games
+average when there are no competition games. The choice of default is stored in
+Settings.
 
 ### Which games count for what
 
@@ -453,6 +464,10 @@ stored in Settings.
 | Average, high game, high series, trend | yes | yes | yes |
 | Strike %, spare %, open %, clean game, by-frame stats, first-ball average | no | yes | yes |
 | Leaves, split and makeable rates, head pin rate, missed-spare list, what-if | no | no | yes |
+
+Only games with `isComplete` true count toward any stat. An unfinished game appears in
+History and in "Resume session" but enters Stats only when its tenth frame is finished,
+so a game paused at frame 5 never pulls the average down.
 
 Each section of the Stats screen states how many games it is based on.
 
@@ -547,7 +562,8 @@ use `glassEffect` behind an availability check and a thin material otherwise.
 
 - Headline tiles: competition average with all-games average beneath, high game, high
   series, strike %, spare %, each with sample size.
-- Large "Start session" button, and "Quick score" for a final-score-only game.
+- Large "Start session" button, and "Quick score" for a final-score-only game, saved as a
+  casual session dated now. The event type can be changed afterward in History.
 - "Resume session" when an incomplete session exists.
 - Recent sessions list, three rows, linking into History.
 - First launch: if an iCloud account is signed in, offer "Restore from iCloud" (active
@@ -651,8 +667,10 @@ per-roll ball picker and ball tagging.
   date, current surface, resurface interval), Notes. Only name and weight are required.
   Retire and delete live here, with the warnings from section 3.3.
 - **Resurface reminder.** When a saved game pushes a ball to or past its interval, the
-  badge appears and a local notification is scheduled. The app asks for notification
-  permission the first time the user sets a resurface interval, not at launch.
+  badge appears and a local notification is scheduled for 9:00 the next morning, when
+  the bowler is away from the lanes and can plan the resurface. The app asks for
+  notification permission the first time the user sets a resurface interval, not at
+  launch.
 
 ### Settings
 
@@ -662,6 +680,8 @@ per-roll ball picker and ball tagging.
   sync that says "Coming soon".
 - 1b: "Export CSV" under data management, writing one file per entity type (sessions,
   games, frames, rolls, balls, maintenance) zipped, through the system file exporter.
+  Zipping uses `NSFileCoordinator` with the `.forUploading` reading option on the
+  export folder, which produces a zip with no third-party dependency.
   Stable column names and the entity UUIDs are included so phase 3 can re-import the
   export without duplicates.
 
@@ -693,9 +713,12 @@ per-roll ball picker and ball tagging.
 - **LeaveClassifier**: every one-pin, two-pin, and three-pin combination with the head
   pin down (129 cases) asserted against a fixture table, plus the washouts and a sample
   of larger leaves.
+- **Sleeper spares**: the 2-8 and 3-9 classify as makeable, and the 2-7 and 3-10 as
+  splits, asserted explicitly in addition to the combination table.
 - **StatsEngine (1a stats)**: a fixture set of about twenty games across the three entry
   modes, with fouls and all event types, with hand-computed expected values, including
-  the competition default scope and the applicability rules.
+  the competition default scope, the fallback to all games when there are no
+  competition games, exclusion of incomplete games, and the applicability rules.
 - **BowlingData**: in-memory `ModelContainer` tests for repositories, delete rules,
   repository refusals, conversion to and from BowlingCore value types, filter
   predicates, the owner invariant, and unknown enum values round-tripping.
@@ -717,6 +740,9 @@ per-roll ball picker and ball tagging.
   UUIDs.
 - **Owner merge rule**: a BowlingData test that creates two owners with games on each
   and asserts the deterministic merge result, so phase 2 only wires it to remote import.
+- **Duplicate frame repair**: a BowlingData test that inserts two frames with the same
+  `frameIndex` and two rolls with the same `rollIndex`, and asserts that repair keeps
+  the newest of each and the game validates and scores.
 - **Previews**: every 1b screen.
 
 ## 10. Accessibility and localization
@@ -747,7 +773,7 @@ per-roll ball picker and ball tagging.
   mixed-ball fixture.
 - A resurface reminder fires when a game crosses a ball's interval.
 - An exported CSV opens correctly in Numbers and Excel and contains every entity's UUID.
-- The owner merge rule passes its test.
+- The owner merge rule and the duplicate frame repair pass their tests.
 - The schema has been reviewed against every rule in section 3.1, because phase 2 locks
   it.
 
