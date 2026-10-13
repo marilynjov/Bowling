@@ -133,6 +133,46 @@ Cross-cutting from phase 1a: Dynamic Type and VoiceOver on the pin deck and scor
 String Catalog, a privacy manifest that declares the crash reporter's data (Sentry is
 configured in the developer's environment), crash reporting.
 
+## Running costs
+
+What the developer pays to build and run the app, by phase, and how much a self-run
+server can avoid. Prices are approximate as of 2026-10-12, mostly from third-party
+summaries; confirm on each provider's pricing page before committing.
+
+| Cost | From phase | Hosted price | With our own server | Plan |
+|---|---|---|---|---|
+| Apple Developer Program | 1a (TestFlight) | $99 per year | Unavoidable | Pay |
+| iCloud sync (CloudKit) | 2 | $0. Data counts against each user's own iCloud storage | Not needed | Free |
+| Crash reporting (Sentry) | 1a | $0 on the Developer plan: 1 user, 5,000 errors per month | Sentry can be self-hosted, but the free plan is enough | Free plan |
+| Privacy policy and invitation landing page | 1a, 7 | $0 on GitHub Pages | Not needed | Free |
+| Domain for email and the landing page | 5 or 7 | About $10 to $15 per year | Still needed | Pay when the backend arrives |
+| Backend (Supabase) | 5 or 7 | $0 on Free: 2 projects, 500 MB database, 5 GB egress per month, paused after 7 days without activity. Pro is $25 per month plus usage | Self-hosted Supabase: $0 extra on the developer's PC, or a small rented server | See below |
+| Transactional email | 7 (5 if invitations ship early) | $0 on Resend Free: 3,000 per month, 100 per day. Pro is $20 per month for 50,000 | Not practical: home internet providers block outgoing mail ports and home IP addresses land in spam | Free tier. Move to Pro when total invitation and sign-up emails approach 100 per day |
+| Cloud scan mode (vision model) | 4 | Per call, depends on the model | Running a vision model needs a GPU machine, which costs more than the calls | Keep it opt-in, cap calls per device per day (phase 4 abuse protection), and set a monthly spend limit with the provider. Skip it if on-device scan is good enough |
+| AI coach | 8 | Per call | Apple's on-device Foundation Models framework, on iOS 26 iPhones that support Apple Intelligence, costs nothing and needs no server | On-device where available; server call only for older iPhones, or no coach there |
+| Legal review of invitation consent rules | 7 | One-time, varies by country | Not avoidable | Budget before phase 7 |
+
+Phases 1a to 4 cost $99 per year plus any cloud scan calls. The backend is the only large
+recurring cost, and it is the one a self-run server can remove.
+
+### Running the backend on our own server
+
+The architecture makes this safe to try: personal scoring never depends on the server, so
+when it is down only shared features stop (team scoring, invitations, feed, leaderboards).
+
+| Option | Monthly cost | Trade-offs |
+|---|---|---|
+| Supabase Free, hosted | $0 | No maintenance. Pauses after 7 days without activity, which only matters before real users keep it active. Outgrown at 500 MB or 5 GB egress per month |
+| Self-hosted Supabase on the developer's PC | $0 extra, plus electricity | Reachable from the internet through Cloudflare Tunnel (free, no open router ports). Down whenever the PC is off, asleep, or offline. The developer owns updates, security patches, and backups, which must be copied off the PC. Check the home internet provider's terms for running a server |
+| Self-hosted Supabase on a small rented server | Roughly $10 to $20 for a server with the 4 GB or more of memory Supabase needs | Always on. Same maintenance work as the PC option |
+| Supabase Pro, hosted | $25 plus usage | No pause, daily backups, no maintenance |
+
+Plan: develop against self-hosted Supabase on the developer's PC, as already decided.
+Launch shared features on Supabase Free. Move to Pro or a rented server only when Free's
+limits or the pause become a real problem. The same open-source Supabase runs in every
+option, so moving between them is a database export and import, not a rewrite. Email
+stays on a provider in every option.
+
 ## Phases
 
 Time boxes are initial estimates for one developer working part time on the app and
