@@ -49,6 +49,7 @@ documents can cite features without depending on rank.
 | Invitation email delivery | Supabase Edge Function plus a transactional email provider with a custom domain | Supabase Auth's built-in sender allows about 2 emails per hour and is meant for auth flows, not game notifications |
 | State and testing | Observation, Swift Testing, Swift Charts | Current Apple stack, no third-party dependencies until a phase truly needs one |
 | Monetization | Undecided, everything free through phase 3 | Decide at phase 4, when the first paid infrastructure (cloud scan mode) appears. Competitors charge for photo scan and league tools |
+| Reference data licensing | Start the licensing conversations for ball specs (BOWWWL) and oil pattern data (Kegel, PBA) during phase 1b, though the features stay in phase 8 | Stakeholder feedback names an integrated ball catalog and pattern database as valued features; licensing takes time and decides whether phase 8 can ship them |
 | Release gate | TestFlight from phase 1a; public App Store release only after phase 2 | Data loss is the top complaint across competing apps; the app must not reach the public without backup |
 
 ## Code organization
@@ -64,7 +65,7 @@ Bowling/
       Stats/                     dashboards, filters, charts
       Arsenal/                   balls, ball detail, maintenance
       Settings/
-    Components/                  shared views: PinDeckView, ScorecardStrip, StatTile
+    Components/                  shared views: PinDeckView, LeaveDiagramView, ScorecardStrip, StatTile
     Resources/                   assets, string catalog, bundled reference data
   Packages/
     BowlingCore/                 scoring rules, leave classification, stats engine (pure Swift)
@@ -115,7 +116,8 @@ Reserved fields, added in phase 1a where cheap:
 - On Roll: `pinCount`, `pinsDownMask`, and `pinsKnown`, so scanned games (count only)
   and pin-level games share one model.
 - On Frame: `rotationSlot`, for Baker.
-- On Bowler: `email`, for invitations.
+- On Bowler: `email`, for invitations; `statsProfile`, `statsLayout`, and `homeLayout`, so
+  the stats a user chose follow them to a new device in phase 2.
 
 ## Working rhythm for every phase
 
@@ -144,7 +146,9 @@ conversion by leave; spare percentage over spare attempts only; makeable spares 
 splits; practice versus competition separation; ball and pattern tagging per game.
 
 - Frontend: four tabs. Home with current averages and a start button. History with
-  sessions and game scorecards. Stats with sections. Arsenal as a simple ball list (full
+  sessions and game scorecards. Stats as cards chosen by a preset for the bowler's style,
+  asked at first launch with an explanation that the answer changes which stats appear.
+  Leaves drawn as small pin diagrams everywhere. Arsenal as a simple ball list (full
   arsenal in 1b). Scoring screen with scorecard strip, tappable pin deck, strike, spare,
   foul and miss shortcuts, undo, per-roll ball picker, and a switch to count-only or
   final-score entry.
@@ -166,6 +170,8 @@ custom date ranges; strike rate by frame number and average per frame; head pin 
 clean game rate; "what if I made every single-pin spare" average; CSV export.
 
 - Stats gets a filter bar with any saved tag and a custom date range.
+- Customize screen to choose, remove, and reorder the cards on Stats and the tiles on
+  Home, with a reset to the bowling style's preset.
 - Ball detail screen in Arsenal: header and full specs (brand, weight, coverstock, core,
   RG, differential, surface, photo), maintenance log with resurface reminders through
   local notifications, performance as a strike ball and as a spare ball, results by oil
@@ -335,6 +341,11 @@ and drilling specs; bowling alley finder; AI coach. A grab bag; reorder freely.
 - Oil pattern library as bundled JSON in the non-synced reference store, referenced from
   user data by `patternKey`. Confirm permission from Kegel or the PBA before bundling
   their published pattern sheets.
+- Pattern drawn on a lane, as a teaching view: oil volume per board along the lane length.
+  Conditional on the same licensing, and on the pattern data including volume per board
+  and distance, not only length and total volume. Limitations shown to the user: the
+  drawing is the pattern as published, not the lane as it plays; a center's actual
+  pattern can differ from the sheet, and oil moves and breaks down during play.
 - Alley finder using MapKit's bowling point-of-interest category (available from iOS
   18). Also lets the user pick a center from the map in the new-session flow.
 - Drilling layouts and hand measurements as fields on Ball.
@@ -363,6 +374,55 @@ and drilling specs; bowling alley finder; AI coach. A grab bag; reorder freely.
 | Predicting ball reaction from ball, revs, and pattern | Unsolved problem per the matrix |
 
 Revisit each after phases 1a through 4 ship.
+
+## Ideas for later: gamification
+
+Candidates only, not committed scope. Each needs its own design before it enters a phase.
+Still open: whether gamification mainly brings bowlers back between league nights,
+pushes them to improve, or gets them sharing the app.
+
+Rules for any of these:
+
+- Earned achievements are computed from games, never stored, so they need no schema
+  change, stay correct when a game is edited, and appear on a new device after sync.
+- Reward skill, not volume. No "bowl 50 games this week" goals. Each achievement states
+  whether practice games count.
+
+Possible from phase 1 data, on device:
+
+- [ ] Bowling milestones: turkey, hambone, six-pack, nine in a row, first 200, first 250,
+      300, 700 and 800 series, clean game, all-spares game, converting the 7-10, the Big
+      Four, or the Greek church. Earned retroactively from existing and imported history.
+- [ ] Leave collection: every leave the bowler has converted, with unconverted splits
+      shown as locked. Built on the leave classifier and leave diagrams.
+- [ ] Race against your best game: while scoring, pins ahead or behind your best game at
+      the same frame, for example "+12 vs your 245".
+- [ ] Season goals: a target average or spare % for a league season, with progress,
+      using the league's season dates.
+- [ ] Ball milestones: best game on each ball, a hall of fame for retired balls, the
+      100th game on a ball.
+- [ ] Tenth-frame clutch rating: performance in the tenth frame and in the last frame of
+      a series compared with the bowler's other frames.
+
+Needs phase 3 share images:
+
+- [ ] Year in review: a shareable season summary with best game, most-converted leave,
+      favorite ball, and longest strike streak.
+
+Needs phase 6 practice tools:
+
+- [ ] Gamified practice drills without a sensor, scored from entered pins: spare
+      streaks such as "10 corner pins in a row", with personal bests. Sensor-based drills
+      stay deferred with the center sensor.
+- [ ] Spare ladder: leaves ordered from easiest to hardest, moving up a rung at a set
+      conversion rate such as 8 of 10.
+- [ ] Fix my weakest leave: practice targeted at the "left most, made least" leave, with
+      its own score.
+
+Needs phase 7 accounts:
+
+- [ ] Head-to-head handicap matches between friends, using the phase 5 handicap math.
+- [ ] Team badges for Baker games and league teams.
 
 ## Appendix A: Feature to phase mapping
 

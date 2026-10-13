@@ -27,6 +27,12 @@ Sub-phases: 1a (scoring engine and core stats) and 1b (analysis, arsenal, ball d
 11. Entry mode rule made consistent: switching modes is allowed only before the first roll.
 12. Resurface reminders use a local notification as well as the badge.
 13. Ordering fields renamed to match the roadmap: `gameIndex`, `frameIndex`, `rollIndex`.
+14. Stats shown depend on the bowler: first launch asks how the user bowls and picks a
+    stats preset (1a); 1b adds a Customize screen to choose and order every stat on Stats
+    and Home (section 7). Comes from stakeholder feedback that stats in competing apps
+    are confusing.
+15. Leaves are drawn as small pin diagrams everywhere they appear, not only as pin
+    numbers (section 7).
 
 ## 1. Purpose and scope
 
@@ -58,10 +64,12 @@ game.
 - Multiple bowlers in one session on one phone, as local names.
 - A basic arsenal: add a ball with name, weight, and intended role; pick a default ball
   per game and override per roll.
-- Stats screen sections: overview, trend, strikes and spares, leaves table with
-  split, makeable, and single-pin conversion. Filters: date presets, event type, bowler.
+- Stats screen cards: overview, trend, strikes and spares, leaves table with split,
+  makeable, and single-pin conversion, shown from the preset for the bowler's style.
+  Filters: date presets, event type, bowler.
+- Leave diagrams: every leave drawn as a small pin deck.
 - History with editing and deleting of games and sessions.
-- Home, Settings, first-launch flow.
+- Home, Settings, first-launch flow, including the bowling style question.
 
 ### Phase 1b: analysis, arsenal, and ball detail
 
@@ -78,6 +86,7 @@ clean game rate; "what if I made every single-pin spare" average; CSV export.
 - By-frame section, head pin rate, clean game rate, first-ball average, open frame rate,
   what-if section.
 - CSV export of games, frames, rolls, and tags from Settings.
+- Customize screen for the cards on Stats and the tiles on Home.
 
 ### Out of scope for phase 1
 
@@ -156,6 +165,9 @@ below but exist on every entity.
 | isOwner | Bool | One owner per user. Enforced in the repository, with a merge rule after sync (section 3.4) |
 | handedness | String raw: right, left, unknown | Default unknown |
 | email | String? | Reserved for phase 7 game invitations. Not shown in phase 1 |
+| statsProfile | String raw: casual, league, competitive, unknown | Owner only. Set at first launch, changeable in Settings. Default unknown, treated as casual |
+| statsLayout | String | Owner only. Ordered card IDs for Stats, comma-separated. Empty means use the profile's preset (section 7) |
+| homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
 | games | [Game]? | Inverse of Game.bowler |
 
 #### Session
@@ -428,9 +440,9 @@ Rules, applied in order:
 The sleeper pairs keep the 2-8 and 3-9 makeable: the pins do not touch, but no pin is
 down between them, so they are not splits under USBC's definition. The second clause
 follows USBC's split definition, for example the 4-5 is a split when the 2 pin is down.
-It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin in front is down. If real bowlers disagree with any case, the adjacency and in-front
-tables are the only thing to edit, and the test suite pins every two-pin and three-pin
-combination.
+It also classifies the 7-8, 8-9, 9-10, and 2-3 as splits when the pin in front is down.
+If real bowlers disagree with any case, the adjacency and in-front tables are the only
+thing to edit, and the test suite pins every two-pin and three-pin combination.
 
 A foul first ball leaves no leave, because the rack is respotted; its spare attempt is
 counted against a full rack (section 6).
@@ -455,7 +467,8 @@ casual), still sees their stats. One tap switches to "All games" or any custom
 combination of practice, league, tournament, and casual. Home's tiles show the
 competition average with the all-games average beneath it, or only the all-games
 average when there are no competition games. The choice of default is stored in
-Settings.
+Settings. The bowling style sets its starting value: casual starts on "All games",
+league and competitive start on "Competition".
 
 ### Which games count for what
 
@@ -560,15 +573,23 @@ use `glassEffect` behind an availability check and a thin material otherwise.
 
 ### Home (1a)
 
-- Headline tiles: competition average with all-games average beneath, high game, high
-  series, strike %, spare %, each with sample size.
+- Headline tiles from the bowler's Home layout (section 7, Stats cards), each with sample
+  size. The league and competitive presets show competition average with all-games
+  average beneath, high game, high series, strike %, spare %. The casual preset shows
+  average, high game, and strike %.
 - Large "Start session" button, and "Quick score" for a final-score-only game, saved as a
   casual session dated now. The event type can be changed afterward in History.
 - "Resume session" when an incomplete session exists.
 - Recent sessions list, three rows, linking into History.
 - First launch: if an iCloud account is signed in, offer "Restore from iCloud" (active
   from phase 2; in phase 1 it is hidden). Otherwise ask for the owner's name and
-  handedness, then show a short explanation of the three entry modes.
+  handedness, then the bowling style question, then show a short explanation of the
+  three entry modes.
+- Bowling style question: "How do you bowl?" with Casually, In a league, and
+  Competitively, each with one line describing it. Above the options: "This decides
+  which stats you see. You can change it anytime in Settings." From 1b it adds: "or pick
+  exactly the stats you want." The answer sets `statsProfile` and the default stats
+  scope.
 
 ### New session (1a)
 
@@ -602,7 +623,8 @@ Count mode replaces the pin deck with a 0 through 10 numeric pad limited to pins
 available, plus the Foul shortcut.
 
 Tenth frame shows a third roll box only when earned. Finishing frame 10 for the last
-bowler shows a game summary sheet: score, strikes, spares, opens, leaves, with "Next game"
+bowler shows a game summary sheet: score, strikes, spares, opens, leaves as pin diagrams,
+with "Next game"
 and "End session". "Next game" creates game `gameIndex + 1` for every bowler with the same
 default balls.
 
@@ -613,26 +635,55 @@ deck fills the width of the screen.
 
 Sessions grouped by month, each row showing date, event type, center, bowler count, and
 scores. Session detail shows its games as scorecards per bowler with the series total and
-allows editing session metadata. Game detail shows the full scorecard, the leaves in each
-frame with split indicators, the balls used, and an Edit button that opens Scoring on
-that game. Swipe to delete with confirmation at both levels.
+allows editing session metadata. Game detail shows the full scorecard, the leave in each
+frame as a pin diagram with split indicator, the balls used, and an Edit button that
+opens Scoring on that game. Swipe to delete with confirmation at both levels.
 
 ### Stats
 
-Filter bar at the top, always visible, showing active filters as chips (default
-"Competition") with a sheet to edit them. Sections, each with its sample size:
+Filter bar at the top, always visible, showing active filters as chips (default from the
+bowling style) with a sheet to edit them. Below it, a vertical list of cards, each with
+its sample size.
 
-1. Overview tiles (1a).
-2. Trend chart (1a).
-3. Strikes and spares: strike %, spare %, fouls (1a); open %, clean game %, first-ball
-   average, head pin rate (1b).
-4. Leaves: the leaves table, the "left most, made least" callout, split, makeable, and
-   single-pin conversion (1a); tap a leave for the occurrence list (1b).
-5. By frame: strike rate and mean pins per frame charts (1b).
-6. What if: real average beside the single-pin what-if average (1b).
+**Card catalog.** Every card has a stable string ID, grouped for the Customize screen:
 
-Sections that do not apply to the current filter's games show a short explanation, for
-example "Enter pins to see leaves".
+| Group | Cards (ID) | Phase |
+|---|---|---|
+| Overview | `average`, `highGame`, `highSeries` | 1a |
+| Trend | `trendChart` | 1a |
+| Strikes and spares | `strikePct`, `sparePct`, `fouls` | 1a |
+| Strikes and spares | `openPct`, `cleanGamePct`, `firstBallAverage`, `headPinRate` | 1b |
+| Leaves | `leavesTable`, `leftMostMadeLeast`, `splitConversion`, `makeableConversion`, `singlePinConversion` | 1a |
+| By frame | `byFrameStrike`, `byFrameAverage` | 1b |
+| What if | `whatIfSinglePins` | 1b |
+
+Tapping a leave in `leavesTable` opens the occurrence list (1b).
+
+**Presets** by `statsProfile`, in display order. Cards from a later sub-phase appear in
+the preset when that sub-phase ships.
+
+| Profile | Stats cards | Home tiles |
+|---|---|---|
+| casual | `average`, `highGame`, `trendChart`, `strikePct`, `sparePct` | `average`, `highGame`, `strikePct` |
+| league | casual's cards plus `highSeries`, `leavesTable`, `leftMostMadeLeast`, `singlePinConversion`, `openPct` | `average`, `highGame`, `highSeries`, `strikePct`, `sparePct` |
+| competitive | every card | `average`, `highGame`, `highSeries`, `strikePct`, `sparePct` |
+
+**Customize (1b).** A toolbar button on Stats and an edit button on Home open the same
+screen: the cards in the current layout, reorderable and removable, and below them every
+other card by group, each with a one-line description, to add. "Reset to preset" clears
+the saved layout. Saving writes `statsLayout` or `homeLayout` on the owner. Changing the
+bowling style later asks whether to replace a customized layout with the new preset.
+
+**Layout rules.** Unknown card IDs in a saved layout (from a newer app version) are
+skipped when displaying and kept when saving. A card that does not apply to the current
+filter's games shows a short explanation, for example "Enter pins to see leaves",
+instead of disappearing, so the layout never jumps around.
+
+**Leave diagrams.** Every leave on Stats, in the occurrence list, in game detail, and on
+the game summary sheet is drawn with `LeaveDiagramView`, a small pin deck with standing
+pins filled and down pins outlined, a split marker when the leave is a split, and the
+pin numbers as a caption, for example "3-6-10". Bowlers recognize a leave by its shape
+faster than by its numbers.
 
 ### Arsenal
 
@@ -674,10 +725,10 @@ per-roll ball picker and ball tagging.
 
 ### Settings
 
-- 1a: owner profile, pin entry default (tap fallen or tap standing), auto-advance on
-  marks, bowler rotation default, default stats scope (competition or all games), delete
-  all data with double confirmation, about and version, and a placeholder row for iCloud
-  sync that says "Coming soon".
+- 1a: owner profile, bowling style, pin entry default (tap fallen or tap standing),
+  auto-advance on marks, bowler rotation default, default stats scope (competition or all
+  games), delete all data with double confirmation, about and version, and a placeholder
+  row for iCloud sync that says "Coming soon".
 - 1b: "Export CSV" under data management, writing one file per entity type (sessions,
   games, frames, rolls, balls, maintenance) zipped, through the system file exporter.
   Zipping uses `NSFileCoordinator` with the `.forUploading` reading option on the
@@ -722,6 +773,8 @@ per-roll ball picker and ball tagging.
 - **BowlingData**: in-memory `ModelContainer` tests for repositories, delete rules,
   repository refusals, conversion to and from BowlingCore value types, filter
   predicates, the owner invariant, and unknown enum values round-tripping.
+- **Stats presets**: each `statsProfile`, including unknown, maps to its preset; casual
+  starts on "All games" and league and competitive on "Competition".
 - **Ordering**: a test that inserts frames and rolls in shuffled order and asserts that
   conversion to `GameRecord` and the computed score are unchanged.
 - **App target**: a UI test that creates a session, enters a full pin-by-pin game, and
@@ -743,6 +796,8 @@ per-roll ball picker and ball tagging.
 - **Duplicate frame repair**: a BowlingData test that inserts two frames with the same
   `frameIndex` and two rolls with the same `rollIndex`, and asserts that repair keeps
   the newest of each and the game validates and scores.
+- **Stats layout**: a saved layout round-trips; reset returns to the preset; unknown
+  card IDs are skipped on display and preserved on save.
 - **Previews**: every 1b screen.
 
 ## 10. Accessibility and localization
@@ -751,6 +806,8 @@ per-roll ball picker and ball tagging.
   the deck exposes a summary like "6 pins standing: 4, 7, 8, 9, 10".
 - Scorecard frames are labeled with frame number, marks, and running total; a foul reads
   as "foul".
+- A leave diagram is one accessibility element reading its pins and kind, for example
+  "Leave 3, 6, 10, makeable" or "Leave 7, 10, split".
 - All text uses text styles so Dynamic Type works; the pin deck and scorecard adapt
   layout at accessibility sizes rather than truncating.
 - All user-visible strings go through a String Catalog from the first commit.
@@ -761,7 +818,8 @@ per-roll ball picker and ball tagging.
 
 - A perfect game, an all-spares game, games with fouls, and every tenth-frame variant
   score correctly in tests.
-- Every 1a stat renders from fixture data, with the competition default applied.
+- Every 1a stat renders from fixture data, with the competition default applied, and each
+  bowling style shows its preset.
 - A full three-game league night for two bowlers can be entered offline, pin by pin.
 - Real bowlers on TestFlight have used the pin deck for at least one league night and
   their feedback has been addressed. The pin deck is the make-or-break interaction.
@@ -774,6 +832,7 @@ per-roll ball picker and ball tagging.
 - A resurface reminder fires when a game crosses a ball's interval.
 - An exported CSV opens correctly in Numbers and Excel and contains every entity's UUID.
 - The owner merge rule and the duplicate frame repair pass their tests.
+- A customized Stats and Home layout survives an app relaunch and a reset to preset.
 - The schema has been reviewed against every rule in section 3.1, because phase 2 locks
   it.
 
@@ -783,3 +842,9 @@ per-roll ball picker and ball tagging.
   after real-bowler testing; the design isolates them for that reason.
 - **Casual games.** Casual is excluded from the competition default alongside practice.
   If testers treat casual as competition, change the default; nothing else depends on it.
+- **Stat explanations.** An info button on every card explaining the stat in one plain
+  sentence with the bowler's own numbers, for example "Spare %: of the 41 times you had
+  pins left after your first ball, you knocked them all down 26 times." Candidate for
+  1b; decide after TestFlight feedback on the presets.
+- **Preset contents.** The card lists per bowling style are a first guess. Adjust them
+  from TestFlight feedback; only the preset table changes.
