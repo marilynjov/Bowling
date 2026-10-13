@@ -2,11 +2,12 @@
 
 Date: 2026-10-07
 Status: approved in conversation, pending written review
+Team: `2026-10-12-team-plan.md` (roles, ownership, and work split per phase)
 
 ## Purpose
 
 A bowling tracker for any bowler, from casual to competitive, that covers as much of the
-52-feature market matrix (`bowling_app_feature_matrix.xlsx`) as one developer can,
+52-feature market matrix (`bowling_app_feature_matrix.xlsx`) as a two-person team can,
 sequenced by dependencies and cost first and by the matrix's importance tiers second.
 Cheap features that reuse the scoring engine ship early even when their tier is lower;
 tier 1 features that need infrastructure (iCloud, photo scan) follow as soon as their
@@ -37,11 +38,11 @@ documents can cite features without depending on rank.
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Platform | iOS only, SwiftUI only | Solo developer; Apple frameworks cover every phase through 6. Android users are reached only through the invitation landing page (phase 7) |
+| Platform | iOS only, SwiftUI only | Small team; Apple frameworks cover every phase through 6. Android users are reached only through the invitation landing page (phase 7) |
 | Minimum iOS | 18 | Supports iPhone XS and newer. Liquid Glass appears automatically on iOS 26+. iOS 26-only APIs (custom glass, Vision document recognition) sit behind availability checks with a fallback |
 | Persistence | SwiftData, local store | Native, offline by default, syncs through iCloud in phase 2 with no server |
 | Personal sync | iCloud via SwiftData CloudKit integration | Free, no accounts, restores history on a new device |
-| Shared and social backend | Supabase, introduced with the first feature that needs people-to-people data: multi-device team scoring (phase 5) or social (phase 7) | Open source and self-hostable on the developer's PC for development; hosted tier for production. Postgres makes leaderboards plain SQL. Firebase cannot be self-hosted |
+| Shared and social backend | Supabase, introduced with the first feature that needs people-to-people data: multi-device team scoring (phase 5) or social (phase 7) | Open source and self-hostable on the data and AI developer's PC for development; hosted tier for production. Postgres makes leaderboards plain SQL. Firebase cannot be self-hosted |
 | Source of truth | The device and iCloud, except for a live shared team game, where the server copy is authoritative until the game is finished; each device then saves its own local copy | A server outage never blocks personal scoring, and two phones scoring one team game cannot overwrite each other |
 | Accounts | Introduced with the backend (phase 5 or 7). Sign in with Apple or email | Everything in phases 1 to 4 and 6 works without an account |
 | Other bowlers on one phone | Local names until accounts exist. After that, a game scored for someone else reaches their own history only through an invitation they accept in their own account | Anyone who wants their games in the app must have an account |
@@ -131,11 +132,11 @@ Reserved fields, added in phase 1a where cheap:
 
 Cross-cutting from phase 1a: Dynamic Type and VoiceOver on the pin deck and scorecard, a
 String Catalog, a privacy manifest that declares the crash reporter's data (Sentry is
-configured in the developer's environment), crash reporting.
+already configured), crash reporting.
 
 ## Running costs
 
-What the developer pays to build and run the app, by phase, and how much a self-run
+What the team pays to build and run the app, by phase, and how much a self-run
 server can avoid. Prices are approximate as of 2026-10-12, mostly from third-party
 summaries; confirm on each provider's pricing page before committing.
 
@@ -143,10 +144,10 @@ summaries; confirm on each provider's pricing page before committing.
 |---|---|---|---|---|
 | Apple Developer Program | 1a (TestFlight) | $99 per year | Unavoidable | Pay |
 | iCloud sync (CloudKit) | 2 | $0. Data counts against each user's own iCloud storage | Not needed | Free |
-| Crash reporting (Sentry) | 1a | $0 on the Developer plan: 1 user, 5,000 errors per month | Sentry can be self-hosted, but the free plan is enough | Free plan |
+| Crash reporting (Sentry) | 1a | $0 on the Developer plan: 1 user, 5,000 errors per month. Team plan about $26 per month for more users | Self-hosting Sentry needs a large server; not worth it | Free plan with one user (the data and AI developer); Team plan only if both developers need access |
 | Privacy policy and invitation landing page | 1a, 7 | $0 on GitHub Pages | Not needed | Free |
 | Domain for email and the landing page | 5 or 7 | About $10 to $15 per year | Still needed | Pay when the backend arrives |
-| Backend (Supabase) | 5 or 7 | $0 on Free: 2 projects, 500 MB database, 5 GB egress per month, paused after 7 days without activity. Pro is $25 per month plus usage | Self-hosted Supabase: $0 extra on the developer's PC, or a small rented server | See below |
+| Backend (Supabase) | 5 or 7 | $0 on Free: 2 projects, 500 MB database, 5 GB egress per month, paused after 7 days without activity. Pro is $25 per month plus usage | Self-hosted Supabase: $0 extra on the data and AI developer's PC, or a small rented server | See below |
 | Transactional email | 7 (5 if invitations ship early) | $0 on Resend Free: 3,000 per month, 100 per day. Pro is $20 per month for 50,000 | Not practical: home internet providers block outgoing mail ports and home IP addresses land in spam | Free tier. Move to Pro when total invitation and sign-up emails approach 100 per day |
 | Cloud scan mode (vision model) | 4 | Per call, depends on the model | Running a vision model needs a GPU machine, which costs more than the calls | Keep it opt-in, cap calls per device per day (phase 4 abuse protection), and set a monthly spend limit with the provider. Skip it if on-device scan is good enough |
 | AI coach | 8 | Per call | Apple's on-device Foundation Models framework, on iOS 26 iPhones that support Apple Intelligence, costs nothing and needs no server | On-device where available; server call only for older iPhones, or no coach there |
@@ -163,11 +164,12 @@ when it is down only shared features stop (team scoring, invitations, feed, lead
 | Option | Monthly cost | Trade-offs |
 |---|---|---|
 | Supabase Free, hosted | $0 | No maintenance. Pauses after 7 days without activity, which only matters before real users keep it active. Outgrown at 500 MB or 5 GB egress per month |
-| Self-hosted Supabase on the developer's PC | $0 extra, plus electricity | Reachable from the internet through Cloudflare Tunnel (free, no open router ports). Down whenever the PC is off, asleep, or offline. The developer owns updates, security patches, and backups, which must be copied off the PC. Check the home internet provider's terms for running a server |
+| Self-hosted Supabase on the data and AI developer's PC | $0 extra, plus electricity | Reachable from the internet through Cloudflare Tunnel (free, no open router ports). Down whenever the PC is off, asleep, or offline. The data and AI developer owns updates, security patches, and backups, which must be copied off the PC. Check the home internet provider's terms for running a server |
 | Self-hosted Supabase on a small rented server | Roughly $10 to $20 for a server with the 4 GB or more of memory Supabase needs | Always on. Same maintenance work as the PC option |
 | Supabase Pro, hosted | $25 plus usage | No pause, daily backups, no maintenance |
 
-Plan: develop against self-hosted Supabase on the developer's PC, as already decided.
+Plan: develop against self-hosted Supabase on the data and AI developer's PC, as already
+decided.
 Launch shared features on Supabase Free. Move to Pro or a rented server only when Free's
 limits or the pause become a real problem. The same open-source Supabase runs in every
 option, so moving between them is a database export and import, not a rewrite. Email
@@ -175,8 +177,8 @@ stays on a provider in every option.
 
 ## Phases
 
-Time boxes are initial estimates for one developer working part time on the app and
-should be recalibrated after phase 1a.
+Time boxes are initial, conservative estimates. With two developers, phases run shorter
+and can overlap as described in the team plan. Recalibrate after phase 1a.
 
 ### Phase 1a: Scoring engine and core stats, on device (4 to 6 weeks)
 
