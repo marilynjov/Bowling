@@ -31,6 +31,20 @@ public enum StatsEngine {
         )
     }
 
+    /// §6 "Default scope": league and tournament when `preferCompetition` (from
+    /// `StatsPreset.prefersCompetition` or the Settings choice) and the bowler has at least
+    /// one complete league or tournament game; otherwise every event type. `games` may hold
+    /// every bowler's games; the repository's `defaultEventTypes(for:preferCompetition:)`
+    /// passes them here.
+    public static func defaultEventTypes(
+        games: [GameRecord], bowler: BowlerID, preferCompetition: Bool
+    ) -> Set<EventType> {
+        let hasCompetition = games.contains {
+            $0.bowlerID == bowler && $0.isComplete && EventType.competition.contains($0.eventType)
+        }
+        return preferCompetition && hasCompetition ? EventType.competition : Set(EventType.allCases)
+    }
+
     /// Oldest first: session date, then session, then `gameIndex`. "Last N" and the
     /// trend's rolling average read from the end (contract OQ-19).
     private static func chronological(_ games: [GameRecord]) -> [GameRecord] {

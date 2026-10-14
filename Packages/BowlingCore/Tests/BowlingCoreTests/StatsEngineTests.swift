@@ -189,6 +189,19 @@ import BowlingFixtures
         #expect(report.leftMostMadeLeast == nil)
     }
 
+    // Contract OQ-4: rolls from an entry mode this version does not know are not trusted,
+    // but the typed final score still counts.
+    @Test func unknownEntryModeCountsOnlyTowardScores() {
+        var game = Self.games.first { $0.id == DemoGame.leagueNight1.id }!
+        game.entryMode = .unknown
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: [.league], bowlerID: DemoBowler.owner.id)
+        let report = StatsEngine.report(games: [game], filter: filter)
+        #expect(report.average == Mean(total: 162, count: 1))
+        #expect(report.rollGames == 0)
+        #expect(report.firstBalls == 0)
+        #expect(report.leaves.isEmpty)
+    }
+
     @Test func reportCarriesItsFilter() {
         let filter = StatsFilter(datePreset: .thisMonth, eventTypes: [.league], bowlerID: DemoBowler.owner.id)
         #expect(StatsEngine.report(games: [], filter: filter).filter == filter)
