@@ -849,7 +849,7 @@ starts.
 ## 8. Approval
 
 - [x] marilynjov (frontend)
-- [ ] SantiagoM99 (data)
+- [x] SantiagoM99 (data)
 
 ## 9. Open questions, decided 2026-10-14 (issue #1)
 
