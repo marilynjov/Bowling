@@ -4,7 +4,7 @@ import SwiftData
 
 @MainActor
 public final class GameRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context
