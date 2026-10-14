@@ -31,6 +31,7 @@ public final class BowlingStore {
     public let balls: BallRepository
     public let sessions: SessionRepository
     public let games: GameRepository
+    public let stats: StatsRepository
 
     /// - Parameter inMemory: An empty store that is never written to disk, for tests and previews.
     public init(inMemory: Bool = false) throws {
@@ -41,6 +42,7 @@ public final class BowlingStore {
         balls = BallRepository(context: context)
         sessions = SessionRepository(context: context)
         games = GameRepository(context: context)
+        stats = StatsRepository(context: context)
     }
 
     /// Builds the container for user data. Sync stays off until phase 2 turns on CloudKit.
