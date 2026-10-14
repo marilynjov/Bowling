@@ -69,6 +69,48 @@ import BowlingFixtures
         #expect(report(expected).trend == trend)
     }
 
+    private func rate(_ ratio: Ratio) -> Rate {
+        Rate(hits: ratio.numerator, attempts: ratio.denominator)
+    }
+
+    /// One complete game on its own, so a miscount points at the game.
+    private func report(_ expected: ExpectedGame) -> StatsReport {
+        var game = Self.games.first { $0.id == expected.game.id }!
+        game.isComplete = true
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: Set(EventType.allCases),
+                                 bowlerID: expected.game.bowler.id)
+        return StatsEngine.report(games: [game], filter: filter)
+    }
+
+    @Test(arguments: DemoFixtureExpected.games.filter { $0.firstBalls != nil })
+    func rollCountsPerGame(_ expected: ExpectedGame) {
+        let report = report(expected)
+        #expect(report.firstBalls == expected.firstBalls)
+        #expect(report.strikes == Rate(hits: expected.strikes!, attempts: expected.firstBalls!))
+        #expect(report.spares == Rate(hits: expected.spares!, attempts: expected.spareAttempts!))
+        #expect(report.fouls == Mean(total: expected.fouls!, count: 1))
+    }
+
+    // §6 applicability: a finalOnly game has no rolls, so it adds nothing to roll stats.
+    @Test(arguments: DemoFixtureExpected.games.filter { $0.firstBalls == nil })
+    func finalOnlyGamesHaveNoRollStats(_ expected: ExpectedGame) {
+        let report = report(expected)
+        #expect(report.scoreGames == 1)
+        #expect(report.firstBalls == 0)
+        #expect(report.strikes == Rate(hits: 0, attempts: 0))
+        #expect(report.spares == Rate(hits: 0, attempts: 0))
+        #expect(report.fouls == Mean(total: 0, count: 0))
+    }
+
+    @Test(arguments: DemoFixtureExpected.reports)
+    func strikesAndSpares(_ expected: ExpectedReport) {
+        let report = report(expected)
+        #expect(report.firstBalls == expected.firstBalls)
+        #expect(report.strikes == rate(expected.strikes))
+        #expect(report.spares == rate(expected.spares))
+        #expect(report.fouls == mean(expected.fouls))
+    }
+
     @Test func reportCarriesItsFilter() {
         let filter = StatsFilter(datePreset: .thisMonth, eventTypes: [.league], bowlerID: DemoBowler.owner.id)
         #expect(StatsEngine.report(games: [], filter: filter).filter == filter)
