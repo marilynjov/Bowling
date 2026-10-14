@@ -39,12 +39,13 @@ public final class BallRepository {
         guard !trimmedName.isEmpty else { throw RepositoryError.invalidBall(.emptyName) }
         guard Self.weightRange.contains(weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
 
-        let ball = Ball(name: trimmedName, weightPounds: weightPounds)
-        ball.brand = brand
-        if intendedRole != .unknown { ball.intendedRole = intendedRole.rawValue }
-        context.insert(ball)
-        try context.commit()
-        return ball.summary()
+        return try context.write {
+            let ball = Ball(name: trimmedName, weightPounds: weightPounds)
+            ball.brand = brand
+            if intendedRole != .unknown { ball.intendedRole = intendedRole.rawValue }
+            context.insert(ball)
+            return ball.summary()
+        }
     }
 }
 

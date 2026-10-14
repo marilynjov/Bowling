@@ -38,14 +38,23 @@ extension ModelContext {
         return model
     }
 
-    /// Saves, or discards every pending change if the save fails, so a failed write never
-    /// leaves half an edit in the context for the next save to pick up.
-    func commit() throws {
+    /// Runs `body` and saves. If either throws, every pending change is discarded, so a
+    /// refused or failed write never leaves half an edit for the next save to pick up.
+    func write<T>(_ body: () throws -> T) throws -> T {
         do {
+            let result = try body()
             try save()
+            return result
         } catch {
             rollback()
             throw error
         }
+    }
+
+    /// Sync can deliver a second owner before the merge rule runs; until then every device
+    /// uses the one the merge will keep: the oldest, ties broken by the smaller UUID string.
+    func owner() -> Bowler? {
+        let owners = (try? fetch(FetchDescriptor<Bowler>(predicate: #Predicate { $0.isOwner }))) ?? []
+        return owners.min { ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString) }
     }
 }
