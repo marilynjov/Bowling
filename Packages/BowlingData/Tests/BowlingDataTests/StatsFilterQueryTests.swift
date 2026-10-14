@@ -44,13 +44,13 @@ import BowlingFixtures
     @Test(arguments: DemoBowler.allCases, DatePreset.allCases)
     func predicateAgreesWithInMemoryFilter(bowler: DemoBowler, preset: DatePreset) throws {
         for eventTypes in Self.eventTypeSets {
-            let filter = StatsFilter(bowlerID: bowler.id, datePreset: preset, eventTypes: eventTypes)
+            let filter = StatsFilter(datePreset: preset, eventTypes: eventTypes, bowlerID: bowler.id)
             #expect(try fetch(filter) == expected(filter), "\(eventTypes)")
         }
     }
 
     @Test func returnsFullRecordsSortedBySessionDateThenGameIndex() throws {
-        let games = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisWeek))
+        let games = try fetch(StatsFilter(datePreset: .thisWeek, bowlerID: DemoBowler.owner.id))
         #expect(games.map(\.id) == [
             DemoGame.leagueNight1, .leagueNight2, .leagueNight3, .practiceInProgress,
         ].map(\.id))
@@ -67,7 +67,7 @@ import BowlingFixtures
         context.insert(league)
         try context.save()
 
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisSeason)
+        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
         let games = try fetch(filter, seasonLeague: league.id)
         #expect(games.map(\.id) == [
             DemoGame.earlyLeague1, .earlyLeague2, .earlyLeague3,
@@ -82,7 +82,7 @@ import BowlingFixtures
         context.insert(league)
         try context.save()
 
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisSeason)
+        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
         #expect(try fetch(filter, seasonLeague: league.id) == expected(filter))
         #expect(try fetch(filter, seasonLeague: UUID()) == expected(filter))
     }
@@ -92,7 +92,7 @@ import BowlingFixtures
         session.eventType = "fun-league"
         try context.save()
 
-        let competition = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: EventType.competition))
+        let competition = try fetch(StatsFilter(eventTypes: EventType.competition, bowlerID: DemoBowler.owner.id))
         #expect(!competition.contains { $0.sessionID == DemoSession.tournament.id })
 
         let all = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id))
@@ -100,7 +100,7 @@ import BowlingFixtures
         #expect(tournament.count == 4)
         #expect(tournament.allSatisfy { $0.eventType == .unknown })
 
-        let onlyUnknown = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: [.unknown]))
+        let onlyUnknown = try fetch(StatsFilter(eventTypes: [.unknown], bowlerID: DemoBowler.owner.id))
         #expect(onlyUnknown.map(\.id) == tournament.map(\.id))
     }
 

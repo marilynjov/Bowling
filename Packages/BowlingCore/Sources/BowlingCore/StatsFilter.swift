@@ -5,8 +5,9 @@ public enum DatePreset: String, Sendable, Hashable, Codable, CaseIterable {
     case thisWeek, thisMonth, last30Days, thisSeason, allTime
 }
 
-/// Which games Stats is computed from. 1a fields only; 1b adds a custom range, ball,
-/// oil pattern, center, and league.
+/// Which games Stats is computed from (spec §6 "Filters"). The repository applies it;
+/// `StatsEngine` only carries it on the report for labeling. 1a fields only; 1b adds a
+/// custom range, ball, oil pattern, center, and league.
 public struct StatsFilter: Sendable, Hashable, Codable {
     public var datePreset: DatePreset
     /// "All games" is every case, `.unknown` included; "Competition" is `EventType.competition`.
@@ -14,12 +15,12 @@ public struct StatsFilter: Sendable, Hashable, Codable {
     public var bowlerID: BowlerID
 
     public init(
-        bowlerID: BowlerID, datePreset: DatePreset = .allTime,
-        eventTypes: Set<EventType> = Set(EventType.allCases)
+        datePreset: DatePreset = .allTime, eventTypes: Set<EventType> = Set(EventType.allCases),
+        bowlerID: BowlerID
     ) {
-        self.bowlerID = bowlerID
         self.datePreset = datePreset
         self.eventTypes = eventTypes
+        self.bowlerID = bowlerID
     }
 
     /// Resolves the preset by calendar day in `calendar`'s time zone. In 1a there is no

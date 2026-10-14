@@ -20,7 +20,7 @@ import BowlingFixtures
     }
 
     private func interval(_ preset: DatePreset, season: DateInterval? = nil) -> DateInterval? {
-        StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: preset)
+        StatsFilter(datePreset: preset, bowlerID: DemoBowler.owner.id)
             .dateInterval(now: now, calendar: calendar, leagueSeason: season)
     }
 
@@ -38,7 +38,7 @@ import BowlingFixtures
     @Test func thisWeekFollowsTheCalendarsFirstWeekday() {
         var monday = calendar
         monday.firstWeekday = 2
-        let resolved = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisWeek)
+        let resolved = StatsFilter(datePreset: .thisWeek, bowlerID: DemoBowler.owner.id)
             .dateInterval(now: now, calendar: monday)
         #expect(resolved == DateInterval(start: day(2026, 10, 12), end: day(2026, 10, 19)))
     }
@@ -72,7 +72,7 @@ import BowlingFixtures
         // 12:00 UTC on 14 October is already 15 October in Auckland (UTC+13).
         var auckland = Calendar(identifier: .gregorian)
         auckland.timeZone = TimeZone(identifier: "Pacific/Auckland")!
-        let resolved = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .last30Days)
+        let resolved = StatsFilter(datePreset: .last30Days, bowlerID: DemoBowler.owner.id)
             .dateInterval(now: now, calendar: auckland)
         #expect(resolved?.end == auckland.date(from: DateComponents(year: 2026, month: 10, day: 16)))
     }
@@ -103,7 +103,7 @@ import BowlingFixtures
     }
 
     @Test func competitionKeepsLeagueAndTournamentGames() {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: EventType.competition)
+        let filter = StatsFilter(eventTypes: EventType.competition, bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == ids(
             .leagueNight1, .leagueNight2, .leagueNight3,
             .tournament1, .tournament2, .tournament3, .tournament4,
@@ -111,52 +111,52 @@ import BowlingFixtures
     }
 
     @Test func customEventTypeCombination() {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: [.practice, .casual])
+        let filter = StatsFilter(eventTypes: [.practice, .casual], bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == ids(.practice1, .practice2, .casualOuting1, .casualOuting2, .practiceInProgress))
     }
 
     @Test func noEventTypesMatchesNothing() {
-        #expect(matching(StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: [])).isEmpty)
+        #expect(matching(StatsFilter(eventTypes: [], bowlerID: DemoBowler.owner.id)).isEmpty)
     }
 
     @Test func thisWeekKeepsSessionsFromSundayOn() {
         // practiceInProgress (today), leagueNight (2 days ago); practice is 5 days ago.
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisWeek)
+        let filter = StatsFilter(datePreset: .thisWeek, bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == ids(.practiceInProgress, .leagueNight1, .leagueNight2, .leagueNight3))
     }
 
     @Test func thisMonthDropsSeptemberSessions() {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisMonth)
+        let filter = StatsFilter(datePreset: .thisMonth, bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == ids(
             .practiceInProgress, .leagueNight1, .leagueNight2, .leagueNight3, .practice1, .practice2,
             .tournament1, .tournament2, .tournament3, .tournament4))
     }
 
     @Test func last30DaysDropsTheCasualOutingFortyDaysAgo() {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .last30Days)
+        let filter = StatsFilter(datePreset: .last30Days, bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == Set(Self.ownerGames.filter { $0.session != .casualOuting }.map(\.id)))
     }
 
     @Test func thisSeasonWithoutALeagueKeepsEveryDemoGame() {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisSeason)
+        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
         #expect(matching(filter) == Set(Self.ownerGames.map(\.id)))
     }
 
     @Test func filtersCombine() {
-        let filter = StatsFilter(bowlerID: DemoBowler.friend.id, datePreset: .thisWeek, eventTypes: [.casual])
+        let filter = StatsFilter(datePreset: .thisWeek, eventTypes: [.casual], bowlerID: DemoBowler.friend.id)
         #expect(matching(filter) == ids(.friendCasual1, .friendCasual2))
     }
 
     @Test func unknownEventTypeOnlyMatchesWhenSelected() {
         var game = DemoFixture.games(relativeTo: now)[0]
         game.eventType = .unknown
-        let competition = StatsFilter(bowlerID: DemoBowler.owner.id, eventTypes: EventType.competition)
+        let competition = StatsFilter(eventTypes: EventType.competition, bowlerID: DemoBowler.owner.id)
         #expect(!competition.matches(game, now: now, calendar: calendar))
         #expect(StatsFilter(bowlerID: DemoBowler.owner.id).matches(game, now: now, calendar: calendar))
     }
 
     @Test func roundTripsThroughCodable() throws {
-        let filter = StatsFilter(bowlerID: DemoBowler.owner.id, datePreset: .thisSeason, eventTypes: [.league])
+        let filter = StatsFilter(datePreset: .thisSeason, eventTypes: [.league], bowlerID: DemoBowler.owner.id)
         let data = try JSONEncoder().encode(filter)
         #expect(try JSONDecoder().decode(StatsFilter.self, from: data) == filter)
     }

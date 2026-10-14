@@ -1,0 +1,243 @@
+import BowlingCore
+import BowlingFixtures
+import Foundation
+import SwiftData
+import Testing
+@testable import BowlingData
+
+@MainActor @Suite struct SessionRepositoryTests {
+    let store: BowlingStore
+    var sessions: SessionRepository { store.sessions }
+    let date = DemoFixture.referenceDate
+
+    init() throws {
+        store = try BowlingStore(inMemory: true)
+    }
+
+    private func metadata(daysAgo: Int = 0, _ eventType: EventType = .league) -> SessionMetadata {
+        SessionMetadata(date: date.addingTimeInterval(Double(-daysAgo) * 86_400), eventType: eventType)
+    }
+
+    private func count<T: PersistentModel>(_ type: T.Type) throws -> Int {
+        try store.context.fetchCount(FetchDescriptor<T>())
+    }
+
+    // MARK: Starting
+
+    @Test func startSessionCreatesGameOneForEachBowler() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let ball = try store.balls.addBall(name: "Phaze", weightPounds: 15, intendedRole: .strike, brand: "")
+
+        let id = try sessions.startSession(
+            metadata(), bowlers: [(partner.id, nil), (owner.id, ball.id)], entryMode: .pinByPin
+        )
+
+        let detail = try sessions.session(id)
+        #expect(detail.metadata == metadata())
+        #expect(detail.bowlers.map(\.bowler.name) == ["Sam", "Alex"])
+        let ownerGame = try #require(detail.bowlers.first?.games.first)
+        #expect(detail.bowlers.map(\.games.count) == [1, 1])
+        #expect(ownerGame.gameIndex == 1)
+        #expect(ownerGame.entryMode == .pinByPin)
+        #expect(ownerGame.defaultBallID == ball.id)
+        #expect(ownerGame.bowlerID == owner.id)
+        #expect(ownerGame.sessionID == id)
+        #expect(ownerGame.eventType == .league)
+        #expect(!ownerGame.isComplete)
+    }
+
+    @Test func startSessionWithMissingBowlerOrBallSavesNothing() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        #expect(throws: RepositoryError.notFound) {
+            try sessions.startSession(metadata(), bowlers: [(owner.id, nil), (UUID(), nil)], entryMode: .countOnly)
+        }
+        #expect(throws: RepositoryError.notFound) {
+            try sessions.startSession(metadata(), bowlers: [(owner.id, UUID())], entryMode: .countOnly)
+        }
+        var withMissingCenter = metadata()
+        withMissingCenter.centerID = UUID()
+        #expect(throws: RepositoryError.notFound) {
+            try sessions.startSession(withMissingCenter, bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        }
+        #expect(try count(Session.self) == 0)
+        #expect(try count(Game.self) == 0)
+    }
+
+    @Test func quickScoreIsACasualFinalOnlyGameForTheOwner() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let id = try sessions.quickScore(finalScore: 187, now: date)
+
+        let detail = try sessions.session(id)
+        #expect(detail.metadata.eventType == .casual)
+        #expect(detail.metadata.date == date)
+        let game = try #require(detail.bowlers.first?.games.first)
+        #expect(detail.bowlers.map(\.bowler.id) == [owner.id])
+        #expect(game.entryMode == .finalOnly)
+        #expect(game.finalScore == 187)
+        #expect(game.isComplete)
+        #expect(game.frames.isEmpty)
+    }
+
+    @Test(arguments: [-1, 301])
+    func quickScoreOutsideZeroTo300IsRefused(_ score: Int) throws {
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        #expect(throws: RepositoryError.invalidGame([.finalScoreOutOfRange])) {
+            try sessions.quickScore(finalScore: score, now: date)
+        }
+        #expect(try count(Session.self) == 0)
+    }
+
+    @Test func quickScoreWithoutOwnerIsNotFound() throws {
+        #expect(throws: RepositoryError.notFound) { try sessions.quickScore(finalScore: 150, now: date) }
+    }
+
+    // MARK: Reading
+
+    @Test func sessionsAreNewestFirst() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let old = try sessions.startSession(metadata(daysAgo: 5), bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        let new = try sessions.startSession(metadata(daysAgo: 1), bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        let sameDayLater = try sessions.startSession(metadata(daysAgo: 1), bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        try store.context.session(sameDayLater).createdAt = .distantFuture
+        try store.context.save()
+
+        #expect(sessions.sessions().map(\.id) == [sameDayLater, new, old])
+    }
+
+    @Test func summaryCarriesNamesCountsAndOrderedGames() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let center = try sessions.createCenter(name: "Sunset Lanes")
+        let league = try sessions.createLeague(name: "Tuesday Trios", centerID: center)
+        var data = metadata()
+        data.centerID = center
+        data.leagueID = league
+        let id = try sessions.startSession(data, bowlers: [(partner.id, nil), (owner.id, nil)], entryMode: .finalOnly)
+        _ = try store.games.startNextGame(in: id)
+
+        let summary = try #require(sessions.sessions().first)
+        #expect(summary.centerName == "Sunset Lanes")
+        #expect(summary.leagueName == "Tuesday Trios")
+        #expect(summary.bowlerCount == 2)
+        #expect(summary.games.map(\.bowlerID) == [owner.id, owner.id, partner.id, partner.id])
+        #expect(summary.games.map(\.gameIndex) == [1, 2, 1, 2])
+        #expect(!summary.isComplete)
+    }
+
+    @Test func sessionIsCompleteWhenEveryGameIs() throws {
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        _ = try sessions.quickScore(finalScore: 150, now: date)
+        #expect(sessions.sessions().first?.isComplete == true)
+    }
+
+    @Test func seriesTotalSumsTheBowlersFinalScores() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let id = try sessions.startSession(metadata(), bowlers: [(owner.id, nil)], entryMode: .finalOnly)
+        let second = try #require(try store.games.startNextGame(in: id).first)
+        let first = try #require(try sessions.session(id).bowlers.first?.games.first?.id)
+        try store.games.setFinalScore(180, for: first)
+        try store.games.setFinalScore(210, for: second)
+
+        #expect(try sessions.session(id).bowlers.first?.seriesTotal == 390)
+    }
+
+    @Test func resumableSessionIsTheNewestWithAnIncompleteGame() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        #expect(sessions.resumableSession() == nil)
+        let older = try sessions.startSession(metadata(daysAgo: 3), bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        _ = try sessions.startSession(metadata(daysAgo: 9), bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        _ = try sessions.quickScore(finalScore: 150, now: date)
+
+        #expect(sessions.resumableSession()?.id == older)
+    }
+
+    @Test func missingSessionIsNotFound() {
+        #expect(throws: RepositoryError.notFound) { try sessions.session(UUID()) }
+    }
+
+    // MARK: Editing
+
+    @Test func updateMetadataChangesTheSession() throws {
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let id = try sessions.quickScore(finalScore: 150, now: date)
+        let pattern = try sessions.createOilPattern(name: "House")
+        var data = try sessions.session(id).metadata
+        data.eventType = .league
+        data.oilPatternID = pattern
+        data.lanes = "17-18"
+        data.notes = "Good look"
+
+        try sessions.updateMetadata(id, data)
+        #expect(try sessions.session(id).metadata == data)
+        #expect(try sessions.session(id).bowlers.first?.games.first?.eventType == .league)
+    }
+
+    @Test func updateMetadataWithMissingReferenceSavesNothing() throws {
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let id = try sessions.quickScore(finalScore: 150, now: date)
+        var data = try sessions.session(id).metadata
+        data.eventType = .league
+        data.leagueID = UUID()
+
+        #expect(throws: RepositoryError.notFound) { try sessions.updateMetadata(id, data) }
+        #expect(try sessions.session(id).metadata.eventType == .casual)
+    }
+
+    @Test func unknownEventTypeReadsAsUnknownAndSurvivesAnEdit() throws {
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let id = try sessions.quickScore(finalScore: 150, now: date)
+        let model = try store.context.session(id)
+        model.eventType = "bowlathon"
+
+        var data = try sessions.session(id).metadata
+        #expect(data.eventType == .unknown)
+        data.notes = "edited"
+        try sessions.updateMetadata(id, data)
+        #expect(model.eventType == "bowlathon")
+        #expect(model.notes == "edited")
+    }
+
+    // MARK: Deleting
+
+    @Test func deleteSessionCascadesToGamesFramesAndRolls() throws {
+        let fixture = try #require(DemoFixture.games(relativeTo: date).first { $0.finalScore == 300 })
+        let game = try insertGame(fixture, into: store.context)
+        let sessionID = try #require(game.session?.id)
+
+        try sessions.deleteSession(sessionID)
+        #expect(try count(Session.self) == 0)
+        #expect(try count(Game.self) == 0)
+        #expect(try count(Frame.self) == 0)
+        #expect(try count(Roll.self) == 0)
+        #expect(try count(Bowler.self) == 1)
+        #expect(try count(Ball.self) == 1)
+    }
+
+    @Test func deletingMissingSessionIsNotFound() {
+        #expect(throws: RepositoryError.notFound) { try sessions.deleteSession(UUID()) }
+    }
+
+    // MARK: Pickers
+
+    @Test func pickersListByName() throws {
+        _ = try sessions.createCenter(name: "sunset Lanes")
+        _ = try sessions.createCenter(name: "AMF Bay")
+        _ = try sessions.createOilPattern(name: "Shark")
+        #expect(sessions.centers().map(\.name) == ["AMF Bay", "sunset Lanes"])
+        #expect(sessions.oilPatterns().map(\.name) == ["Shark"])
+        #expect(sessions.leagues().isEmpty)
+    }
+
+    @Test func createLeagueLinksItsCenter() throws {
+        let center = try sessions.createCenter(name: "Sunset Lanes")
+        let league = try sessions.createLeague(name: "Tuesday Trios", centerID: center)
+        #expect(try store.context.league(league).center?.id == center)
+        #expect(sessions.leagues() == [NamedRef(id: league, name: "Tuesday Trios")])
+    }
+
+    @Test func createLeagueWithMissingCenterSavesNothing() throws {
+        #expect(throws: RepositoryError.notFound) { try sessions.createLeague(name: "Trios", centerID: UUID()) }
+        #expect(sessions.leagues().isEmpty)
+    }
+}
