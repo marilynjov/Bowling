@@ -47,6 +47,88 @@ public enum Scorer {
         return Scorecard(frames: frames, finalScore: frames.last?.runningTotal)
     }
 
+    /// Every violation, in frame and roll order; empty means valid. Repositories refuse to
+    /// save a game with any.
+    public static func validate(_ game: GameRecord) -> [ScoringError] {
+        guard game.entryMode != .finalOnly else {
+            return (0...300).contains(game.finalScore) ? [] : [.finalScoreOutOfRange]
+        }
+        var errors: [ScoringError] = []
+        func report(_ error: ScoringError) {
+            if !errors.contains(error) { errors.append(error) }
+        }
+
+        var seenFrames = Set<Int>()
+        var previousFrame = 0
+        for frame in game.frames {
+            guard seenFrames.insert(frame.frameIndex).inserted else {
+                report(.duplicateIndex(frameIndex: frame.frameIndex, rollIndex: nil))
+                continue
+            }
+            if frame.frameIndex <= previousFrame || !(1...10).contains(frame.frameIndex) {
+                report(.outOfOrder(frameIndex: frame.frameIndex))
+            }
+            previousFrame = max(previousFrame, frame.frameIndex)
+
+            var seenRolls = Set<Int>()
+            var previousRoll = 0
+            for roll in frame.rolls {
+                guard seenRolls.insert(roll.rollIndex).inserted else {
+                    report(.duplicateIndex(frameIndex: frame.frameIndex, rollIndex: roll.rollIndex))
+                    continue
+                }
+                if roll.rollIndex <= previousRoll || !(1...3).contains(roll.rollIndex) {
+                    report(.outOfOrder(frameIndex: frame.frameIndex))
+                }
+                previousRoll = max(previousRoll, roll.rollIndex)
+            }
+        }
+
+        let played = playedFrames(game)
+        for (offset, frame) in played.enumerated() {
+            guard let record = game.frames.first(where: { $0.frameIndex == frame.frameIndex }) else { continue }
+            let rolls = record.rolls.sorted { $0.rollIndex < $1.rollIndex }
+            if !rolls.isEmpty, offset > 0, !played[offset - 1].isFinished {
+                report(.outOfOrder(frameIndex: frame.frameIndex))
+            }
+            if zip(frame.rolls, 1...).contains(where: { $0.rollIndex != $1 }) {
+                report(.outOfOrder(frameIndex: frame.frameIndex))
+            }
+            for (roll, rack) in zip(frame.rolls, frame.racks) {
+                rollErrors(roll, facing: rack, frameIndex: frame.frameIndex).forEach(report)
+            }
+            if frame.rolls.count < Set(rolls.map(\.rollIndex)).count {
+                report(extraRollError(frame))
+            }
+        }
+        return errors
+    }
+
+    private static func rollErrors(_ roll: RollRecord, facing rack: Rack, frameIndex: Int) -> [ScoringError] {
+        if roll.isFoul {
+            let hasPins = roll.pinCount != 0 || !roll.pinsDown.isEmpty
+            return hasPins ? [.foulWithPins(frameIndex: frameIndex, rollIndex: roll.rollIndex)] : []
+        }
+        var errors: [ScoringError] = []
+        if !(0...rack.standing).contains(roll.pinCount) {
+            errors.append(.pinsExceedAvailable(frameIndex: frameIndex, rollIndex: roll.rollIndex))
+        }
+        if roll.pinsKnown, let standing = rack.pins, !roll.pinsDown.isSubset(of: standing) {
+            errors.append(.notSubsetOfStanding(frameIndex: frameIndex, rollIndex: roll.rollIndex))
+        }
+        return errors
+    }
+
+    /// The error for rolls past the ones `frame` allows.
+    private static func extraRollError(_ frame: PlayedFrame) -> ScoringError {
+        if frame.frameIndex == 10 {
+            return frame.rolls.count == 2 ? .unearnedThirdRoll : .outOfOrder(frameIndex: 10)
+        }
+        return frame.marks.first == .strike
+            ? .rollAfterStrike(frameIndex: frame.frameIndex)
+            : .outOfOrder(frameIndex: frame.frameIndex)
+    }
+
     /// Frames 1...10 in order, rolls in `rollIndex` order. Duplicates and indices out of range
     /// are dropped, so a game that fails `validate` still gets a best-effort scorecard.
     static func playedFrames(_ game: GameRecord) -> [PlayedFrame] {
