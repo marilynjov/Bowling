@@ -27,11 +27,14 @@ public final class BowlingStore {
     let container: ModelContainer
     let context: ModelContext
 
+    public let bowlers: BowlerRepository
+
     /// - Parameter inMemory: An empty store that is never written to disk, for tests and previews.
     public init(inMemory: Bool = false) throws {
         container = try Self.makeContainer(inMemory: inMemory)
         context = container.mainContext
         context.autosaveEnabled = false
+        bowlers = BowlerRepository(context: context)
     }
 
     /// Builds the container for user data. Sync stays off until phase 2 turns on CloudKit.
