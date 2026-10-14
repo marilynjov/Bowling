@@ -112,4 +112,23 @@ import Testing
         #expect(throws: RepositoryError.notFound) { try games.recordRoll(.count(3), ballID: UUID(), in: game) }
         #expect(try savedRollCount() == 0)
     }
+
+    // MARK: Undo
+
+    @Test func undoRemovesTheLastRollAndItsEmptyFrame() throws {
+        let game = try startGame(.countOnly)
+        try bowl([7, 2, 10, 3], in: game)
+
+        #expect(counts(try games.undoLastRoll(in: game)) == [[7, 2], [10]])
+        let undone = try games.undoLastRoll(in: game)
+        #expect(counts(undone) == [[7, 2]])
+        #expect(undone.finalScore == 9)
+        #expect(try savedRollCount() == 2)
+    }
+
+    @Test func undoOnAGameWithNoRollsChangesNothing() throws {
+        let game = try startGame(.countOnly)
+        let started = try games.game(game)
+        #expect(try games.undoLastRoll(in: game) == started)
+    }
 }

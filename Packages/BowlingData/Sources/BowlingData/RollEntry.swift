@@ -30,6 +30,15 @@ extension GameRepository {
         return try save(record)
     }
 
+    /// Removes the last roll, and its frame once empty. A game with no rolls is returned unchanged.
+    public func undoLastRoll(in game: GameID) throws -> GameRecord {
+        var record = try self.game(game)
+        guard let last = record.frames.lastIndex(where: { !$0.rolls.isEmpty }) else { return record }
+        record.frames[last].rolls.removeLast()
+        record.frames.removeAll { $0.rolls.isEmpty }
+        return try save(record)
+    }
+
     /// - Throws: `.invalidGame([])` when `input` does not belong to `mode`.
     private static func roll(_ input: RollInput, rollIndex: Int, ballID: BallID?, mode: EntryMode) throws -> RollRecord {
         switch (input, mode) {
