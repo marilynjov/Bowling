@@ -192,6 +192,15 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     // public var centerID: CenterID?
     // public var leagueID: LeagueID?
     // public var oilPatternID: OilPatternID?
+
+    /// Public because Swift's memberwise init is internal and other packages
+    /// (BowlingData, fixtures, tests) must build games (#17, PR #52).
+    public init(
+        id: GameID = GameID(), bowlerID: BowlerID? = nil, gameIndex: Int,
+        entryMode: EntryMode, defaultBallID: BallID? = nil, finalScore: Int,
+        isComplete: Bool, frames: [FrameRecord] = [],
+        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType
+    )
 }
 ```
 
