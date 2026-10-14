@@ -13,6 +13,9 @@ let package = Package(
     ],
     targets: [
         .target(name: "BowlingData", dependencies: ["BowlingCore"]),
-        .testTarget(name: "BowlingDataTests", dependencies: ["BowlingData"]),
+        .testTarget(
+            name: "BowlingDataTests",
+            dependencies: ["BowlingData", .product(name: "BowlingFixtures", package: "BowlingCore")]
+        ),
     ]
 )
