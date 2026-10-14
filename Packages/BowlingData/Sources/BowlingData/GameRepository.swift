@@ -22,10 +22,9 @@ public final class GameRepository {
         let game = try context.game(record.id)
         let errors = Scorer.validate(record)
         guard errors.isEmpty else { throw RepositoryError.invalidGame(errors) }
-        return try context.write {
-            try game.apply(Self.scored(record), in: context)
-            return game.record()
-        }
+        // Read back after the save: until then a deleted frame or roll is still in the relationship.
+        try context.write { try game.apply(Self.scored(record), in: context) }
+        return game.record()
     }
 
     /// Before frame 10 is finished the cached score is the last known running total, so
