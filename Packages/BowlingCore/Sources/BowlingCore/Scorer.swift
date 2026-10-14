@@ -27,7 +27,41 @@ public struct Scorecard: Sendable, Hashable {
     }
 }
 
+/// Where the next roll goes and what the bowler faces.
+public struct RollPosition: Sendable, Hashable {
+    public var frameIndex: Int
+    public var rollIndex: Int
+    /// The pins the deck enables; all ten when earlier rolls on this rack were recorded
+    /// without pins (countOnly).
+    public var standingPins: PinSet
+    /// The most the roll can knock down; the bound for countOnly entry.
+    public var standingCount: Int
+    /// No ball has been rolled at this rack yet, so the roll counts as a first ball.
+    public var isFreshRack: Bool
+
+    public init(frameIndex: Int, rollIndex: Int, standingPins: PinSet, standingCount: Int, isFreshRack: Bool) {
+        self.frameIndex = frameIndex
+        self.rollIndex = rollIndex
+        self.standingPins = standingPins
+        self.standingCount = standingCount
+        self.isFreshRack = isFreshRack
+    }
+}
+
 public enum Scorer {
+    /// Nil when the game is complete or finalOnly.
+    public static func nextRoll(in game: GameRecord) -> RollPosition? {
+        guard game.entryMode != .finalOnly else { return nil }
+        for frame in playedFrames(game) {
+            guard let rack = frame.nextRack else { continue }
+            return RollPosition(
+                frameIndex: frame.frameIndex, rollIndex: frame.rolls.count + 1,
+                standingPins: rack.pins ?? .all, standingCount: rack.standing, isFreshRack: rack.isFresh
+            )
+        }
+        return nil
+    }
+
     public static func scorecard(for game: GameRecord) -> Scorecard {
         guard game.entryMode != .finalOnly else {
             let empty = (1...10).map { FrameScore(frameIndex: $0, marks: [], runningTotal: nil) }
