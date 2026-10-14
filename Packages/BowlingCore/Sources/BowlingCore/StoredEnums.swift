@@ -75,3 +75,17 @@ public enum BallRole: String, Sendable, Hashable, Codable, CaseIterable {
         self.init(storedValue: try decoder.singleValueContainer().decode(String.self))
     }
 }
+
+/// The user's explicit default stats scope. The stored empty string means "follow the
+/// bowling style" and reads as nil on `BowlerRecord`, as does `.unknown`.
+public enum StatsScope: String, Sendable, Hashable, Codable, CaseIterable {
+    case competition, all, unknown
+
+    public init(storedValue: String) {
+        self = Self(rawValue: storedValue) ?? .unknown
+    }
+
+    public init(from decoder: any Decoder) throws {
+        self.init(storedValue: try decoder.singleValueContainer().decode(String.self))
+    }
+}

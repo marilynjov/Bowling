@@ -13,6 +13,8 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
     public var statsLayout: [String]
     /// Raw Home tile card IDs; empty means the profile's preset.
     public var homeLayout: [String]
+    /// Nil follows the bowling style's preference.
+    public var statsScope: StatsScope?
 }
 
 @MainActor
@@ -66,11 +68,21 @@ public final class BowlerRepository {
         }
     }
 
-    /// Leaves a customized layout alone. `.unknown` keeps the stored value.
+    /// Leaves a customized layout and an explicit stats scope alone. `.unknown` keeps the
+    /// stored value.
     public func setStatsProfile(_ profile: StatsProfile) throws {
         guard let owner = context.owner() else { throw RepositoryError.notFound }
         try context.write {
             if profile != .unknown { owner.statsProfile = profile.rawValue }
+            owner.updatedAt = .now
+        }
+    }
+
+    /// Nil follows the bowling style. `.unknown` keeps the stored value.
+    public func setStatsScope(_ scope: StatsScope?) throws {
+        guard let owner = context.owner() else { throw RepositoryError.notFound }
+        try context.write {
+            if scope != .unknown { owner.statsScope = scope?.rawValue ?? "" }
             owner.updatedAt = .now
         }
     }
@@ -95,7 +107,8 @@ extension Bowler {
             handedness: BowlingCore.Handedness(storedValue: handedness),
             statsProfile: BowlingCore.StatsProfile(storedValue: statsProfile),
             statsLayout: Self.cardIDs(statsLayout),
-            homeLayout: Self.cardIDs(homeLayout)
+            homeLayout: Self.cardIDs(homeLayout),
+            statsScope: Self.scope(statsScope)
         )
     }
 
@@ -106,6 +119,11 @@ extension Bowler {
     /// The owner first, then by name.
     static func ownerThenName(_ lhs: Bowler, _ rhs: Bowler) -> Bool {
         lhs.isOwner != rhs.isOwner ? lhs.isOwner : byName(lhs, rhs)
+    }
+
+    private static func scope(_ stored: String) -> StatsScope? {
+        let scope = StatsScope(storedValue: stored)
+        return scope == .unknown ? nil : scope
     }
 
     private static func cardIDs(_ layout: String) -> [String] {

@@ -17,6 +17,9 @@ final class Bowler {
     var statsLayout: String = ""
     /// Comma-separated Home tile card IDs. Empty means the profile's preset.
     var homeLayout: String = ""
+    /// The explicit default stats scope. Empty follows the bowling style, which a style
+    /// change never overwrites.
+    var statsScope: String = ""
 
     @Relationship(deleteRule: .nullify, inverse: \Game.bowler)
     var games: [Game]?
