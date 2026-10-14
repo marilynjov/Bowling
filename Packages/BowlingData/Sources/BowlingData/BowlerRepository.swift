@@ -38,8 +38,10 @@ public final class BowlerRepository {
         return ([owner].compactMap(\.self) + others).map { $0.record() }
     }
 
-    /// - Throws: `.ownerAlreadyExists` when an owner exists.
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name, `.ownerAlreadyExists` when
+    ///   an owner exists.
     public func createOwner(name: String, handedness: Handedness, statsProfile: StatsProfile) throws -> BowlerRecord {
+        let name = try Self.validName(name)
         guard context.owner() == nil else { throw RepositoryError.ownerAlreadyExists }
         return try context.write {
             let owner = Bowler(name: name, isOwner: true)
@@ -50,8 +52,10 @@ public final class BowlerRepository {
         }
     }
 
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name.
     public func createBowler(name: String) throws -> BowlerRecord {
-        try context.write {
+        let name = try Self.validName(name)
+        return try context.write {
             let bowler = Bowler(name: name)
             context.insert(bowler)
             return bowler.record()
@@ -59,7 +63,9 @@ public final class BowlerRepository {
     }
 
     /// `.unknown` handedness keeps the stored value.
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name.
     public func updateOwner(name: String, handedness: Handedness) throws {
+        let name = try Self.validName(name)
         guard let owner = context.owner() else { throw RepositoryError.notFound }
         try context.write {
             owner.name = name
@@ -85,6 +91,13 @@ public final class BowlerRepository {
             if scope != .unknown { owner.statsScope = scope?.rawValue ?? "" }
             owner.updatedAt = .now
         }
+    }
+
+    /// The name trimmed of surrounding whitespace, as `addBall` stores ball names.
+    private static func validName(_ name: String) throws -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw RepositoryError.invalidBowler(.emptyName) }
+        return trimmed
     }
 
     /// - Throws: `.cannotDeleteOwner`, or `.bowlerHasGames(count:)` so the user can delete

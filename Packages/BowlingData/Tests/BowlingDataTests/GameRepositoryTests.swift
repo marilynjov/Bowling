@@ -104,7 +104,7 @@ import Testing
 
     @Test func setFinalScoreOnAScoredGameIsRefused() throws {
         let started = try startGame(.pinByPin)
-        #expect(throws: RepositoryError.invalidGame([])) { try games.setFinalScore(200, for: started.id) }
+        #expect(throws: RepositoryError.notFinalOnly) { try games.setFinalScore(200, for: started.id) }
         #expect(try games.game(started.id) == started)
     }
 

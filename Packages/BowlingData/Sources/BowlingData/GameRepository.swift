@@ -50,10 +50,10 @@ public final class GameRepository {
 
     /// Marks a finalOnly game complete with the typed score.
     /// - Throws: `.invalidGame([.finalScoreOutOfRange])` outside 0 through 300, and
-    ///   `.invalidGame([])` for a game scored from rolls, whose score is never typed.
+    ///   `.notFinalOnly` for a game scored from rolls, whose score is never typed.
     public func setFinalScore(_ score: Int, for game: GameID) throws {
         var record = try self.game(game)
-        guard record.entryMode == .finalOnly else { throw RepositoryError.invalidGame([]) }
+        guard record.entryMode == .finalOnly else { throw RepositoryError.notFinalOnly }
         record.finalScore = score
         record.isComplete = true
         _ = try save(record)

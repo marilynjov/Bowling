@@ -57,6 +57,31 @@ import Testing
         #expect(bowlers.owner()?.id == older.id)
     }
 
+    // MARK: Names
+
+    @Test(arguments: ["", "   ", "\n\t"])
+    func blankNamesAreRefused(_ name: String) throws {
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) {
+            try bowlers.createOwner(name: name, handedness: .right, statsProfile: .casual)
+        }
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) { try bowlers.createBowler(name: name) }
+        #expect(try bowlerCount() == 0)
+
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) {
+            try bowlers.updateOwner(name: name, handedness: .left)
+        }
+        #expect(bowlers.owner()?.name == "Sam")
+        #expect(bowlers.owner()?.handedness == .right)
+    }
+
+    @Test func namesAreTrimmed() throws {
+        #expect(try bowlers.createOwner(name: " Sam ", handedness: .right, statsProfile: .casual).name == "Sam")
+        #expect(try bowlers.createBowler(name: "Alex\n").name == "Alex")
+        try bowlers.updateOwner(name: "  Samantha", handedness: .unknown)
+        #expect(bowlers.owner()?.name == "Samantha")
+    }
+
     // MARK: Listing
 
     @Test func bowlersListOwnerFirstThenByName() throws {
