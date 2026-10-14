@@ -1,16 +1,15 @@
 # App and Package Contract
 
-Date: 2026-10-14
-Status: draft, needs approval from both marilynjov (frontend) and SantiagoM99 (data)
+Date: 2026-10-14 (open questions decided 2026-10-14, issue #1)
+Status: decided, approved when both boxes in section 8 are checked
 Issue: #1
 Spec: `2026-10-07-phase-1-core-scoring-design.md` (cited below as §n)
 Team plan: `2026-10-12-team-plan.md`
-Aligned with: `Packages/` on main at 784d95b (issues #16 to #26). Where an earlier draft
-and the code differed, this document now states what the code does.
 
 This document pins down what the app target (`Bowling/`) may use from the packages
 (`Packages/BowlingCore`, `Packages/BowlingData`), so screens can be built against demo
-fixtures while the engines are written. The packages expose exactly these names. Any change to this document after it merges needs a PR that both
+fixtures while the engines are written. The packages created by #16 must expose exactly
+these names. Any change to this document after it merges needs a PR that both
 developers review.
 
 ## 0. How to read this
@@ -18,9 +17,7 @@ developers review.
 - Every item is tagged **1a** (needed now) or **1b** (deferred; shape listed but not
   pinned until the 1b contract PR).
 - Every field cites its source in the spec. Items the spec needs but does not name are
-  tagged **Proposed (OQ-n)** and are not final until the matching open question in
-  section 9 is answered. Section 9 also records what the merged code does for each
-  question; that is evidence for the answer, not the decision.
+  tagged **OQ-n**, pointing to the decision recorded in section 9.
 - Signatures show the public surface only. Bodies, private helpers, and the SwiftData
   `@Model` classes are not part of the contract: the app never sees `Session`, `Game`,
   `Frame`, `Roll`, or `Ball` models (§2), except as allowed by OQ-1.
@@ -30,9 +27,9 @@ developers review.
 1. **Value types only cross the boundary.** Everything the app receives is a `struct`
    or `enum` that is `Sendable` and `Hashable`. Types that are stored or exported are
    also `Codable`. No SwiftData model, `ModelContext`, or `PersistentIdentifier` is
-   returned to the app (§2). The `@Model` classes are internal to BowlingData. The one
-   exception on main is `BowlingStore.schema` and `BowlingStore.makeContainer(inMemory:)`,
-   which are public (section 3.1, OQ-20).
+   returned to the app (§2). `BowlingStore.schema` and
+   `BowlingStore.makeContainer(inMemory:)` are public on main and return SwiftData types;
+   see OQ-20.
 2. **Identity is a UUID** generated on device (§3.1). Typed aliases keep call sites
    readable; `BallID` is the name the spec already uses (§6, ball report).
 
@@ -53,15 +50,15 @@ developers review.
    values are the stored strings (§3.1), and decoding an unrecognized raw value yields
    `.unknown` instead of failing. The UI shows `.unknown` as "Other" (§8). Repositories
    never overwrite a stored raw value the app did not explicitly change, so a value
-   from a newer app version is preserved on save (§8). Passing `.unknown` to a
-   repository write keeps the stored value. Whether every enum gets `.unknown` or only
-   those the spec lists is OQ-4.
+   from a newer app version is preserved on save (§8). Every contract enum gets
+   `.unknown` (OQ-4).
 5. **Engines are pure.** `Scorer`, `LeaveClassifier`, and `StatsEngine` are
    deterministic, `nonisolated`, and synchronous (§2). They can be called from any
    isolation. Anything that depends on "now" or the calendar takes them as parameters.
 6. **Repositories are `@MainActor` and synchronous.** They wrap the SwiftData main
-   context, `throw` a `RepositoryError` on refusal, and save before returning. A failed
-   write rolls the context back, so nothing is saved when one throws. **Proposed (OQ-2).**
+   context, `throw` a `RepositoryError` on refusal, and save before returning (OQ-2).
+   A failed write rolls the context back, so nothing is saved when one throws. Passing
+   `.unknown` for an enum in a repository write keeps the stored value.
 7. **Stable string raw values never change.** Enum raw values and stats card IDs are
    persisted (§3.2 Bowler.statsLayout) and synced in phase 2. They may be added, never
    renamed or removed (§3.1, additive only).
@@ -81,7 +78,7 @@ public struct PinSet: OptionSet, Sendable, Hashable, Codable {
     public static let pin10 = PinSet(rawValue: 1 << 9)
     public static let all: PinSet          // pin1 through pin10
 
-    /// Pin numbers 1...10; numbers outside that range are ignored.
+    /// Pin numbers 1...10, in any order; numbers outside that range are ignored.
     public init(pins: some Sequence<Int>)
     public var pins: [Int] { get }         // ascending
     public var count: Int { get }
@@ -121,6 +118,13 @@ public enum StatsProfile: String, Sendable, Hashable, Codable, CaseIterable {
     public var effective: StatsProfile { get }
 }
 
+/// §3.2 Bowler.statsScope: the user's explicit default stats scope (OQ-14). The
+/// stored empty string means "follow the bowling style" and reads as nil on
+/// BowlerRecord; `.unknown` (a value from a newer version) is also treated as nil.
+public enum StatsScope: String, Sendable, Hashable, Codable, CaseIterable {
+    case competition, all, unknown
+}
+
 /// §3.2 Bowler.handedness. Stored default: unknown.
 public enum Handedness: String, Sendable, Hashable, Codable, CaseIterable {
     case right, left, unknown
@@ -156,11 +160,12 @@ public struct RollRecord: Sendable, Hashable, Codable {
 
 Rules:
 
-- When `pinsKnown` is true, `pinCount == pinsDown.count`. Whether `Scorer.validate`
-  reports a mismatch is OQ-6.
+- When `pinsKnown` is true, `pinCount == pinsDown.count`. `Scorer.validate` does not
+  report a mismatch, because the repository always derives `pinCount` from the pins
+  (OQ-6).
 - A foul has `pinCount == 0` and `pinsDown == []` regardless of entry mode (§4).
 - No `id`: a roll is identified by its game, `frameIndex`, and `rollIndex` (§3.1
-  ordering). See OQ-7.
+  ordering, OQ-7).
 
 ### 2.4 FrameRecord (1a, §3.2 Frame)
 
@@ -212,12 +217,12 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
 Rules:
 
 - The repository fills session context on every conversion; the app treats it as
-  read-only on a `GameRecord`. Session context on the record is **Proposed (OQ-8)**.
-  A game with no session gets `sessionID == nil`, `sessionDate` = the game's
-  `createdAt`, and `eventType == .unknown`.
+  read-only on a `GameRecord` (OQ-8). A game with no session gets `sessionID == nil`,
+  `sessionDate` = the game's `createdAt`, and `eventType == .unknown`.
 - Only `isComplete == true` games count toward any stat (§6). `StatsEngine` enforces
   this itself, so callers may pass incomplete games.
-- What `finalScore` holds while a game is incomplete is OQ-9.
+- While a game is incomplete, `finalScore` holds the last known running total (OQ-9).
+  History and session detail label such a game "in progress".
 
 ### 2.6 Mark, scorecard, and roll positions (1a, §4)
 
@@ -235,21 +240,24 @@ public enum Mark: Sendable, Hashable, Codable {
 ```
 
 The scorecard strip, pending running totals, and the pin deck's disabled pins also need
-Scorer output that the spec describes but does not name. **Proposed (OQ-3):**
+Scorer output that the spec describes but does not name (OQ-3):
 
 ```swift
 public struct FrameScore: Sendable, Hashable {
     public var frameIndex: Int
     public var marks: [Mark]           // one per roll, in rollIndex order
+    /// The leave of the frame's spare attempt rack, which drives the split indicator
+    /// and the frame's leave diagram (§4, §7). At most one per frame, because fill-ball
+    /// leaves are not listed (#57). nil for strikes, countOnly and finalOnly games, and
+    /// first-ball fouls.
+    public var leave: Leave?
     public var runningTotal: Int?      // nil until bonus rolls exist (§4 "Score computation")
-    public init(frameIndex: Int, marks: [Mark], runningTotal: Int?)
 }
 
 public struct Scorecard: Sendable, Hashable {
     public var frames: [FrameScore]    // always 10 entries, frameIndex 1...10
     public var finalScore: Int?        // tenth frame's running total, or the typed score
                                        // of a finalOnly game; nil until known
-    public init(frames: [FrameScore], finalScore: Int?)
 }
 
 /// Where the next roll goes and what the bowler faces.
@@ -258,22 +266,14 @@ public struct RollPosition: Sendable, Hashable {
     public var rollIndex: Int
     public var standingPins: PinSet    // pins the deck enables (§7 Scoring 3); all ten when
                                        // earlier rolls on this rack were countOnly
-    public var standingCount: Int      // most the roll can knock down; the countOnly pad's bound
+    public var standingCount: Int      // the most this roll can knock down; bounds countOnly (#56)
     public var isFreshRack: Bool       // counts as a first ball (§6 "First balls")
     public init(frameIndex: Int, rollIndex: Int, standingPins: PinSet,
                 standingCount: Int, isFreshRack: Bool)
 }
 ```
 
-Rules:
-
-- `FrameScore` carries no leave. The scorecard's split indicator (§4) is not delivered by
-  `Scorer`; the app would have to call `LeaveClassifier` itself, which section 7 forbids.
-  See OQ-3.
-- A finalOnly game's scorecard has ten frames with no marks and no running totals.
-- `standingCount` exists because `standingPins` cannot bound count entry: after a
-  countOnly roll the pin identities are unknown (§7 "Count mode ... limited to pins
-  available").
+A finalOnly game's scorecard has ten frames with no marks and no running totals.
 
 ### 2.7 Leave (1a, §5)
 
@@ -303,10 +303,10 @@ accessibility label ("Leave 3, 6, 10, makeable", §10) is built by the app.
 public enum Scorer {
     /// §4 "Validation". Empty means valid.
     public static func validate(_ game: GameRecord) -> [ScoringError]
-    /// Proposed (OQ-3). Best effort on an invalid game: duplicates and out-of-range
-    /// indices are dropped.
+    /// OQ-3. Best effort on an invalid game: duplicates and out-of-range indices are
+    /// dropped.
     public static func scorecard(for game: GameRecord) -> Scorecard
-    /// Proposed (OQ-3). nil when the game is complete or finalOnly.
+    /// OQ-3. nil when the game is complete or finalOnly.
     public static func nextRoll(in game: GameRecord) -> RollPosition?
 }
 
@@ -344,22 +344,26 @@ public enum StatsEngine {
 `finalScoreOutOfRange` case is included because §4 bounds `finalScore` to 0...300 and
 repositories refuse invalid games. `outOfOrder` also covers an index out of range or
 skipped, rolls after an unfinished frame, and a roll after a spare or open in frames 1
-to 9. `validate` does not compare `pinCount` with `pinsDown.count` (OQ-6).
+to 9.
 
 ## 3. Repositories (BowlingData)
 
-### 3.1 Shape (Proposed, OQ-2)
+### 3.1 Shape (OQ-2)
 
 ```swift
 @MainActor
 public final class BowlingStore {
-    /// inMemory: an empty store never written to disk, for tests and previews.
-    public init(inMemory: Bool = false) throws
+    public init(inMemory: Bool = false) throws       // the app's store, or an empty test store
     public let sessions: SessionRepository
     public let games: GameRepository
     public let bowlers: BowlerRepository
     public let balls: BallRepository
     public let stats: StatsRepository
+
+    /// Settings "Delete all data" (§7, OQ-12): deletes every record, the owner
+    /// included, so the app returns to first launch. From phase 2 the deletion syncs to
+    /// every device on the iCloud account, and the confirmation must say so.
+    public func deleteAllData() throws
 
     // Public on main but outside the value-type boundary (OQ-20):
     public nonisolated static var schema: Schema { get }
@@ -375,18 +379,25 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case cannotDeleteOwner                    // §3.3
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
+    case invalidBowler(BowlerFieldError)      // a bowler's name is required
+    case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
+public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None
-are `async` in 1a. Nothing is saved when one throws. `.invalidGame([])` (no scoring
-errors) is the refusal for a write that does not apply to the game at all: roll input of
-the other entry mode, a roll on a finalOnly or complete game, or a typed score on a game
-scored from rolls.
+are `async` in 1a. `.invalidGame([])` (no scoring errors) is the refusal for a write that
+does not apply to the game at all: roll input of the other entry mode, or a roll on a
+finalOnly or complete game.
 
-### 3.2 Read models returned to screens (Proposed, OQ-1)
+### 3.2 Read models returned to screens (OQ-1)
+
+No `@Query` in 1a: screens read these value types. Screens re-fetch after their own
+writes. Phase 2 adds a change signal on `BowlingStore` for changes that arrive through
+sync.
+
 
 ```swift
 public struct BowlerRecord: Sendable, Hashable, Identifiable {
@@ -397,6 +408,7 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
     public var statsProfile: StatsProfile          // meaningful on the owner only
     public var statsLayout: [String]               // raw card IDs; [] = preset (§3.2, §7)
     public var homeLayout: [String]                // raw card IDs; [] = preset
+    public var statsScope: StatsScope?             // nil = follow the bowling style (OQ-14)
 }
 
 public struct SessionSummary: Sendable, Hashable, Identifiable {   // History row (§7)
@@ -406,28 +418,26 @@ public struct SessionSummary: Sendable, Hashable, Identifiable {   // History ro
     public var centerName: String?
     public var leagueName: String?
     public var bowlerCount: Int
-    public var games: [GameRecord]                 // grouped by bowler (owner first, then
-                                                   // by name), each by gameIndex; games with
-                                                   // no bowler last
+    public var games: [GameRecord]                 // sorted by bowler, then gameIndex
     public var isComplete: Bool                    // every game complete (OQ-10)
 }
 
 public struct SessionDetail: Sendable, Hashable, Identifiable {
     public var id: SessionID
     public var metadata: SessionMetadata
-    public var bowlers: [SessionBowler]            // owner first, then by name (OQ-11)
+    public var bowlers: [SessionBowler]            // lineup order, from Game.lineupIndex (OQ-11)
 }
 
 public struct SessionBowler: Sendable, Hashable {
     public var bowler: BowlerRecord
     public var games: [GameRecord]                 // sorted by gameIndex
-    public var seriesTotal: Int                    // sum of cached final scores, incomplete
-                                                   // games included (§3.2 Session, OQ-9)
+    public var seriesTotal: Int                    // sum of final scores, incomplete games included;
+                                                   // the app labels it "so far" when one is (OQ-9)
 }
 
 public struct SessionMetadata: Sendable, Hashable {
     public var date: Date
-    public var eventType: EventType                // writing .unknown keeps the stored value
+    public var eventType: EventType
     public var centerID: CenterID?
     public var leagueID: LeagueID?                 // only meaningful for league (§3.2)
     public var oilPatternID: OilPatternID?
@@ -454,8 +464,8 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
 }
 ```
 
-Only `SessionMetadata` (and `RollEditOutcome`, section 3.4) has a public init; the other
-read models are built by the repositories only.
+Of these, only `SessionMetadata` has a public init (and `RollEditOutcome`, section 3.4);
+the others are built by the repositories only.
 
 ### 3.3 SessionRepository (1a)
 
@@ -464,14 +474,14 @@ read models are built by the repositories only.
     /// History and Home's recent list. Date descending, then createdAt descending (OQ-11).
     public func sessions() -> [SessionSummary]
     public func session(_ id: SessionID) throws -> SessionDetail
-    /// Home "Resume session" (§7). Newest session in `sessions()` order with an
+    /// Home "Resume session" (§7). First session in `sessions()` order with an
     /// incomplete game (OQ-10).
     public func resumableSession() -> SessionSummary?
 
     /// New session "Start" (§7): creates the session and game 1 for each bowler.
-    /// Returns the session; games are read back with `session(_:)`. Throws .notFound
-    /// for a missing bowler, ball, center, league, or pattern. `.unknown` entry mode
-    /// keeps the stored default (pinByPin).
+    /// `bowlers` is in lineup order; each position is stored as Game.lineupIndex
+    /// (OQ-11). Returns the session; games are read back with `session(_:)`. Throws
+    /// .notFound for a missing bowler, ball, center, league, or pattern.
     public func startSession(_ metadata: SessionMetadata,
                              bowlers: [(bowlerID: BowlerID, defaultBallID: BallID?)],
                              entryMode: EntryMode) throws -> SessionID
@@ -506,6 +516,7 @@ Remembering the last-used center, league, pattern, and ball per event type is ap
 /// What the Scoring screen sends for one delivery (§7 Scoring 4 and 5).
 public enum RollInput: Sendable, Hashable {
     case pins(PinSet)          // pinByPin: the pins that fell on this roll
+    case pinsLeft(PinSet)      // pinByPin: the pins still standing after this roll
     case count(Int)            // countOnly
     case foul                  // either mode
 }
@@ -520,16 +531,16 @@ public struct RollEditOutcome: Sendable, Hashable {
     public func game(_ id: GameID) throws -> GameRecord
 
     /// Appends at Scorer.nextRoll(in:). Validates, saves after every roll (§8).
-    /// Throws .invalidGame with the violations if the roll does not fit; .invalidGame([])
-    /// for other-mode input, a finalOnly game, or a complete game; .notFound for a missing
-    /// game or ball.
+    /// Throws .invalidGame with the violations if the roll does not fit, .invalidGame([])
+    /// for other-mode input or a finalOnly or complete game, and .notFound for a missing
+    /// game or ball. Saves nothing when it throws.
     public func recordRoll(_ input: RollInput, ballID: BallID?, in game: GameID) throws -> GameRecord
     /// §7 Undo. Removes the last roll, and its frame once empty. Returns the game
     /// unchanged when it has no rolls.
     public func undoLastRoll(in game: GameID) throws -> GameRecord
     /// §8: editing an earlier roll re-validates later rolls and clears every roll from
-    /// the first invalid one onward. Throws .notFound for a missing game, roll, or ball;
-    /// .invalidGame when the new roll itself does not fit.
+    /// the first invalid one onward. Throws .notFound for a missing game, roll, or ball,
+    /// and .invalidGame when the new roll itself does not fit.
     public func replaceRoll(frameIndex: Int, rollIndex: Int, with input: RollInput,
                             ballID: BallID?, in game: GameID) throws -> RollEditOutcome
 
@@ -540,11 +551,11 @@ public struct RollEditOutcome: Sendable, Hashable {
     public func clearRolls(in game: GameID) throws -> GameRecord
     /// Throws .notFound for a missing ball.
     public func setDefaultBall(_ ballID: BallID?, for game: GameID) throws
-    /// finalOnly only, 0...300 (§4). Marks the game complete. Throws
-    /// .invalidGame([.finalScoreOutOfRange]), or .invalidGame([]) on a game scored from rolls.
+    /// finalOnly only, 0...300 (§4). Marks the game complete. Throws .notFinalOnly on
+    /// a game scored from rolls, .invalidGame([.finalScoreOutOfRange]) outside 0...300.
     public func setFinalScore(_ score: Int, for game: GameID) throws
     /// §7 "Next game": game gameIndex + 1 for every bowler, with the entry mode and
-    /// default ball of that bowler's latest game. Returned in the session's bowler order.
+    /// default ball of that bowler's latest game, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID]
     public func deleteGame(_ id: GameID) throws
 }
@@ -554,15 +565,18 @@ Rules:
 
 - The repository, not the app, sets `rollIndex`, `pinCount`, `pinsKnown`, and
   `isComplete`, and recomputes the cached `finalScore` with `Scorer` on every write.
-  Before frame 10 is finished, the cached `finalScore` is the last known running total
-  (OQ-9). `isComplete` is true when `Scorer.nextRoll(in:)` is nil.
+  `isComplete` is true when `Scorer.nextRoll(in:)` is nil.
 - A foul in a pinByPin game is stored with `pinsKnown == true`.
 - The single write path, `save(_:)`, is internal; the app writes only through the
   methods above.
-- `.pins` on a countOnly game, or `.count` on a pinByPin game, is refused with
-  `.invalidGame`. Any roll on a finalOnly game is refused.
-- Whether "tap what is left standing" (§7) is converted by the app before calling
-  `recordRoll(.pins(_:))` is up to the app: the repository always receives fallen pins.
+- `.pins` or `.pinsLeft` on a countOnly game, or `.count` on a pinByPin game, is refused
+  with `.invalidGame`. Any roll on a finalOnly game is refused.
+- `.pinsLeft` is what the pin deck sends by default, since it defaults to tapping the
+  pins left standing (§7). The repository converts it to fallen pins (the rack's
+  standing pins minus `pinsLeft`) and refuses, with `.invalidGame`, a selection that
+  includes a pin that was not standing. The app never does this subtraction.
+- Switching a finalOnly game with a typed score to another mode discards the score.
+  The app asks the user to confirm before calling `setEntryMode`.
 
 ### 3.5 BowlerRepository (1a)
 
@@ -576,13 +590,17 @@ Rules:
     /// First launch (§7). Throws .ownerAlreadyExists.
     public func createOwner(name: String, handedness: Handedness,
                             statsProfile: StatsProfile) throws -> BowlerRecord
-    /// New session "add others by name" (§7).
+    /// New session "add others by name" (§7). Throws .invalidBowler(.emptyName) for a
+    /// name that is blank after trimming, as do createOwner and updateOwner.
     public func createBowler(name: String) throws -> BowlerRecord
-    /// Throws .notFound before first launch. `.unknown` handedness keeps the stored value.
+    /// Throws .notFound before first launch.
     public func updateOwner(name: String, handedness: Handedness) throws
-    /// Settings bowling style (§7). Leaves a customized layout alone. Throws .notFound
-    /// before first launch. `.unknown` keeps the stored value.
+    /// Settings bowling style (§7). Does not touch a customized layout in 1a. A nil
+    /// statsScope follows the new style; an explicit one is kept (OQ-14). Throws
+    /// .notFound before first launch.
     public func setStatsProfile(_ profile: StatsProfile) throws
+    /// Settings default stats scope (§6, §7). nil = follow the bowling style.
+    public func setStatsScope(_ scope: StatsScope?) throws
     /// §3.3: .cannotDeleteOwner, .bowlerHasGames(count:).
     public func deleteBowler(_ id: BowlerID) throws
 
@@ -591,17 +609,17 @@ Rules:
 ```
 
 `statsLayout` and `homeLayout` are the stored comma-separated strings split on ",",
-unknown IDs kept. Settings "delete all data with double confirmation" (§7) needs a
-repository method; none exists on main. Which repository owns it is OQ-12.
+unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `BowlingStore.deleteAllData()`
+(section 3.1, OQ-12).
 
 ### 3.6 BallRepository (1a basic, §7 Arsenal 1a)
 
 ```swift
 @MainActor public final class BallRepository {
-    /// Non-retired balls, by name (OQ-13; no role-based picker order on main).
+    /// Non-retired balls, sorted by name. The roll picker reorders them by
+    /// `intendedRole` in the app (OQ-13).
     public func activeBalls() -> [BallSummary]
-    /// Name, weight, intended role, brand only (§7 Arsenal 1a). The name is trimmed;
-    /// `.unknown` role keeps the stored default (strike).
+    /// Name, weight, intended role, brand only (§7 Arsenal 1a). The name is trimmed.
     /// Throws .invalidBall(.emptyName) or .invalidBall(.weightOutOfRange).
     public func addBall(name: String, weightPounds: Int,
                         intendedRole: BallRole, brand: String) throws -> BallSummary
@@ -627,14 +645,15 @@ repository method; none exists on main. Which repository owns it is OQ-12.
                       now: Date, calendar: Calendar) -> [GameRecord]
     /// §6 "Default scope": EventType.competition when the bowler has at least one
     /// complete league or tournament game and `preferCompetition` is true; otherwise
-    /// every event type, `.unknown` included.
+    /// every event type, `.unknown` included. The app passes the owner's explicit `statsScope` as
+    /// `preferCompetition` when set, and the bowling style's preference otherwise (OQ-14).
     public func defaultEventTypes(for bowler: BowlerID, preferCompetition: Bool) -> Set<EventType>
 }
 ```
 
 The app calls `stats.games(matching:now:calendar:)` and then `StatsEngine.report(games:filter:)`
-(§2: feature models "call repositories, and run engines"). Where the "default stats
-scope" setting is stored is OQ-14.
+(§2: feature models "call repositories, and run engines"). The default stats scope is
+stored as `Bowler.statsScope` (OQ-14).
 
 ## 4. Stats (1a)
 
@@ -672,8 +691,7 @@ public struct StatsFilter: Sendable, Hashable, Codable {
 ```
 
 `DatePreset` raw values are persisted with a saved filter, so the stable raw value rule
-(section 1, rule 7) applies to them. A stored event type this version does not know
-matches only when `.unknown` is selected, which "All games" always does.
+(section 1, rule 7) applies to them.
 
 ### 4.2 StatsReport (§6 "Definitions (1a)")
 
@@ -717,8 +735,8 @@ public struct TrendPoint: Sendable, Hashable, Codable {
     public var sessionID: SessionID?
     public var date: Date
     public var sessionAverage: Mean
-    public var rollingAverage: Mean                // last nine complete games up to the end
-                                                   // of this session, or all when fewer (OQ-16)
+    public var rollingAverage: Mean                // last nine games up to this session's end, or
+                                                   // all of them when fewer than nine (OQ-16)
 }
 
 public struct LeaveRow: Sendable, Hashable, Codable {
@@ -736,11 +754,11 @@ public struct StatsReport: Sendable, Hashable, Codable {
 
     // Overview (scoreGames)
     public var average: Mean
-    public var averageLast10: Mean                 // last by session date, session, gameIndex (OQ-19)
+    public var averageLast10: Mean                 // OQ-19
     public var averageLast30: Mean
     public var highGame: HighGame?
     public var highSeries: [HighSeries]            // best per gameCount, ascending gameCount
-    public var trend: [TrendPoint]                 // one point per session, ascending date
+    public var trend: [TrendPoint]                 // ascending date
 
     // Strikes and spares (rollGames)
     public var firstBalls: Int
@@ -753,19 +771,17 @@ public struct StatsReport: Sendable, Hashable, Codable {
     public var splitConversion: Rate
     public var makeableConversion: Rate            // makeable + single-pin
     public var singlePinConversion: Rate
-    public var leaves: [LeaveRow]                  // count descending; ties by pin numbers
-                                                   // ascending (OQ-17)
-    public var leftMostMadeLeast: LeaveRow?        // most misses (count x miss rate); ties go
-                                                   // to the row higher in `leaves`; nil when
-                                                   // nothing was missed; no minimum count (OQ-17)
+    public var leaves: [LeaveRow]                  // count descending, then pin numbers ascending (OQ-17)
+    public var leftMostMadeLeast: LeaveRow?        // most misses among leaves seen at least 3 times;
+                                                   // ties go to the higher row; nil if none (OQ-17)
 
     // 1b: openFrames, cleanGames, headPin, firstBallAverage, byFrame, whatIfSinglePins
 }
 ```
 
 `GameRef`, `HighGame`, `HighSeries`, `TrendPoint`, `LeaveRow`, and `StatsReport` also
-have public memberwise-style inits on main (for tests and fixtures); the app reads
-reports and does not build them.
+have public memberwise-style inits (for tests and fixtures); the app reads reports and
+does not build them.
 
 Rules:
 
@@ -773,9 +789,7 @@ Rules:
   a finalOnly game never contributes to `firstBalls`, a countOnly game never to
   `leaves` (§6).
 - Spare attempts after a first-ball foul count against a full rack and produce no leave
-  (§5, §6).
-- A complete game with an `.unknown` entry mode counts toward the overview (scoreGames)
-  only, never toward roll or pin stats.
+  (§5, §6). They count in the split % denominator.
 - The default high series shown in 1a is the three-game series (§6; the league-based
   default needs the 1b league filter).
 - Home's "competition average with the all-games average beneath" (§6, §7) is two
@@ -819,97 +833,74 @@ public enum StatsPreset {
     public static func homeTiles(for profile: StatsProfile) -> [StatsCardID]
     /// casual -> false ("All games"); league, competitive -> true ("Competition") (§6).
     public static func prefersCompetition(_ profile: StatsProfile) -> Bool
-    // Not on main: displayedCards(layout:profile:). See below and OQ-21.
+    /// 1b, §7 "Layout rules": [] -> that surface's preset; unknown IDs skipped for
+    /// display. Separate functions for Stats and Home, so an empty layout falls back to
+    /// the right preset (#54).
+    public static func displayedStatsCards(layout: [String], profile: StatsProfile) -> [StatsCardID]
+    public static func displayedHomeTiles(layout: [String], profile: StatsProfile) -> [StatsCardID]
 }
 ```
-
-`StatsPreset.displayedCards(layout:profile:)` from the earlier draft is **not
-implemented** in any form. PR #54 (#25) left it out because one function cannot tell
-whether an empty layout falls back to the Stats or the Home preset, and suggested
-splitting it into a Stats and a Home function or adding a surface parameter. Until OQ-21
-is answered, the app has no package function that applies the §7 layout rules; since 1a
-layouts are always empty, `statsCards(for:)` and `homeTiles(for:)` are what 1a screens
-use.
 
 Rules:
 
 - `.unknown` profile uses the casual preset (§3.2, §9).
-- `competitive` is every available card in `CaseIterable` order (§7 "every card"), which
-  is the catalog order (OQ-18).
-- `StatsCardID` has no `.unknown` case: layouts are stored as raw strings and unknown
-  IDs are skipped on display, so no fallback case is needed.
+- `competitive` is every available card in `CaseIterable` order, which is the catalog
+  order (§7 "every card", OQ-18).
 - In 1a the league preset omits `openPct` until 1b ships (§7).
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
 - Saving a layout (1b) keeps unknown IDs (§7).
+- `StatsCardID` has no `.unknown` case: layouts are stored as raw strings and unknown
+  IDs are skipped on display, so no fallback case is needed.
 
 ## 5. Demo fixture data (1a, §2, §9, issue #22)
 
 Previews and StatsEngine tests read the same games. They live in the `BowlingFixtures`
-library product of the BowlingCore package, which depends only on BowlingCore
-(**Proposed, OQ-5**). The app imports `BowlingFixtures` for previews; BowlingData uses
-it only in its test target.
-
-Bowlers, balls, sessions, and games are plain enums with fixed IDs, not
-`BowlerRecord`/`BallSummary` values (those are BowlingData types, which BowlingFixtures
-cannot depend on). Every ID is a fixed, readable UUID, so tests and previews can name a
-game or session directly.
+library in the BowlingCore package, which depends only on BowlingCore (OQ-5). Because
+BowlingCore cannot depend on BowlingData, bowlers and balls are fixture enums, not
+BowlingData read models (#57):
 
 ```swift
-import BowlingCore
-
+// BowlingFixtures
 public enum DemoFixture {
     /// 2026-10-14 12:00 UTC. Tests pass this; previews pass Date.now.
     public static let referenceDate: Date
+
     /// Every DemoGame (22), in DemoGame.allCases order. Session dates are whole days
-    /// before `now` in the Gregorian calendar, so a date preset always selects the
-    /// same games.
+    /// before `now` in the Gregorian calendar, so date presets ("this week", "last 30
+    /// days") always select the same games.
     public static func games(relativeTo now: Date) -> [GameRecord]
 }
 
+/// Fixed-UUID fixture entities, each with `id` and `name`; DemoBall adds `owner` and
+/// `role`, DemoSession `eventType` and `daysAgo`, DemoGame `session` and `bowler`.
 public enum DemoBowler: Int, CaseIterable, Sendable {
     case owner = 1      // games in every event type and entry mode
     case partner        // bowls the league night with the owner
     case friend         // only casual and practice games: the "All games" fallback (§6)
-    public var id: BowlerID { get }
-    public var name: String { get }
 }
-
 public enum DemoBall: Int, CaseIterable, Sendable {
     case ownerStrike = 1, ownerSpare, partnerStrike
-    public var id: BallID { get }
-    public var owner: DemoBowler { get }
-    public var name: String { get }
-    public var role: BallRole { get }
 }
-
 public enum DemoSession: Int, CaseIterable, Sendable {
     case leagueNight = 1     // three games, owner and partner
     case tournament          // four games: a three- and a four-game series
     case earlyLeague, practice, casualOuting
     case practiceInProgress  // holds the one incomplete game, for Resume
     case friendCasual, friendPractice
-    public var id: SessionID { get }
-    public var eventType: EventType { get }
-    public var daysAgo: Int { get }   // spread across this week, last 30 days, and older
 }
-
 public enum DemoGame: Int, CaseIterable, Sendable {
     // 22 cases, ordered by session, then bowler, then gameIndex. tournament1 is a
     // perfect game; earlyLeague1 is all spares (150).
-    public var id: GameID { get }
-    public var session: DemoSession { get }
-    public var bowler: DemoBowler { get }
+}
+
+// BowlingData: seeds an in-memory store from BowlingFixtures (#62).
+
+extension BowlingStore {
+    /// In-memory store seeded with every DemoFixture value. Used by every preview.
+    @MainActor public static func demo(now: Date = .now) throws -> BowlingStore
 }
 ```
-
-Rules:
-
-- `DemoBall` has no weight or brand and `DemoBowler` no handedness or stats profile, so a
-  preview that needs a `BallSummary` or `BowlerRecord` fills those itself.
-- There is **no seeded demo store** on main: the earlier draft's
-  `BowlingStore.demo(now:)` does not exist. BowlingData seeds fixture games into its own
-  test stores with test-only helpers. Whether previews get a seeded store is OQ-22.
 
 Coverage the games must include, each traced to §9 or a 1a screen:
 
@@ -925,12 +916,16 @@ Coverage the games must include, each traced to §9 or a 1a screen:
 | A roll with a ball override differing from the game's default ball | §3.2, §7 Scoring |
 | A perfect game and an all-spares game | §11 |
 
-All rows are covered on main (`DemoGames.swift`): for example leagueNight1 has a
-first-ball foul then a spare, a 2-8 sleeper, a 1-2-10 washout, and a roll with the spare
-ball as override; leagueNight2 a second-ball foul; tournament4 a tenth-frame foul.
+`DemoBall` has no weight or brand, and `DemoBowler` no handedness or stats profile.
+
+Every row is covered by `DemoGames.swift`: for example leagueNight1 has a first-ball foul
+then a spare, a 2-8 sleeper, a 1-2-10 washout, and a roll with the spare ball as
+override; leagueNight2 a second-ball foul; tournament4 a tenth-frame foul.
 
 Expected values for every 1a stat are hand-computed and live in the BowlingCore test
 target (`Tests/BowlingCoreTests/Fixtures/`), not in the shipped fixture (OQ-5).
+
+The app links `BowlingFixtures` for previews only (#65).
 
 ## 6. Deferred to 1b (not pinned here)
 
@@ -946,7 +941,8 @@ starts.
   `compareBalls(games:)` (§6 "Ball report").
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
   affected-game count, resurface due (§3.2, §7 Arsenal 1b).
-- Layout writes from Customize and "Reset to preset" (§7).
+- Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
+  `displayedStatsCards` and `displayedHomeTiles` (section 4.3).
 - Ball, center, league, pattern delete warnings (§3.3).
 - CSV export (§7 Settings 1b).
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
@@ -954,44 +950,38 @@ starts.
 
 ## 7. What the app may not do
 
-- Import SwiftData or touch `ModelContext`, except as decided in OQ-1 and OQ-20.
-- Compute scores, leaves, marks, or stats itself. It renders `Scorecard`, `Leave`, and
-  `StatsReport`.
+- Import SwiftData or touch `ModelContext` (OQ-1, OQ-20).
+- Compute scores, leaves, marks, or stats itself, or convert pins left to pins that fell.
+  It renders `Scorecard`, `Leave`, and `StatsReport` and sends `RollInput`.
 - Sort games, frames, or rolls, or compare raw enum strings.
 - Persist card IDs in any form other than the `StatsCardID` raw values.
 
 ## 8. Approval
 
-- [ ] marilynjov (frontend)
-- [ ] SantiagoM99 (data)
+- [x] marilynjov (frontend)
+- [x] SantiagoM99 (data)
 
-## 9. Open questions for both developers
+## 9. Open questions, decided 2026-10-14 (issue #1)
 
 1. **OQ-1, `@Query` versus value types.** §2 lets views use `@Query` "for simple lists",
    which hands SwiftData models to the app. AGENTS.md says the app talks to packages
    only through the contract. Proposal: no `@Query` in 1a; lists come from repository
    read models (section 3.2). Are the read models (`BowlerRecord`, `SessionSummary`,
    `SessionDetail`, `BallSummary`, `NamedRef`) acceptable?
-   *On main:* the `@Model` classes are internal and these read models are what the
-   repositories return, so no `@Query` is possible from the app. Still a proposal.
+   **Decision:** Accepted. No `@Query` in 1a; screens read the section 3.2 read models. Phase 2 adds a change signal for sync.
 2. **OQ-2, isolation and async.** The spec is silent. Proposal: repositories are
    `@MainActor`, synchronous, and throwing, on the main context; engines are
    `nonisolated` and synchronous; nothing is `async` in 1a. Also: concrete classes or
    protocols? Concrete classes plus the seeded in-memory `BowlingStore.demo()` are
    proposed as the fake for previews. And: Swift 6 language mode with strict concurrency
    for both packages?
-   *On main:* implemented as proposed: `@MainActor` final classes, synchronous and
-   throwing, no protocols, no `async`; engines are pure static functions. Both packages
-   use `swift-tools-version: 6.0`, so Swift 6 language mode with strict concurrency. The
-   seeded demo store does not exist (OQ-22). Still a proposal.
+   **Decision:** Accepted. `@MainActor`, synchronous, throwing repositories; `nonisolated` engines; concrete classes; `BowlingStore.demo()` as the preview fake; Swift 6 strict concurrency.
 3. **OQ-3, Scorer output for the UI.** §4 names `Mark` and nil running totals but no
    type that carries them, and no API for the pins the deck should enable. Proposal:
    `Scorecard`, `FrameScore`, `RollPosition`, `Scorer.scorecard(for:)`,
    `Scorer.nextRoll(in:)`. How does a split indicator reach the scorecard: from
    `FrameScore.leave` (proposed), or a flag on the mark?
-   *On main:* the types and functions exist as proposed, plus
-   `RollPosition.standingCount` (#18, ac3511a). `FrameScore` has no `leave`, so the split
-   indicator question is still open. Still a proposal.
+   **Decision:** Accepted, including `RollPosition.standingCount` (#56). The split indicator comes from `FrameScore.leave`: the leave of the frame's spare attempt rack (#63).
 4. **OQ-4, which enums get `.unknown`.** §3.1 says unknown raw values decode to "an
    `unknown` or default case"; §8 says they display as "Other" and are preserved. The
    spec lists `unknown` only for handedness, statsProfile, coverstock, and core type;
@@ -1000,94 +990,69 @@ starts.
    is shown as "Other" instead of being treated as casual or strike. How does Stats
    treat a game with an unknown entry mode or event type (proposal: excluded unless
    "All games")?
-   *On main:* all five stored enums have `.unknown`. An unknown event type matches only
-   when `.unknown` is selected ("All games" includes it, "Competition" does not). An
-   unknown entry mode counts toward the overview only. Still a proposal.
+   **Decision:** Accepted. Every contract enum gets `.unknown`, shown as "Other". An unknown entry mode counts for score stats only; an unknown event type appears only under "All games".
 5. **OQ-5, where the fixture lives.** §2 says BowlingData owns the demo fixture, but
    StatsEngine tests (§9) run in BowlingCore, which cannot depend on BowlingData.
    Proposal: fixture `GameRecord`s in a small `BowlingFixtures` library in the
    BowlingCore package (depends only on BowlingCore); BowlingData seeds the demo store
    from it; expected values live in test targets. This affects #16's package layout.
-   *On main:* `BowlingFixtures` ships in the BowlingCore package as proposed (#22,
-   306d9f5), expected values are in the BowlingCore test target, and BowlingData seeds
-   test stores from it in its tests only. Still a proposal.
+   **Decision:** Accepted. `BowlingFixtures` in the BowlingCore package (#57); spec §2 updated.
 6. **OQ-6, `pinCount` versus mask.** Does `Scorer.validate` report a pinByPin roll whose
    `pinCount` differs from `pinsDown.count`? §4's list does not include it.
-   *On main:* no. The repository always derives `pinCount` from the pins, so the
-   mismatch cannot come from the app. Still a proposal.
+   **Decision:** No. The repository always derives `pinCount` from the pins, so a mismatch cannot be written.
 7. **OQ-7, roll and frame identity.** `RollRecord` and `FrameRecord` carry no `id`
    (proposed: addressed by index). Does the app ever need the SwiftData UUID of a frame
    or roll (for example for 1b leave occurrences)?
-   *On main:* no `id` on either; `replaceRoll` addresses rolls by frame and roll
-   index. Still a proposal.
+   **Decision:** Index addressing. 1b leave occurrences use game ID plus frame index.
 8. **OQ-8, session context on `GameRecord`.** `StatsEngine` takes only `[GameRecord]`
    but needs the date, event type, and session of each game. Proposal: copy
    `sessionID`, `sessionDate`, `eventType` onto `GameRecord`. Alternative: a separate
    session lookup passed to the engine.
-   *On main:* implemented as proposed. Still a proposal.
+   **Decision:** Accepted: `sessionID`, `sessionDate`, `eventType` on `GameRecord`.
 9. **OQ-9, scores of incomplete games.** What does `finalScore` hold before frame 10
    finishes (last known running total, or 0)? Does a session's series total (§3.2) and
    History's score column include incomplete games?
-   *On main:* the last known running total (0 before any frame is scored), and
-   `seriesTotal` includes incomplete games. Still a proposal.
+   **Decision:** Last known running total. Series totals include incomplete games and the app labels them "so far"; History shows the game as "in progress". Stats exclude incomplete games.
 10. **OQ-10, "incomplete session".** §7 shows "Resume session when an incomplete
     session exists" but does not define it. Proposal: a session with at least one
     incomplete game; if several exist, the most recent by date.
-    *On main:* implemented as proposed; ties follow `sessions()` order. Still a
-    proposal.
+    **Decision:** Accepted.
 11. **OQ-11, tie-break orders.** Sessions with the same date (proposal: `createdAt`
     descending); bowlers within a session (proposal: order added, which needs a stored
     order the schema does not have, or else owner first then name); `bowlers()` order.
-    *On main:* sessions by `createdAt` descending; bowlers in a session and
-    `bowlers()` owner first, then by name (no stored lineup order). Still a proposal.
+    **Decision:** Sessions: date descending, then `createdAt` descending. Bowlers in a session: lineup order, stored as `Game.lineupIndex` (new), because Scoring rotates bowlers like a lane console. `bowlers()`: owner first, then name.
 12. **OQ-12, delete all data.** Settings has it (§7). Which repository owns it, and does
     it also delete the owner (sending the user back to first launch)?
-    *On main:* not implemented. Open.
+    **Decision:** `BowlingStore.deleteAllData()`, deleting everything including the owner and returning to first launch. From phase 2 the confirmation says it also deletes the data on the user's other devices.
 13. **OQ-13, ball order.** §3.2 says `intendedRole` "drives ... picker order". Proposal:
     in the roll picker, spare and both first on a spare attempt, strike and both first on
     a first ball; ties by name. Arsenal list: by name?
-    *On main:* `activeBalls()` is by name; no role-based picker order exists. Picker
-    order is open.
+    **Decision:** Accepted. Arsenal by name; the roll picker orders by role in the app.
 14. **OQ-14, default stats scope storage.** §6 says the choice "is stored in Settings".
     UserDefaults (per device, not synced) or a field on Bowler (synced, but not in the
     §3.2 table)? Changing the bowling style sets its starting value; does it overwrite a
     choice the user already made?
-    *On main:* no storage exists. `StatsPreset.prefersCompetition` gives the starting
-    value and `defaultEventTypes(for:preferCompetition:)` takes it as a parameter. Open.
+    **Decision:** On the owner Bowler as `statsScope` (new), synced like `statsLayout`. Empty follows the bowling style; a style change never overwrites an explicit choice.
 15. **OQ-15, bowler filter.** Is the bowler filter required (one bowler at a time,
     defaulting to the owner), or can Stats combine several bowlers?
-    *On main:* `StatsFilter.bowlerID` is required, one bowler at a time. Still a
-    proposal.
+    **Decision:** Required for 1a: one bowler, default the owner.
 16. **OQ-16, trend rolling average.** §6: "average per session over time, with a
     rolling average of the last nine games overlaid." Is the rolling series one point
     per session (average of the nine games up to the end of that session, proposed) or
     one point per game? What does it show with fewer than nine games?
-    *On main:* one point per session, the last nine complete games up to the end of
-    that session, or all of them when fewer exist. Still a proposal.
+    **Decision:** One point per session; with fewer than nine games, the average of all games so far.
 17. **OQ-17, leave ordering and the callout.** Tie-break for leaves with equal counts
     (proposal: name ascending), and for "left most, made least" ties. Is there a minimum
     count before a leave can be the callout?
-    *On main:* equal counts by pin numbers ascending (numeric, so "2-8" before
-    "10"); callout ties go to the leave higher in the table; no minimum count. Still a
-    proposal.
+    **Decision:** Count descending, then pin numbers ascending. The callout is the leave with the most misses among leaves seen at least 3 times (new minimum); ties go to the higher row; nil when none qualifies.
 18. **OQ-18, competitive preset order.** "Every card" in which order: the catalog order
     in §7 (proposed)?
-    *On main:* catalog order, which is `StatsCardID.allCases` order. Still a
-    proposal.
+    **Decision:** Catalog order.
 19. **OQ-19, StatsReport last-N averages.** §6: "also shown for the last 10, 30, and all
     games in the filter". Last by date across sessions, ordered by session date then
     `gameIndex` (proposed)?
-    *On main:* by session date, then session ID, then `gameIndex`. Still a
-    proposal.
+    **Decision:** Accepted: session date, then session, then `gameIndex`.
 20. **OQ-20, public container factory.** `BowlingStore.schema` and
-    `BowlingStore.makeContainer(inMemory:)` are public on main (44f7523) and hand out a
-    SwiftData `ModelContainer`, against rule 1. Keep them public for app wiring (for
-    example `.modelContainer` in a future phase), or make them internal?
-21. **OQ-21, applying a saved layout.** The draft's
-    `StatsPreset.displayedCards(layout:profile:)` was not built (#25, PR #54). Split it
-    into a Stats and a Home function, or add a surface parameter? Needed by 1b
-    Customize; 1a layouts are always empty.
-22. **OQ-22, demo store for previews.** §9 says every 1a screen has a preview backed by
-    the demo fixture data. Main has the fixture games but no seeded store. Add a public
-    `BowlingStore.demo(now:)` in BowlingData (which would then depend on
-    BowlingFixtures), or have previews build view state from `DemoFixture` directly?
+    `BowlingStore.makeContainer(inMemory:)` are public in BowlingData (44f7523) and hand
+    out a SwiftData `Schema` and `ModelContainer`, which rule 1 and OQ-1 keep away from
+    the app. Make them internal, or keep them public for app wiring and say so in rule 1?
