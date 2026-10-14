@@ -111,6 +111,84 @@ import BowlingFixtures
         #expect(report.fouls == mean(expected.fouls))
     }
 
+    @Test(arguments: DemoFixtureExpected.games.filter { $0.game.entryMode == .pinByPin })
+    func leavesPerGame(_ expected: ExpectedGame) {
+        let rows = report(expected).leaves
+        let byName = Dictionary(grouping: expected.leaves, by: \.name)
+        #expect(Set(rows.map(\.leave.name)) == Set(byName.keys))
+        for row in rows {
+            let leaves = byName[row.leave.name] ?? []
+            #expect(row.conversion == Rate(hits: leaves.filter(\.converted).count, attempts: leaves.count))
+            #expect(row.leave.isWashout == leaves.first?.isWashout)
+            #expect(ExpectedLeaveKind(row.leave.kind) == leaves.first?.kind)
+        }
+    }
+
+    // §6 applicability: countOnly games have no pins, so no leaves.
+    @Test(arguments: DemoFixtureExpected.games.filter { $0.game.entryMode == .countOnly })
+    func countOnlyGamesHaveNoLeaves(_ expected: ExpectedGame) {
+        let report = report(expected)
+        #expect(report.pinGames == 0)
+        #expect(report.leaves.isEmpty)
+        #expect(report.leftMostMadeLeast == nil)
+        #expect(report.splitRate == Rate(hits: 0, attempts: 0))
+        #expect(report.makeableConversion == Rate(hits: 0, attempts: 0))
+    }
+
+    @Test(arguments: DemoFixtureExpected.reports)
+    func leaveRates(_ expected: ExpectedReport) {
+        let report = report(expected)
+        #expect(report.splitRate == rate(expected.splitRate))
+        #expect(report.splitConversion == rate(expected.splitConversion))
+        #expect(report.makeableConversion == rate(expected.makeableConversion))
+        #expect(report.singlePinConversion == rate(expected.singlePinConversion))
+    }
+
+    @Test(arguments: DemoFixtureExpected.reports)
+    func leavesTable(_ expected: ExpectedReport) {
+        let rows = report(expected).leaves
+        let table = Dictionary(uniqueKeysWithValues: rows.map {
+            ($0.leave.name, ExpectedLeaveRow(count: $0.conversion.attempts, converted: $0.conversion.hits))
+        })
+        #expect(table == expected.leaves)
+        #expect(Array(rows.prefix(expected.leavesHead.count).map(\.leave.name)) == expected.leavesHead)
+    }
+
+    // Contract OQ-17: by count descending, equal counts by pin numbers ascending.
+    @Test(arguments: DemoFixtureExpected.reports)
+    func leavesAreSortedByCountThenPins(_ expected: ExpectedReport) {
+        let rows = report(expected).leaves
+        for (a, b) in zip(rows, rows.dropFirst()) {
+            let countA = a.conversion.attempts, countB = b.conversion.attempts
+            #expect(countA > countB || (countA == countB && a.leave.pins.pins.lexicographicallyPrecedes(b.leave.pins.pins)))
+        }
+    }
+
+    @Test(arguments: DemoFixtureExpected.reports)
+    func leftMostMadeLeast(_ expected: ExpectedReport) {
+        let report = report(expected)
+        #expect(report.leftMostMadeLeast?.leave.name == expected.leftMostMadeLeast)
+        #expect(report.leftMostMadeLeast.map { report.leaves.contains($0) } == true)
+    }
+
+    // Nine strikes, then a 10 pin left and made in frame 10, then a strike: 289.
+    @Test func noCalloutWhenEveryLeaveWasConverted() {
+        let strike = RollRecord(rollIndex: 1, pinsDown: .all, pinCount: 10, pinsKnown: true)
+        let leftTen = PinSet.all.subtracting(.pin10)
+        let tenth = FrameRecord(frameIndex: 10, rolls: [
+            RollRecord(rollIndex: 1, pinsDown: leftTen, pinCount: 9, pinsKnown: true),
+            RollRecord(rollIndex: 2, pinsDown: .pin10, pinCount: 1, pinsKnown: true),
+            RollRecord(rollIndex: 3, pinsDown: .all, pinCount: 10, pinsKnown: true),
+        ])
+        let game = GameRecord(gameIndex: 1, entryMode: .pinByPin, finalScore: 289, isComplete: true,
+                              frames: (1...9).map { FrameRecord(frameIndex: $0, rolls: [strike]) } + [tenth],
+                              sessionDate: Self.now, eventType: .practice)
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: [.practice], bowlerID: DemoBowler.owner.id)
+        let report = StatsEngine.report(games: [game], filter: filter)
+        #expect(report.leaves.map(\.leave.name) == ["10"])
+        #expect(report.leftMostMadeLeast == nil)
+    }
+
     @Test func reportCarriesItsFilter() {
         let filter = StatsFilter(datePreset: .thisMonth, eventTypes: [.league], bowlerID: DemoBowler.owner.id)
         #expect(StatsEngine.report(games: [], filter: filter).filter == filter)
@@ -126,5 +204,16 @@ import BowlingFixtures
         #expect(report.highGame == nil)
         #expect(report.highSeries.isEmpty)
         #expect(report.trend.isEmpty)
+    }
+}
+
+extension ExpectedLeaveKind {
+    init?(_ kind: LeaveKind) {
+        switch kind {
+        case .singlePin: self = .singlePin
+        case .makeable: self = .makeable
+        case .split: self = .split
+        case .strike: return nil
+        }
     }
 }

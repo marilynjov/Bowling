@@ -10,6 +10,13 @@ public enum StatsEngine {
         let rolled = scored.filter { [.countOnly, .pinByPin].contains($0.entryMode) }
         let pinned = rolled.filter { $0.entryMode == .pinByPin }
         let tally = rolled.map(RollTally.init).reduce(RollTally(), +)
+        let pinAttempts = pinned.map(RollTally.init).reduce(RollTally(), +).spareAttempts
+        let leaves = leaveRows(pinAttempts)
+        func conversion(_ kinds: Set<LeaveKind>) -> Rate {
+            let matching = leaves.filter { kinds.contains($0.leave.kind) }.map(\.conversion)
+            return Rate(hits: matching.map(\.hits).reduce(0, +), attempts: matching.map(\.attempts).reduce(0, +))
+        }
+        let splits = conversion([.split])
         return StatsReport(
             filter: filter, scoreGames: scored.count, rollGames: rolled.count, pinGames: pinned.count,
             average: average(scored), averageLast10: average(scored.suffix(10)),
@@ -18,9 +25,9 @@ public enum StatsEngine {
             firstBalls: tally.firstBalls, strikes: Rate(hits: tally.strikes, attempts: tally.firstBalls),
             spares: Rate(hits: tally.spareAttempts.filter(\.isConverted).count, attempts: tally.spareAttempts.count),
             fouls: Mean(total: tally.fouls, count: rolled.count),
-            splitRate: Rate(hits: 0, attempts: 0), splitConversion: Rate(hits: 0, attempts: 0),
-            makeableConversion: Rate(hits: 0, attempts: 0), singlePinConversion: Rate(hits: 0, attempts: 0),
-            leaves: [], leftMostMadeLeast: nil
+            splitRate: Rate(hits: splits.attempts, attempts: pinAttempts.count), splitConversion: splits,
+            makeableConversion: conversion([.makeable, .singlePin]), singlePinConversion: conversion([.singlePin]),
+            leaves: leaves, leftMostMadeLeast: leftMostMadeLeast(leaves)
         )
     }
 
@@ -70,6 +77,29 @@ public enum StatsEngine {
             .sorted { $0.gameCount < $1.gameCount }
     }
 
+    /// Most left first; equal counts by pin numbers ascending (contract OQ-17). Attempts
+    /// after a first-ball foul have no leave (§5) and are left out.
+    private static func leaveRows(_ attempts: [SpareAttempt]) -> [LeaveRow] {
+        Dictionary(grouping: attempts.filter { $0.leave != nil }) { $0.leave! }
+            .map { leave, attempts in
+                LeaveRow(leave: leave, conversion: Rate(hits: attempts.filter(\.isConverted).count,
+                                                        attempts: attempts.count))
+            }
+            .sorted {
+                $0.conversion.attempts != $1.conversion.attempts
+                    ? $0.conversion.attempts > $1.conversion.attempts
+                    : $0.leave.pins.pins.lexicographicallyPrecedes($1.leave.pins.pins)
+            }
+    }
+
+    /// §6: the highest count times miss rate, which is the miss count. A tie goes to the
+    /// leave higher in the table, so the one left more often. Nil when nothing was missed.
+    private static func leftMostMadeLeast(_ rows: [LeaveRow]) -> LeaveRow? {
+        func misses(_ row: LeaveRow) -> Int { row.conversion.attempts - row.conversion.hits }
+        guard let worst = rows.min(by: { misses($0) > misses($1) }), misses(worst) > 0 else { return nil }
+        return worst
+    }
+
     /// One point per session; the rolling average covers the last nine games up to the end
     /// of that session (contract OQ-16).
     private static func trend(_ games: [GameRecord]) -> [TrendPoint] {
@@ -86,6 +116,9 @@ public enum StatsEngine {
 /// roll on the same rack (§6 "Spare attempts").
 struct SpareAttempt {
     var isConverted: Bool
+    /// What the first ball left; nil when its pins are unknown (countOnly) or it was a
+    /// foul, which respots all ten (§5).
+    var leave: Leave?
 }
 
 /// The roll counts of one or more games.
@@ -110,7 +143,9 @@ struct RollTally {
                 // A frame 10 fill ball that leaves pins has no next roll, so it is a first
                 // ball but not a spare attempt.
                 guard marks[index] != .strike, index + 1 < frame.rolls.count else { continue }
-                spareAttempts.append(SpareAttempt(isConverted: marks[index + 1] == .spare))
+                let standing = roll.isFoul || !roll.pinsKnown ? nil : frame.racks[index + 1].pins
+                spareAttempts.append(SpareAttempt(isConverted: marks[index + 1] == .spare,
+                                                  leave: standing.map(LeaveClassifier.classify)))
             }
         }
     }
