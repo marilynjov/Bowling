@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same Xcode as local development; the project file is written by Xcode 27.
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+
+jobs:
+  packages:
+    name: Test ${{ matrix.package }}
+    runs-on: xcode-27
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [BowlingCore, BowlingData]
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift test --package-path Packages/${{ matrix.package }}
+
+  app:
+    name: Build app
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -version
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild build \
+            -project Bowling.xcodeproj \
+            -scheme Bowling \
+            -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+            CODE_SIGNING_ALLOWED=NO
