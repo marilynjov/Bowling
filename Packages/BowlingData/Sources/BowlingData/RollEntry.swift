@@ -87,6 +87,22 @@ extension GameRepository {
             .sorted { $0.frameIndex < $1.frameIndex }
     }
 
+    /// Rolls already entered were recorded for one mode, and there is no automatic upgrade
+    /// from countOnly to pinByPin, so the mode is fixed once the first roll exists.
+    /// - Throws: `.entryModeLocked` after the first roll; `clearRolls(in:)` unlocks it.
+    public func setEntryMode(_ mode: EntryMode, for game: GameID) throws {
+        var record = try self.game(game)
+        record.entryMode = mode
+        _ = try save(record)
+    }
+
+    /// Removes every frame and roll, the offer made after `.entryModeLocked`.
+    public func clearRolls(in game: GameID) throws -> GameRecord {
+        var record = try self.game(game)
+        record.frames = []
+        return try save(record)
+    }
+
     /// - Throws: `.invalidGame([])` when `input` does not belong to `mode`.
     private static func roll(_ input: RollInput, rollIndex: Int, ballID: BallID?, mode: EntryMode) throws -> RollRecord {
         switch (input, mode) {

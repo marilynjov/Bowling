@@ -217,4 +217,40 @@ import Testing
         let outcome = try games.replaceRoll(frameIndex: 1, rollIndex: 2, with: .count(4), ballID: ball.id, in: game)
         #expect(outcome.game.frames.first?.rolls.last?.ballID == ball.id)
     }
+
+    // MARK: Entry mode
+
+    @Test func entryModeChangesBeforeTheFirstRoll() throws {
+        let game = try startGame(.pinByPin)
+        try games.setEntryMode(.countOnly, for: game)
+        #expect(try games.game(game).entryMode == .countOnly)
+    }
+
+    @Test func entryModeIsLockedAfterTheFirstRoll() throws {
+        let game = try startGame(.countOnly)
+        let bowled = try bowl([7], in: game)
+        #expect(throws: RepositoryError.entryModeLocked) { try games.setEntryMode(.pinByPin, for: game) }
+        #expect(try games.game(game) == bowled)
+    }
+
+    @Test func saveRefusesAnEntryModeChangeOnAGameWithRolls() throws {
+        let game = try startGame(.countOnly)
+        var record = try bowl([7], in: game)
+        record.entryMode = .pinByPin
+        record.frames = []
+        #expect(throws: RepositoryError.entryModeLocked) { try games.save(record) }
+        #expect(try games.game(game).entryMode == .countOnly)
+    }
+
+    @Test func clearingRollsUnlocksTheEntryMode() throws {
+        let game = try startGame(.countOnly)
+        try bowl([7, 2, 10], in: game)
+
+        let cleared = try games.clearRolls(in: game)
+        #expect(cleared.frames.isEmpty)
+        #expect(cleared.finalScore == 0)
+        #expect(try savedRollCount() == 0)
+        try games.setEntryMode(.pinByPin, for: game)
+        #expect(try games.game(game).entryMode == .pinByPin)
+    }
 }
