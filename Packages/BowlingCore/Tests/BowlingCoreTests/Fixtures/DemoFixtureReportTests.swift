@@ -97,8 +97,8 @@ import BowlingFixtures
             #expect(rows[last]!.count > next.value.count)
         }
 
-        let misses = rows.mapValues { $0.count - $0.converted }
-        let mostMissed = misses.filter { $0.value == misses.values.max() }.map(\.key)
-        #expect(mostMissed == [report.leftMostMadeLeast])
+        let misses = rows.filter { $0.value.count >= 3 }.mapValues { $0.count - $0.converted }
+        let mostMissed = misses.filter { $0.value == misses.values.max() && $0.value > 0 }.map(\.key)
+        #expect(mostMissed == [report.leftMostMadeLeast].compactMap(\.self))
     }
 }

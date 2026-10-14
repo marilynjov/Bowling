@@ -17,6 +17,7 @@ import BowlingCore
         #expect(StatsProfile.allCases.map(\.rawValue) == ["casual", "league", "competitive", "unknown"])
         #expect(Handedness.allCases.map(\.rawValue) == ["right", "left", "unknown"])
         #expect(BallRole.allCases.map(\.rawValue) == ["strike", "spare", "both", "unknown"])
+        #expect(StatsScope.allCases.map(\.rawValue) == ["competition", "all", "unknown"])
     }
 
     @Test func knownValuesRoundTrip() throws {
@@ -25,6 +26,7 @@ import BowlingCore
         for value in StatsProfile.allCases { #expect(try roundTrip(value) == value) }
         for value in Handedness.allCases { #expect(try roundTrip(value) == value) }
         for value in BallRole.allCases { #expect(try roundTrip(value) == value) }
+        for value in StatsScope.allCases { #expect(try roundTrip(value) == value) }
     }
 
     @Test func unknownRawValuesDecodeToUnknown() throws {
@@ -33,6 +35,7 @@ import BowlingCore
         #expect(try decode(StatsProfile.self, "pro") == .unknown)
         #expect(try decode(Handedness.self, "both") == .unknown)
         #expect(try decode(BallRole.self, "polished") == .unknown)
+        #expect(try decode(StatsScope.self, "lastSeason") == .unknown)
     }
 
     @Test func storedValueInitFallsBack() {
@@ -42,6 +45,8 @@ import BowlingCore
         #expect(StatsProfile(storedValue: "x") == .unknown)
         #expect(Handedness(storedValue: "left") == .left)
         #expect(BallRole(storedValue: "x") == .unknown)
+        #expect(StatsScope(storedValue: "all") == .all)
+        #expect(StatsScope(storedValue: "") == .unknown)
     }
 
     @Test func unknownStatsProfileIsTreatedAsCasual() {

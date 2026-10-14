@@ -13,6 +13,8 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
     public var statsLayout: [String]
     /// Raw Home tile card IDs; empty means the profile's preset.
     public var homeLayout: [String]
+    /// Nil follows the bowling style's preference.
+    public var statsScope: StatsScope?
 }
 
 @MainActor
@@ -36,8 +38,10 @@ public final class BowlerRepository {
         return ([owner].compactMap(\.self) + others).map { $0.record() }
     }
 
-    /// - Throws: `.ownerAlreadyExists` when an owner exists.
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name, `.ownerAlreadyExists` when
+    ///   an owner exists.
     public func createOwner(name: String, handedness: Handedness, statsProfile: StatsProfile) throws -> BowlerRecord {
+        let name = try Self.validName(name)
         guard context.owner() == nil else { throw RepositoryError.ownerAlreadyExists }
         return try context.write {
             let owner = Bowler(name: name, isOwner: true)
@@ -48,8 +52,10 @@ public final class BowlerRepository {
         }
     }
 
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name.
     public func createBowler(name: String) throws -> BowlerRecord {
-        try context.write {
+        let name = try Self.validName(name)
+        return try context.write {
             let bowler = Bowler(name: name)
             context.insert(bowler)
             return bowler.record()
@@ -57,7 +63,9 @@ public final class BowlerRepository {
     }
 
     /// `.unknown` handedness keeps the stored value.
+    /// - Throws: `.invalidBowler(.emptyName)` for a blank name.
     public func updateOwner(name: String, handedness: Handedness) throws {
+        let name = try Self.validName(name)
         guard let owner = context.owner() else { throw RepositoryError.notFound }
         try context.write {
             owner.name = name
@@ -66,13 +74,30 @@ public final class BowlerRepository {
         }
     }
 
-    /// Leaves a customized layout alone. `.unknown` keeps the stored value.
+    /// Leaves a customized layout and an explicit stats scope alone. `.unknown` keeps the
+    /// stored value.
     public func setStatsProfile(_ profile: StatsProfile) throws {
         guard let owner = context.owner() else { throw RepositoryError.notFound }
         try context.write {
             if profile != .unknown { owner.statsProfile = profile.rawValue }
             owner.updatedAt = .now
         }
+    }
+
+    /// Nil follows the bowling style. `.unknown` keeps the stored value.
+    public func setStatsScope(_ scope: StatsScope?) throws {
+        guard let owner = context.owner() else { throw RepositoryError.notFound }
+        try context.write {
+            if scope != .unknown { owner.statsScope = scope?.rawValue ?? "" }
+            owner.updatedAt = .now
+        }
+    }
+
+    /// The name trimmed of surrounding whitespace, as `addBall` stores ball names.
+    private static func validName(_ name: String) throws -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw RepositoryError.invalidBowler(.emptyName) }
+        return trimmed
     }
 
     /// - Throws: `.cannotDeleteOwner`, or `.bowlerHasGames(count:)` so the user can delete
@@ -95,7 +120,8 @@ extension Bowler {
             handedness: BowlingCore.Handedness(storedValue: handedness),
             statsProfile: BowlingCore.StatsProfile(storedValue: statsProfile),
             statsLayout: Self.cardIDs(statsLayout),
-            homeLayout: Self.cardIDs(homeLayout)
+            homeLayout: Self.cardIDs(homeLayout),
+            statsScope: Self.scope(statsScope)
         )
     }
 
@@ -106,6 +132,11 @@ extension Bowler {
     /// The owner first, then by name.
     static func ownerThenName(_ lhs: Bowler, _ rhs: Bowler) -> Bool {
         lhs.isOwner != rhs.isOwner ? lhs.isOwner : byName(lhs, rhs)
+    }
+
+    private static func scope(_ stored: String) -> StatsScope? {
+        let scope = StatsScope(storedValue: stored)
+        return scope == .unknown ? nil : scope
     }
 
     private static func cardIDs(_ layout: String) -> [String] {

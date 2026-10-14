@@ -9,7 +9,7 @@ public struct SessionSummary: Sendable, Hashable, Identifiable {
     public var centerName: String?
     public var leagueName: String?
     public var bowlerCount: Int
-    /// Grouped by bowler, the owner first and then by name, each bowler's by `gameIndex`.
+    /// Grouped by bowler in lineup order, each bowler's by `gameIndex`.
     public var games: [GameRecord]
     /// Every game is complete.
     public var isComplete: Bool
@@ -18,7 +18,7 @@ public struct SessionSummary: Sendable, Hashable, Identifiable {
 public struct SessionDetail: Sendable, Hashable, Identifiable {
     public var id: SessionID
     public var metadata: SessionMetadata
-    /// The owner first, then by name.
+    /// Lineup order, the order given to `startSession`.
     public var bowlers: [SessionBowler]
 }
 

@@ -57,6 +57,31 @@ import Testing
         #expect(bowlers.owner()?.id == older.id)
     }
 
+    // MARK: Names
+
+    @Test(arguments: ["", "   ", "\n\t"])
+    func blankNamesAreRefused(_ name: String) throws {
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) {
+            try bowlers.createOwner(name: name, handedness: .right, statsProfile: .casual)
+        }
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) { try bowlers.createBowler(name: name) }
+        #expect(try bowlerCount() == 0)
+
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        #expect(throws: RepositoryError.invalidBowler(.emptyName)) {
+            try bowlers.updateOwner(name: name, handedness: .left)
+        }
+        #expect(bowlers.owner()?.name == "Sam")
+        #expect(bowlers.owner()?.handedness == .right)
+    }
+
+    @Test func namesAreTrimmed() throws {
+        #expect(try bowlers.createOwner(name: " Sam ", handedness: .right, statsProfile: .casual).name == "Sam")
+        #expect(try bowlers.createBowler(name: "Alex\n").name == "Alex")
+        try bowlers.updateOwner(name: "  Samantha", handedness: .unknown)
+        #expect(bowlers.owner()?.name == "Samantha")
+    }
+
     // MARK: Listing
 
     @Test func bowlersListOwnerFirstThenByName() throws {
@@ -94,21 +119,54 @@ import Testing
         #expect(bowlers.owner()?.statsProfile == .competitive)
     }
 
+    // MARK: Stats scope (OQ-14)
+
+    @Test func statsScopeFollowsTheBowlingStyleUntilChosen() throws {
+        let owner = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        #expect(owner.statsScope == nil)
+        try bowlers.setStatsProfile(.casual)
+        #expect(bowlers.owner()?.statsScope == nil)
+    }
+
+    @Test func setStatsScopeStoresAnExplicitChoice() throws {
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        try bowlers.setStatsScope(.competition)
+        #expect(bowlers.owner()?.statsScope == .competition)
+        try bowlers.setStatsScope(nil)
+        #expect(bowlers.owner()?.statsScope == nil)
+    }
+
+    @Test(arguments: [StatsScope.competition, .all], [StatsProfile.casual, .league, .competitive])
+    func styleChangeNeverOverwritesAnExplicitScope(_ scope: StatsScope, _ profile: StatsProfile) throws {
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        try bowlers.setStatsScope(scope)
+        try bowlers.setStatsProfile(profile)
+        #expect(bowlers.owner()?.statsScope == scope)
+    }
+
+    @Test func setStatsScopeWithoutOwnerIsNotFound() {
+        #expect(throws: RepositoryError.notFound) { try bowlers.setStatsScope(.all) }
+    }
+
     // MARK: Unknown raw values
 
     @Test func unknownStoredValuesReadAsUnknownAndSurviveUnrelatedWrites() throws {
         let owner = Bowler(name: "Sam", isOwner: true)
         owner.handedness = "ambidextrous"
         owner.statsProfile = "bowlingCoach"
+        owner.statsScope = "lastSeason"
         store.context.insert(owner)
 
         #expect(bowlers.owner()?.handedness == .unknown)
         #expect(bowlers.owner()?.statsProfile == .unknown)
+        #expect(bowlers.owner()?.statsScope == nil)
 
         try bowlers.updateOwner(name: "Samantha", handedness: .unknown)
         try bowlers.setStatsProfile(.unknown)
+        try bowlers.setStatsScope(.unknown)
         #expect(owner.handedness == "ambidextrous")
         #expect(owner.statsProfile == "bowlingCoach")
+        #expect(owner.statsScope == "lastSeason")
     }
 
     // MARK: Delete refusals

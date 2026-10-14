@@ -6,6 +6,9 @@ import SwiftData
 public enum RollInput: Sendable, Hashable {
     /// pinByPin: the pins that fell on this roll.
     case pins(PinSet)
+    /// pinByPin: the pins still standing after this roll, what the pin deck sends by
+    /// default. The repository converts them to the pins that fell.
+    case pinsLeft(PinSet)
     /// countOnly.
     case count(Int)
     /// Either mode.
@@ -27,13 +30,14 @@ public struct RollEditOutcome: Sendable, Hashable {
 extension GameRepository {
     /// Appends at `Scorer.nextRoll(in:)` and saves, so an unfinished game survives the app
     /// being killed. The repository sets `rollIndex`, `pinCount`, and `pinsKnown`.
-    /// - Throws: `.invalidGame` with the violations when the roll does not fit, and
-    ///   `.invalidGame([])` for input of the other entry mode, a finalOnly game, or a
-    ///   complete game; `.notFound` for a missing game or ball. Nothing is saved.
+    /// - Throws: `.invalidGame` with the violations when the roll does not fit, including
+    ///   pins left that were not standing, and `.invalidGame([])` for input of the other
+    ///   entry mode, a finalOnly game, or a complete game; `.notFound` for a missing game
+    ///   or ball. Nothing is saved.
     public func recordRoll(_ input: RollInput, ballID: BallID?, in game: GameID) throws -> GameRecord {
         var record = try self.game(game)
         guard let position = Scorer.nextRoll(in: record) else { throw RepositoryError.invalidGame([]) }
-        let roll = try Self.roll(input, rollIndex: position.rollIndex, ballID: ballID, mode: record.entryMode)
+        let roll = try Self.roll(input, at: position, ballID: ballID, mode: record.entryMode)
         if let frame = record.frames.firstIndex(where: { $0.frameIndex == position.frameIndex }) {
             record.frames[frame].rolls.append(roll)
         } else {
@@ -63,7 +67,10 @@ extension GameRepository {
         var rolls = record.frames.flatMap { frame in frame.rolls.map { (frameIndex: frame.frameIndex, roll: $0) } }
         guard let edited = rolls.firstIndex(where: { $0.frameIndex == frameIndex && $0.roll.rollIndex == rollIndex })
         else { throw RepositoryError.notFound }
-        rolls[edited].roll = try Self.roll(input, rollIndex: rollIndex, ballID: ballID, mode: record.entryMode)
+        var faced = record
+        faced.frames = Self.frames(Array(rolls[..<edited]))
+        guard let position = Scorer.nextRoll(in: faced) else { throw RepositoryError.notFound }
+        rolls[edited].roll = try Self.roll(input, at: position, ballID: ballID, mode: record.entryMode)
 
         var kept = Array(rolls[...edited])
         record.frames = Self.frames(kept)
@@ -103,15 +110,27 @@ extension GameRepository {
         return try save(record)
     }
 
-    /// - Throws: `.invalidGame([])` when `input` does not belong to `mode`.
-    private static func roll(_ input: RollInput, rollIndex: Int, ballID: BallID?, mode: EntryMode) throws -> RollRecord {
+    /// - Throws: `.invalidGame([])` when `input` does not belong to `mode`, and
+    ///   `.notSubsetOfStanding` for pins left that were not standing at `position`.
+    private static func roll(
+        _ input: RollInput, at position: RollPosition, ballID: BallID?, mode: EntryMode
+    ) throws -> RollRecord {
+        let rollIndex = position.rollIndex
         switch (input, mode) {
         case let (.pins(pins), .pinByPin):
-            RollRecord(rollIndex: rollIndex, pinsDown: pins, pinCount: pins.count, pinsKnown: true, ballID: ballID)
+            return RollRecord(rollIndex: rollIndex, pinsDown: pins, pinCount: pins.count, pinsKnown: true, ballID: ballID)
+        case let (.pinsLeft(left), .pinByPin):
+            guard position.standingPins.isSuperset(of: left) else {
+                throw RepositoryError.invalidGame([
+                    .notSubsetOfStanding(frameIndex: position.frameIndex, rollIndex: rollIndex),
+                ])
+            }
+            let fell = position.standingPins.subtracting(left)
+            return RollRecord(rollIndex: rollIndex, pinsDown: fell, pinCount: fell.count, pinsKnown: true, ballID: ballID)
         case let (.count(count), .countOnly):
-            RollRecord(rollIndex: rollIndex, pinCount: count, pinsKnown: false, ballID: ballID)
+            return RollRecord(rollIndex: rollIndex, pinCount: count, pinsKnown: false, ballID: ballID)
         case (.foul, .pinByPin), (.foul, .countOnly):
-            RollRecord(rollIndex: rollIndex, pinCount: 0, pinsKnown: mode == .pinByPin, isFoul: true, ballID: ballID)
+            return RollRecord(rollIndex: rollIndex, pinCount: 0, pinsKnown: mode == .pinByPin, isFoul: true, ballID: ballID)
         default:
             throw RepositoryError.invalidGame([])
         }

@@ -168,7 +168,32 @@ import BowlingFixtures
     func leftMostMadeLeast(_ expected: ExpectedReport) {
         let report = report(expected)
         #expect(report.leftMostMadeLeast?.leave.name == expected.leftMostMadeLeast)
-        #expect(report.leftMostMadeLeast.map { report.leaves.contains($0) } == true)
+        if let callout = report.leftMostMadeLeast { #expect(report.leaves.contains(callout)) }
+    }
+
+    // Contract OQ-17: a leave seen twice and missed twice is not enough for the callout;
+    // the 10 pin, seen 3 times and missed once, is.
+    @Test func calloutNeedsALeaveSeenAtLeastThreeTimes() {
+        let leftTen = PinSet.all.subtracting(.pin10), leftSeven = PinSet.all.subtracting(.pin7)
+        func spare(_ index: Int, _ first: PinSet, made: Bool) -> FrameRecord {
+            let second: PinSet = made ? PinSet.all.subtracting(first) : []
+            return FrameRecord(frameIndex: index, rolls: [
+                RollRecord(rollIndex: 1, pinsDown: first, pinCount: first.count, pinsKnown: true),
+                RollRecord(rollIndex: 2, pinsDown: second, pinCount: second.count, pinsKnown: true),
+            ])
+        }
+        func game(_ frames: [FrameRecord]) -> GameRecord {
+            GameRecord(gameIndex: 1, entryMode: .pinByPin, finalScore: 0, isComplete: true, frames: frames,
+                       sessionDate: Self.now, eventType: .practice)
+        }
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: [.practice], bowlerID: DemoBowler.owner.id)
+        let frames = [spare(1, leftSeven, made: false), spare(2, leftSeven, made: false),
+                      spare(3, leftTen, made: false), spare(4, leftTen, made: true)]
+        let twice = StatsEngine.report(games: [game(frames)], filter: filter)
+        #expect(twice.leftMostMadeLeast == nil)
+
+        let thrice = StatsEngine.report(games: [game(frames + [spare(5, leftTen, made: true)])], filter: filter)
+        #expect(thrice.leftMostMadeLeast?.leave.name == "10")
     }
 
     // Nine strikes, then a 10 pin left and made in frame 10, then a strike: 289.

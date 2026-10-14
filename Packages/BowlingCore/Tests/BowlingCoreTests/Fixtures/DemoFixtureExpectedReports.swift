@@ -74,7 +74,8 @@ struct ExpectedReport: Sendable {
     let leaves: [String: ExpectedLeaveRow]
     /// Rows whose order is pinned: every other row's count is strictly smaller.
     let leavesHead: [String]
-    let leftMostMadeLeast: String
+    /// Nil when no leave was seen at least 3 times (contract OQ-17).
+    let leftMostMadeLeast: String?
 }
 
 extension DemoFixtureExpected {
@@ -154,7 +155,8 @@ extension DemoFixtureExpected {
             "7-10": ExpectedLeaveRow(count: 1, converted: 0),
         ],
         leavesHead: ["10", "7"],
-        leftMostMadeLeast: "10"     // misses: 10 -> 6-4 = 2, every other leave at most 1
+        // Only 10 (count 6) is seen at least 3 times; misses 6 - 4 = 2.
+        leftMostMadeLeast: "10"
     )
 
     /// The owner with every event type. The in-progress practice game stays out.
@@ -233,7 +235,8 @@ extension DemoFixtureExpected {
             "7-10": ExpectedLeaveRow(count: 1, converted: 0),
         ],
         leavesHead: ["10", "7"],
-        leftMostMadeLeast: "10"     // misses: 10 -> 3, 6-7-10 -> 2, 7 -> 1
+        // Seen at least 3 times: 10 (9, misses 3) and 7 (3, misses 1).
+        leftMostMadeLeast: "10"
     )
 
     /// The friend has no league or tournament games, so their default scope falls back
@@ -280,7 +283,9 @@ extension DemoFixtureExpected {
             "7-10": ExpectedLeaveRow(count: 1, converted: 0),
         ],
         leavesHead: [],     // "10" and "4" tie at 2 (OQ-17)
-        leftMostMadeLeast: "4"      // misses: 4 -> 2, 7 and 7-10 -> 1, 10 and 6 -> 0
+        // The 4 has the most misses (2 of 2) but the most any leave was seen is 2, below
+        // the minimum of 3, so nothing qualifies (OQ-17).
+        leftMostMadeLeast: nil
     )
 
     static let reports = [ownerCompetition, ownerAllGames, friendAllGames]
