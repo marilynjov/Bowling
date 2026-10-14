@@ -848,7 +848,7 @@ starts.
 
 ## 8. Approval
 
-- [ ] marilynjov (frontend)
+- [x] marilynjov (frontend)
 - [ ] SantiagoM99 (data)
 
 ## 9. Open questions, decided 2026-10-14 (issue #1)
