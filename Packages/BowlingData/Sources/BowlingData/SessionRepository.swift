@@ -88,6 +88,15 @@ public final class SessionRepository {
         try context.write { context.delete(session) }
     }
 
+    /// Deletes the session when the user backs out before anything was entered: no game has
+    /// a roll and no finalOnly game has a typed score. Otherwise does nothing.
+    /// - Throws: `.notFound` when the session does not exist.
+    public func discardIfUnstarted(_ id: SessionID) throws {
+        let session = try context.session(id)
+        guard !(session.games ?? []).contains(where: { $0.isComplete || $0.hasRolls }) else { return }
+        try context.write { context.delete(session) }
+    }
+
     // MARK: Pickers, by name
 
     public func centers() -> [NamedRef] {

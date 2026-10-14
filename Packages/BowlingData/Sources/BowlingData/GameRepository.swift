@@ -4,7 +4,7 @@ import SwiftData
 
 @MainActor
 public final class GameRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context
@@ -17,15 +17,18 @@ public final class GameRepository {
     /// The one write path for a game's frames and rolls; per-roll entry and edits build on it.
     /// Validates with `Scorer`, sets the cached `finalScore` and `isComplete` (scored games
     /// only), and saves. Session context and `bowlerID` in `record` are ignored.
-    /// - Throws: `.invalidGame` with every violation, and nothing is saved.
+    /// - Throws: `.entryModeLocked` when `record` changes the entry mode of a game that has
+    ///   rolls; `.invalidGame` with every violation. Nothing is saved.
     func save(_ record: GameRecord) throws -> GameRecord {
         let game = try context.game(record.id)
+        if game.hasRolls, record.entryMode != .unknown, record.entryMode.rawValue != game.entryMode {
+            throw RepositoryError.entryModeLocked
+        }
         let errors = Scorer.validate(record)
         guard errors.isEmpty else { throw RepositoryError.invalidGame(errors) }
-        return try context.write {
-            try game.apply(Self.scored(record), in: context)
-            return game.record()
-        }
+        // Read back after the save: until then a deleted frame or roll is still in the relationship.
+        try context.write { try game.apply(Self.scored(record), in: context) }
+        return game.record()
     }
 
     /// Before frame 10 is finished the cached score is the last known running total, so
@@ -79,5 +82,11 @@ public final class GameRepository {
     public func deleteGame(_ id: GameID) throws {
         let game = try context.game(id)
         try context.write { context.delete(game) }
+    }
+}
+
+extension Game {
+    var hasRolls: Bool {
+        (frames ?? []).contains { !($0.rolls ?? []).isEmpty }
     }
 }
