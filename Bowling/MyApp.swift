@@ -1,3 +1,5 @@
+import BowlingCore
+import BowlingData
 import SwiftUI
 
 @main struct MyApp: App {

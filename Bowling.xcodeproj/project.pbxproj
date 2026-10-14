@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		8F3D6A35307710280041C3D2 /* 2026-10-07-program-roadmap.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */; };
 		8F3D6A36307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */; };
+		8F16A0030000000000000001 /* BowlingCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8F16A0020000000000000001 /* BowlingCore */; };
+		8F16A0030000000000000002 /* BowlingData in Frameworks */ = {isa = PBXBuildFile; productRef = 8F16A0020000000000000002 /* BowlingData */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +31,8 @@
 		000000000000000130000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				8F16A0030000000000000001 /* BowlingCore in Frameworks */,
+				8F16A0030000000000000002 /* BowlingData in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -101,6 +105,10 @@
 				000000000000000000000010 /* Bowling */,
 			);
 			name = Bowling;
+			packageProductDependencies = (
+				8F16A0020000000000000001 /* BowlingCore */,
+				8F16A0020000000000000002 /* BowlingData */,
+			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* Bowling.app */;
 			productType = "com.apple.product-type.application";
@@ -129,6 +137,10 @@
 			);
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8F16A0010000000000000001 /* XCLocalSwiftPackageReference "Packages/BowlingCore" */,
+				8F16A0010000000000000002 /* XCLocalSwiftPackageReference "Packages/BowlingData" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
@@ -362,6 +374,28 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		8F16A0010000000000000001 /* XCLocalSwiftPackageReference "Packages/BowlingCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BowlingCore;
+		};
+		8F16A0010000000000000002 /* XCLocalSwiftPackageReference "Packages/BowlingData" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BowlingData;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8F16A0020000000000000001 /* BowlingCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BowlingCore;
+		};
+		8F16A0020000000000000002 /* BowlingData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BowlingData;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 000000000000000000000000 /* Project object */;
 }
