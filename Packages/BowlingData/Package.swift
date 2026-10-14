@@ -12,7 +12,10 @@ let package = Package(
         .package(path: "../BowlingCore"),
     ],
     targets: [
-        .target(name: "BowlingData", dependencies: ["BowlingCore"]),
+        .target(
+            name: "BowlingData",
+            dependencies: ["BowlingCore", .product(name: "BowlingFixtures", package: "BowlingCore")]
+        ),
         .testTarget(
             name: "BowlingDataTests",
             dependencies: ["BowlingData", .product(name: "BowlingFixtures", package: "BowlingCore")]
