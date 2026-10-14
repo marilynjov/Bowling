@@ -27,7 +27,8 @@ public final class SessionRepository {
         sessions().first { !$0.isComplete }
     }
 
-    /// Creates the session and game 1 for each bowler.
+    /// Creates the session and game 1 for each bowler. `bowlers` is the lineup, in the order
+    /// Scoring rotates through them.
     /// - Throws: `.notFound` when a bowler, ball, center, league, or pattern does not exist.
     public func startSession(
         _ metadata: SessionMetadata,
@@ -42,9 +43,10 @@ public final class SessionRepository {
             let session = Session(date: metadata.date)
             context.insert(session)
             session.apply(metadata, references)
-            for player in players {
+            for (position, player) in players.enumerated() {
                 let game = Game(gameIndex: 1)
                 context.insert(game)
+                game.lineupIndex = position + 1
                 if entryMode != .unknown { game.entryMode = entryMode.rawValue }
                 game.session = session
                 game.bowler = player.bowler
@@ -178,13 +180,17 @@ extension Session {
         )
     }
 
-    /// Each bowler's games by `gameIndex`, bowlers the owner first and then by name.
+    /// Each bowler's games by `gameIndex`, bowlers in lineup order. Equal positions, as in
+    /// games stored before `lineupIndex` existed, put the owner first and then go by name.
     /// Games whose bowler is gone are left out.
     func gamesByBowler() -> [(bowler: Bowler, games: [Game])] {
         let grouped = Dictionary(grouping: (games ?? []).filter { $0.bowler != nil }) { $0.bowler!.persistentModelID }
         return grouped.values
             .map { games in (bowler: games[0].bowler!, games: games.sorted { $0.gameIndex < $1.gameIndex }) }
-            .sorted { Bowler.ownerThenName($0.bowler, $1.bowler) }
+            .sorted { lhs, rhs in
+                let left = lhs.games[0].lineupIndex, right = rhs.games[0].lineupIndex
+                return left != right ? left < right : Bowler.ownerThenName(lhs.bowler, rhs.bowler)
+            }
     }
 
     func summary() -> SessionSummary {

@@ -35,8 +35,8 @@ import Testing
 
         let detail = try sessions.session(id)
         #expect(detail.metadata == metadata())
-        #expect(detail.bowlers.map(\.bowler.name) == ["Sam", "Alex"])
-        let ownerGame = try #require(detail.bowlers.first?.games.first)
+        #expect(detail.bowlers.map(\.bowler.name) == ["Alex", "Sam"])
+        let ownerGame = try #require(detail.bowlers.last?.games.first)
         #expect(detail.bowlers.map(\.games.count) == [1, 1])
         #expect(ownerGame.gameIndex == 1)
         #expect(ownerGame.entryMode == .pinByPin)
@@ -45,6 +45,35 @@ import Testing
         #expect(ownerGame.sessionID == id)
         #expect(ownerGame.eventType == .league)
         #expect(!ownerGame.isComplete)
+    }
+
+    // OQ-11: Scoring rotates bowlers like a lane console, so the lineup is the order given.
+    @Test func sessionBowlersFollowTheLineupGivenAtStart() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let alex = try store.bowlers.createBowler(name: "Alex")
+        let zoe = try store.bowlers.createBowler(name: "Zoe")
+
+        let id = try sessions.startSession(
+            metadata(), bowlers: [(zoe.id, nil), (owner.id, nil), (alex.id, nil)], entryMode: .pinByPin
+        )
+
+        #expect(try sessions.session(id).bowlers.map(\.bowler.name) == ["Zoe", "Sam", "Alex"])
+        let lineup = try store.context.fetch(FetchDescriptor<Game>()).map { ($0.bowler!.name, $0.lineupIndex) }
+        #expect(Dictionary(uniqueKeysWithValues: lineup) == ["Zoe": 1, "Sam": 2, "Alex": 3])
+    }
+
+    // Games stored before lineupIndex existed all read the default 1.
+    @Test func equalLineupPositionsFallBackToOwnerThenName() throws {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let alex = try store.bowlers.createBowler(name: "Alex")
+        let zoe = try store.bowlers.createBowler(name: "Zoe")
+        let id = try sessions.startSession(
+            metadata(), bowlers: [(zoe.id, nil), (alex.id, nil), (owner.id, nil)], entryMode: .pinByPin
+        )
+        for game in try store.context.fetch(FetchDescriptor<Game>()) { game.lineupIndex = 1 }
+        try store.context.save()
+
+        #expect(try sessions.session(id).bowlers.map(\.bowler.name) == ["Sam", "Alex", "Zoe"])
     }
 
     @Test func startSessionWithMissingBowlerOrBallSavesNothing() throws {
@@ -120,7 +149,7 @@ import Testing
         #expect(summary.centerName == "Sunset Lanes")
         #expect(summary.leagueName == "Tuesday Trios")
         #expect(summary.bowlerCount == 2)
-        #expect(summary.games.map(\.bowlerID) == [owner.id, owner.id, partner.id, partner.id])
+        #expect(summary.games.map(\.bowlerID) == [partner.id, partner.id, owner.id, owner.id])
         #expect(summary.games.map(\.gameIndex) == [1, 2, 1, 2])
         #expect(!summary.isComplete)
     }

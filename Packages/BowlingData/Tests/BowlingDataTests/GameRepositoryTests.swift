@@ -142,6 +142,21 @@ import Testing
         #expect(created.map(\.defaultBallID) == [ball.id, nil])
     }
 
+    @Test func startNextGameKeepsTheLineupOrder() throws {
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let metadata = SessionMetadata(date: DemoFixture.referenceDate, eventType: .league)
+        let session = try store.sessions.startSession(
+            metadata, bowlers: [(partner.id, nil), (owner.id, nil)], entryMode: .pinByPin
+        )
+
+        let next = try games.startNextGame(in: session)
+        #expect(try next.map { try games.game($0).bowlerID } == [partner.id, owner.id])
+        let created = try store.context.fetch(FetchDescriptor<Game>()).filter { $0.gameIndex == 2 }
+        #expect(Dictionary(uniqueKeysWithValues: created.map { ($0.bowler!.id, $0.lineupIndex) })
+                == [partner.id: 1, owner.id: 2])
+        #expect(try store.sessions.session(session).bowlers.map(\.bowler.id) == [partner.id, owner.id])
+    }
+
     @Test func startNextGameInMissingSessionIsNotFound() {
         #expect(throws: RepositoryError.notFound) { try games.startNextGame(in: UUID()) }
     }

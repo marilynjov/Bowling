@@ -59,9 +59,9 @@ public final class GameRepository {
         _ = try save(record)
     }
 
-    /// Adds the next game for every bowler in the session, with the entry mode and default
-    /// ball of that bowler's latest game.
-    /// - Returns: The new games, in the session's bowler order.
+    /// Adds the next game for every bowler in the session, with the entry mode, default
+    /// ball, and lineup position of that bowler's latest game.
+    /// - Returns: The new games, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID] {
         let session = try context.session(session)
         return try context.write {
@@ -70,6 +70,7 @@ public final class GameRepository {
                 let game = Game(gameIndex: latest.gameIndex + 1)
                 context.insert(game)
                 game.entryMode = latest.entryMode
+                game.lineupIndex = latest.lineupIndex
                 game.session = session
                 game.bowler = group.bowler
                 game.defaultBall = latest.defaultBall
