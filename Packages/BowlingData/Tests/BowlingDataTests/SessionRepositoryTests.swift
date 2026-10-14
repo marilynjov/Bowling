@@ -218,6 +218,49 @@ import Testing
         #expect(throws: RepositoryError.notFound) { try sessions.deleteSession(UUID()) }
     }
 
+    // MARK: Backing out before any roll
+
+    private func startTwoBowlerSession(_ entryMode: EntryMode) throws -> SessionID {
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        return try sessions.startSession(metadata(), bowlers: [(owner.id, nil), (partner.id, nil)], entryMode: entryMode)
+    }
+
+    private func gameIDs(_ session: SessionID) throws -> [GameID] {
+        try sessions.session(session).bowlers.flatMap(\.games).map(\.id)
+    }
+
+    @Test func discardIfUnstartedDeletesASessionWithNoRolls() throws {
+        let id = try startTwoBowlerSession(.pinByPin)
+        try sessions.discardIfUnstarted(id)
+        #expect(try count(Session.self) == 0)
+        #expect(try count(Game.self) == 0)
+        #expect(try count(Bowler.self) == 2)
+    }
+
+    @Test func discardIfUnstartedKeepsASessionWithARoll() throws {
+        let id = try startTwoBowlerSession(.countOnly)
+        let partnerGame = try #require(try gameIDs(id).last)
+        _ = try store.games.recordRoll(.count(4), ballID: nil, in: partnerGame)
+
+        try sessions.discardIfUnstarted(id)
+        #expect(try count(Session.self) == 1)
+        #expect(try count(Game.self) == 2)
+    }
+
+    @Test func discardIfUnstartedKeepsASessionWithATypedFinalScore() throws {
+        let id = try startTwoBowlerSession(.finalOnly)
+        let ownerGame = try #require(try gameIDs(id).first)
+        try store.games.setFinalScore(0, for: ownerGame)
+
+        try sessions.discardIfUnstarted(id)
+        #expect(try count(Session.self) == 1)
+    }
+
+    @Test func discardIfUnstartedOnMissingSessionIsNotFound() {
+        #expect(throws: RepositoryError.notFound) { try sessions.discardIfUnstarted(UUID()) }
+    }
+
     // MARK: Pickers
 
     @Test func pickersListByName() throws {

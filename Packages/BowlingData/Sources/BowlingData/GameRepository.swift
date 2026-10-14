@@ -21,8 +21,7 @@ public final class GameRepository {
     ///   rolls; `.invalidGame` with every violation. Nothing is saved.
     func save(_ record: GameRecord) throws -> GameRecord {
         let game = try context.game(record.id)
-        let hasRolls = (game.frames ?? []).contains { !($0.rolls ?? []).isEmpty }
-        if hasRolls, record.entryMode != .unknown, record.entryMode.rawValue != game.entryMode {
+        if game.hasRolls, record.entryMode != .unknown, record.entryMode.rawValue != game.entryMode {
             throw RepositoryError.entryModeLocked
         }
         let errors = Scorer.validate(record)
@@ -83,5 +82,11 @@ public final class GameRepository {
     public func deleteGame(_ id: GameID) throws {
         let game = try context.game(id)
         try context.write { context.delete(game) }
+    }
+}
+
+extension Game {
+    var hasRolls: Bool {
+        (frames ?? []).contains { !($0.rolls ?? []).isEmpty }
     }
 }
