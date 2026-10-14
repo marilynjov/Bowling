@@ -6,8 +6,8 @@ import BowlingFixtures
 @testable import BowlingData
 
 /// The SwiftData side of spec section 6 "Filters": the fetch must select exactly the games
-/// `StatsFilter.matches` selects from the same fixture, in contract order.
-@MainActor @Suite struct StatsFilterQueryTests {
+/// `StatsFilter.matches` selects from the same fixture, in contract order. Also §6 "Default scope".
+@MainActor @Suite struct StatsRepositoryTests {
     static let utc: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -16,18 +16,18 @@ import BowlingFixtures
 
     let now = DemoFixture.referenceDate
     let calendar = Self.utc
-    let container: ModelContainer
-    let context: ModelContext
+    let store: BowlingStore
+    var context: ModelContext { store.context }
 
     init() throws {
-        container = try BowlingStore.makeContainer(inMemory: true)
-        context = ModelContext(container)
-        try DemoStoreSeed.insertDemoGames(relativeTo: now, into: context)
+        store = try BowlingStore(inMemory: true)
+        for game in DemoFixture.games(relativeTo: now) {
+            _ = try insertGame(game, into: store.context)
+        }
     }
 
-    private func fetch(_ filter: StatsFilter, seasonLeague: LeagueID? = nil) throws -> [GameRecord] {
-        try StatsFilterQuery.games(matching: filter, seasonLeague: seasonLeague,
-                                   now: now, calendar: calendar, in: context)
+    private func fetch(_ filter: StatsFilter, seasonLeague: LeagueID? = nil) -> [GameRecord] {
+        store.stats.games(matching: filter, seasonLeague: seasonLeague, now: now, calendar: calendar)
     }
 
     /// The fixture games the in-memory filter keeps, sorted by session date then game index.
@@ -45,12 +45,12 @@ import BowlingFixtures
     func predicateAgreesWithInMemoryFilter(bowler: DemoBowler, preset: DatePreset) throws {
         for eventTypes in Self.eventTypeSets {
             let filter = StatsFilter(datePreset: preset, eventTypes: eventTypes, bowlerID: bowler.id)
-            #expect(try fetch(filter) == expected(filter), "\(eventTypes)")
+            #expect(fetch(filter) == expected(filter), "\(eventTypes)")
         }
     }
 
     @Test func returnsFullRecordsSortedBySessionDateThenGameIndex() throws {
-        let games = try fetch(StatsFilter(datePreset: .thisWeek, bowlerID: DemoBowler.owner.id))
+        let games = fetch(StatsFilter(datePreset: .thisWeek, bowlerID: DemoBowler.owner.id))
         #expect(games.map(\.id) == [
             DemoGame.leagueNight1, .leagueNight2, .leagueNight3, .practiceInProgress,
         ].map(\.id))
@@ -68,7 +68,7 @@ import BowlingFixtures
         try context.save()
 
         let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
-        let games = try fetch(filter, seasonLeague: league.id)
+        let games = fetch(filter, seasonLeague: league.id)
         #expect(games.map(\.id) == [
             DemoGame.earlyLeague1, .earlyLeague2, .earlyLeague3,
             .tournament1, .tournament2, .tournament3, .tournament4,
@@ -83,24 +83,24 @@ import BowlingFixtures
         try context.save()
 
         let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
-        #expect(try fetch(filter, seasonLeague: league.id) == expected(filter))
-        #expect(try fetch(filter, seasonLeague: UUID()) == expected(filter))
+        #expect(fetch(filter, seasonLeague: league.id) == expected(filter))
+        #expect(fetch(filter, seasonLeague: UUID()) == expected(filter))
     }
 
     @Test func storedEventTypeFromANewerVersionMatchesOnlyAllGames() throws {
-        let session = try context.fetch(FetchDescriptor<Session>()).first { $0.id == DemoSession.tournament.id }!
+        let session = try context.session(DemoSession.tournament.id)
         session.eventType = "fun-league"
         try context.save()
 
-        let competition = try fetch(StatsFilter(eventTypes: EventType.competition, bowlerID: DemoBowler.owner.id))
+        let competition = fetch(StatsFilter(eventTypes: EventType.competition, bowlerID: DemoBowler.owner.id))
         #expect(!competition.contains { $0.sessionID == DemoSession.tournament.id })
 
-        let all = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id))
+        let all = fetch(StatsFilter(bowlerID: DemoBowler.owner.id))
         let tournament = all.filter { $0.sessionID == DemoSession.tournament.id }
         #expect(tournament.count == 4)
         #expect(tournament.allSatisfy { $0.eventType == .unknown })
 
-        let onlyUnknown = try fetch(StatsFilter(eventTypes: [.unknown], bowlerID: DemoBowler.owner.id))
+        let onlyUnknown = fetch(StatsFilter(eventTypes: [.unknown], bowlerID: DemoBowler.owner.id))
         #expect(onlyUnknown.map(\.id) == tournament.map(\.id))
     }
 
@@ -109,13 +109,42 @@ import BowlingFixtures
         orphan.isComplete = true
         orphan.finalScore = 200
         context.insert(orphan)
-        orphan.bowler = try context.fetch(FetchDescriptor<Bowler>()).first { $0.isOwner }
+        orphan.bowler = try context.bowler(DemoBowler.owner.id)
         let noBowler = Game(gameIndex: 9, entryMode: .finalOnly)
         context.insert(noBowler)
         noBowler.session = try context.fetch(FetchDescriptor<Session>()).first
         try context.save()
 
-        let games = try fetch(StatsFilter(bowlerID: DemoBowler.owner.id))
+        let games = fetch(StatsFilter(bowlerID: DemoBowler.owner.id))
         #expect(!games.contains { $0.id == orphan.id || $0.id == noBowler.id })
+    }
+
+    @Test func contractOverloadUsesNineMonthsForThisSeason() {
+        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
+        #expect(store.stats.games(matching: filter, now: now, calendar: calendar) == expected(filter))
+    }
+
+    // MARK: Default scope
+
+    @Test func defaultScopeIsCompetitionForABowlerWithCompetitionGames() {
+        #expect(store.stats.defaultEventTypes(for: DemoBowler.owner.id, preferCompetition: true) == EventType.competition)
+        #expect(store.stats.defaultEventTypes(for: DemoBowler.partner.id, preferCompetition: true) == EventType.competition)
+    }
+
+    @Test func defaultScopeIsAllGamesWhenNotPreferred() {
+        #expect(store.stats.defaultEventTypes(for: DemoBowler.owner.id, preferCompetition: false) == Set(EventType.allCases))
+    }
+
+    @Test func defaultScopeFallsBackToAllGamesWithoutCompetitionGames() {
+        #expect(store.stats.defaultEventTypes(for: DemoBowler.friend.id, preferCompetition: true) == Set(EventType.allCases))
+        #expect(store.stats.defaultEventTypes(for: UUID(), preferCompetition: true) == Set(EventType.allCases))
+    }
+
+    @Test func incompleteCompetitionGamesDoNotSetTheDefaultScope() throws {
+        let friendLeague = GameRecord(
+            bowlerID: DemoBowler.friend.id, gameIndex: 1, entryMode: .pinByPin, finalScore: 0,
+            isComplete: false, sessionDate: now, eventType: .league)
+        _ = try insertGame(friendLeague, into: context)
+        #expect(store.stats.defaultEventTypes(for: DemoBowler.friend.id, preferCompetition: true) == Set(EventType.allCases))
     }
 }
