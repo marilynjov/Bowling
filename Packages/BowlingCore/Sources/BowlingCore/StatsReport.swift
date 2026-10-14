@@ -136,7 +136,8 @@ public struct StatsReport: Sendable, Hashable, Codable {
     public var singlePinConversion: Rate
     /// Most left first; equal counts by pin numbers ascending.
     public var leaves: [LeaveRow]
-    /// The leave with the most misses (count times miss rate); nil when nothing was missed.
+    /// The leave with the most misses (count times miss rate) among leaves seen at least 3
+    /// times; nil when none of them was missed.
     public var leftMostMadeLeast: LeaveRow?
 
     public init(
