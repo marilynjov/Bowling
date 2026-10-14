@@ -33,6 +33,12 @@ Sub-phases: 1a (scoring engine and core stats) and 1b (analysis, arsenal, ball d
     are confusing.
 15. Leaves are drawn as small pin diagrams everywhere they appear, not only as pin
     numbers (section 7).
+16. Decisions from the app and package contract (`2026-10-14-app-package-contract.md`,
+    issue #1): the pin deck defaults to tapping the pins left standing; bowlers keep
+    their lineup order (`Game.lineupIndex`); the default stats scope is stored as
+    `Bowler.statsScope`; the "left most, made least" callout needs a leave seen at least
+    3 times; fixtures live in a `BowlingFixtures` library; "Delete all data" also
+    deletes the owner.
 
 ## 1. Purpose and scope
 
@@ -114,8 +120,10 @@ BowlingCore: value types, scoring, leaves, stats     (Packages/BowlingCore, pure
   import both packages.
 - **BowlingData** defines the SwiftData `@Model` classes, the `ModelContainer` setup, and
   repositories that fetch models and convert them to BowlingCore value types for the
-  engines. It owns the demo fixture data used by previews and tests, and the CSV codec
-  (1b).
+  engines. It seeds the demo store used by previews from the `BowlingFixtures`
+  library, and owns the CSV codec (1b). `BowlingFixtures` lives in the BowlingCore
+  package so BowlingCore's tests can use it too, since BowlingCore cannot depend on
+  BowlingData.
 - **App target** contains only views, feature models, and navigation. Feature models are
   `@Observable` classes that hold screen state, call repositories, and run engines. Views
   never touch `ModelContext` directly except through `@Query` for simple lists.
@@ -168,6 +176,7 @@ below but exist on every entity.
 | statsProfile | String raw: casual, league, competitive, unknown | Owner only. Set at first launch, changeable in Settings. Default unknown, treated as casual |
 | statsLayout | String | Owner only. Ordered card IDs for Stats, comma-separated. Empty means use the profile's preset (section 7) |
 | homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
+| statsScope | String raw: competition, all, unknown | Owner only. The default stats scope chosen in Settings. Empty means follow the bowling style; unknown is treated as empty |
 | games | [Game]? | Inverse of Game.bowler |
 
 #### Session
@@ -192,6 +201,7 @@ A session's series total is the sum of its games' final scores for one bowler.
 | session | Session? | |
 | bowler | Bowler? | |
 | gameIndex | Int | 1-based order within the session for this bowler |
+| lineupIndex | Int | Default 1. The bowler's position in the session lineup, set at Start and copied by Next game. Scoring rotates bowlers in this order |
 | entryMode | String raw: pinByPin, countOnly, finalOnly | Fixed once the first roll exists (section 8) |
 | defaultBall | Ball? | Inverse of Ball.gamesAsDefault |
 | finalScore | Int | Cached. Computed by the Scorer for pinByPin and countOnly; typed by the user for finalOnly |
@@ -466,9 +476,10 @@ bowler who only enters casual or practice games, including Quick score games (wh
 casual), still sees their stats. One tap switches to "All games" or any custom
 combination of practice, league, tournament, and casual. Home's tiles show the
 competition average with the all-games average beneath it, or only the all-games
-average when there are no competition games. The choice of default is stored in
-Settings. The bowling style sets its starting value: casual starts on "All games",
-league and competitive start on "Competition".
+average when there are no competition games. The choice of default is set in Settings
+and stored as `Bowler.statsScope` on the owner, so it syncs. While it is empty, the
+bowling style decides: casual starts on "All games", league and competitive start on
+"Competition". An explicit choice is never overwritten by a later style change.
 
 ### Which games count for what
 
@@ -500,13 +511,15 @@ Each section of the Stats screen states how many games it is based on.
 - **Spare attempts**: first balls that left pins standing (including a foul, which leaves
   all ten) and were followed by a second roll on the same rack.
 - **Spare %**: spares divided by spare attempts. This is the only spare percentage shown.
-- **Split %**: spare attempts classified split divided by spare attempts. **Split
-  conversion %**: splits converted divided by splits.
+- **Split %**: spare attempts classified split divided by spare attempts, including
+  attempts after a first-ball foul, which have no leave. **Split conversion %**: splits
+  converted divided by splits.
 - **Makeable conversion %**: makeable and single-pin leaves converted divided by their
   count. **Single-pin conversion %** reported separately.
 - **Leaves table**: for each distinct `Leave`, count, conversions, conversion rate, sorted
-  by count. A "left most, made least" callout highlights the leave with the highest count
-  times miss rate.
+  by count, then by pin numbers. A "left most, made least" callout highlights the leave
+  with the most misses among leaves seen at least 3 times, so a one-off leave never
+  headlines. With no such leave there is no callout.
 - **Fouls**: count per game, shown in the strikes and spares section when non-zero.
 
 ### Definitions (1b)
@@ -595,9 +608,9 @@ use `glassEffect` behind an availability check and a thin material otherwise.
 
 A form: date defaults to now, event type segmented control, center picker with inline
 create, league picker shown only for league type, oil pattern picker with inline create,
-lanes text field, bowlers (owner preselected, add others by name), default ball per
-bowler, entry mode default pinByPin. "Start" creates the session and the first game for
-each bowler and opens Scoring. The last-used center, league, pattern, and ball are
+lanes text field, bowlers in lineup order (owner preselected, add others by name, drag
+to reorder), default ball per bowler, entry mode default pinByPin. "Start" creates the
+session and the first game for each bowler and opens Scoring. The last-used center, league, pattern, and ball are
 remembered per event type in UserDefaults, not in the synced store.
 
 ### Scoring (1a)
@@ -610,9 +623,11 @@ The core screen. Layout top to bottom:
 2. **Scorecard strip**: ten frames in a horizontal row, each showing marks and running
    total, the current frame highlighted. Tapping a finished frame enters edit mode on it.
 3. **Pin deck**: ten pins in the triangle. Pins already down on this rack are dimmed and
-   disabled. Tapping toggles a pin between standing and fallen. Default on each roll is
-   all available pins standing, so the bowler taps what fell. A setting flips this so the
-   bowler taps what is left standing.
+   disabled. Tapping toggles a pin between standing and fallen. By default the bowler
+   taps the pins left standing after the roll, and untapped pins count as fallen;
+   stakeholder feedback named marking the pins left as the most important part of
+   entry. A setting flips this so the bowler taps what fell. Strike, Spare, Miss, and
+   Foul work the same in both.
 4. **Shortcuts**: Strike, Spare (fills all remaining), Miss (zero), Foul, Undo, and the
    ball chip showing the current ball with a tap to override for this roll.
 5. **Next**: records the pins currently marked as fallen and advances. Strike, Spare,
@@ -725,10 +740,13 @@ per-roll ball picker and ball tagging.
 
 ### Settings
 
-- 1a: owner profile, bowling style, pin entry default (tap fallen or tap standing),
+- 1a: owner profile, bowling style, pin entry default (tap standing, the default, or tap
+  fallen),
   auto-advance on marks, bowler rotation default, default stats scope (competition or all
   games), delete all data with double confirmation, about and version, and a placeholder
-  row for iCloud sync that says "Coming soon".
+  row for iCloud sync that says "Coming soon". Delete all data removes everything,
+  including the owner, and returns to first launch. From phase 2 the confirmation says
+  it also deletes the data on the user's other devices.
 - 1b: "Export CSV" under data management, writing one file per entity type (sessions,
   games, frames, rolls, balls, maintenance) zipped, through the system file exporter.
   Zipping uses `NSFileCoordinator` with the `.forUploading` reading option on the
@@ -745,7 +763,8 @@ per-roll ball picker and ball tagging.
   is cleared from that roll onward, and the user is told which frames need re-entry.
 - Entry mode can be changed only before the game's first roll. After that, changing mode
   is refused and the user is offered to clear the game's rolls first. There is no
-  automatic upgrade from countOnly to pinByPin.
+  automatic upgrade from countOnly to pinByPin. A finalOnly game with a typed score can
+  switch mode, but the app asks the user to confirm discarding the score first.
 - A session with no games is deleted automatically if the user backs out before any roll.
 - Stats on zero games show empty-state copy, never NaN or division by zero.
 - Dates use the device calendar and time zone; stats filters compare by calendar day.
