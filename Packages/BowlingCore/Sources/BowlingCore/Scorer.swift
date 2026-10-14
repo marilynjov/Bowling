@@ -4,13 +4,18 @@ public struct FrameScore: Sendable, Hashable {
     public var frameIndex: Int
     /// One per roll, in `rollIndex` order.
     public var marks: [Mark]
+    /// The leave of the frame's spare attempt rack, for the split indicator and the leave
+    /// diagram. At most one per frame because fill-ball leaves are not listed (#57); nil for
+    /// strikes, countOnly and finalOnly games, and first-ball fouls.
+    public var leave: Leave?
     /// Nil until the frame is finished and its bonus rolls exist, so the UI shows a blank
     /// as a lane monitor does.
     public var runningTotal: Int?
 
-    public init(frameIndex: Int, marks: [Mark], runningTotal: Int?) {
+    public init(frameIndex: Int, marks: [Mark], leave: Leave? = nil, runningTotal: Int?) {
         self.frameIndex = frameIndex
         self.marks = marks
+        self.leave = leave
         self.runningTotal = runningTotal
     }
 }
