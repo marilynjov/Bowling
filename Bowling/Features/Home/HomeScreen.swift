@@ -7,19 +7,31 @@ struct HomeScreen: View {
     @State private var ownerName = ""
 
     var body: some View {
-        Text(ownerName)
-            .font(.title)
-            .navigationTitle("Home")
-            .toolbar {
-                NavigationLink {
-                    SettingsScreen()
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
-                }
+        VStack(spacing: 24) {
+            Text(ownerName)
+                .font(.title)
+            Button("Start", action: start)
+                .buttonStyle(.borderedProminent)
+        }
+        .navigationTitle("Home")
+        .toolbar {
+            NavigationLink {
+                SettingsScreen()
+            } label: {
+                Label("Settings", systemImage: "gearshape")
             }
-            .task(id: app.revision) {
-                ownerName = app.store.bowlers.owner()?.name ?? ""
-            }
+        }
+        .task(id: app.revision) {
+            ownerName = app.store.bowlers.owner()?.name ?? ""
+        }
+    }
+
+    private func start() {
+        do {
+            try app.startPracticeSession()
+        } catch {
+            app.error = error
+        }
     }
 }
 

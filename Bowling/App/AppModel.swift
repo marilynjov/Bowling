@@ -1,5 +1,6 @@
 import BowlingCore
 import BowlingData
+import Foundation
 import Observation
 
 /// The one object screens share. Every write goes through `write`, which bumps `revision`
@@ -27,6 +28,35 @@ import Observation
     var needsOnboarding: Bool {
         _ = revision
         return store.bowlers.owner() == nil
+    }
+
+    /// Home's temporary Start (#4): a practice session for the owner, opened in Scoring.
+    /// - Throws: `.notFound` before first launch.
+    func startPracticeSession() throws {
+        guard let owner = store.bowlers.owner() else { throw RepositoryError.notFound }
+        let target = try write { store in
+            let sessionID = try store.sessions.startSession(
+                SessionMetadata(date: .now, eventType: .practice),
+                bowlers: [(bowlerID: owner.id, defaultBallID: nil)],
+                entryMode: .pinByPin
+            )
+            guard let gameID = try store.sessions.session(sessionID).bowlers.first?.games.first?.id else {
+                throw RepositoryError.notFound
+            }
+            return ScoringTarget(sessionID: sessionID, gameID: gameID)
+        }
+        scoring = target
+    }
+
+    /// Closes Scoring. A session left before any roll is deleted (spec §8).
+    func closeScoring() {
+        guard let target = scoring else { return }
+        scoring = nil
+        do {
+            try write { try $0.sessions.discardIfUnstarted(target.sessionID) }
+        } catch {
+            self.error = error
+        }
     }
 
     #if DEBUG

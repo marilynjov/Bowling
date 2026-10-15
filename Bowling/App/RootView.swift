@@ -5,6 +5,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        @Bindable var app = app
         Group {
             if app.needsOnboarding {
                 OnboardingPlaceholder()
@@ -24,6 +25,9 @@ struct RootView: View {
                     }
                 }
             }
+        }
+        .fullScreenCover(item: $app.scoring) { _ in
+            ScoringPlaceholder()
         }
         .alert("Something went wrong", isPresented: isShowingError) {
             Button("OK") { app.error = nil }
