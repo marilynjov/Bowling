@@ -11,8 +11,8 @@ import SwiftUI
 
     var body: some Scene {
         WindowGroup {
-            if loader.app != nil {
-                Text("Loaded")
+            if let app = loader.app {
+                RootView().environment(app)
             } else if let failure = loader.failure {
                 StoreErrorView(error: failure, retry: loader.load)
             }
