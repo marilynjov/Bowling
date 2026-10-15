@@ -112,9 +112,8 @@ Content stays solid, and glass is only for controls that float over it:
 
 ## App icon
 
-Not part of this doc's first review. A first version for TestFlight (#2) follows on this
-branch once the colors are approved. The concept is a white pin-deck triangle on teal
-(AccentColor), with the 10 pin in crimson.
+Tracked in #75, so the style can merge first. The concept is a white pin-deck triangle on
+teal (AccentColor), with the 10 pin in crimson.
 
 ## Out of scope
 
