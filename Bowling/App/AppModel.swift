@@ -24,6 +24,13 @@ import Observation
         return try body(store)
     }
 
+    /// Whether `presenter` shows the shared alert for `error`. Only the topmost view may:
+    /// iOS can't present an alert from a view that is already presenting the Scoring cover.
+    func showsError(in presenter: ErrorPresenter) -> Bool {
+        guard error != nil else { return false }
+        return (scoring != nil) == (presenter == .scoring)
+    }
+
     /// No owner yet: show first launch.
     var needsOnboarding: Bool {
         _ = revision
@@ -64,6 +71,11 @@ import Observation
         AppModel(store: try! BowlingStore.demo())
     }
     #endif
+}
+
+/// The views that can show the shared error alert.
+enum ErrorPresenter {
+    case root, scoring
 }
 
 /// The game Scoring opens, in its session.

@@ -28,18 +28,9 @@ struct RootView: View {
         }
         .fullScreenCover(item: $app.scoring) { _ in
             ScoringPlaceholder()
+                .sharedErrorAlert(in: .scoring)
         }
-        .alert("Something went wrong", isPresented: isShowingError) {
-            Button("OK") { app.error = nil }
-        } message: {
-            if let error = app.error {
-                Text(ErrorText.message(for: error))
-            }
-        }
-    }
-
-    private var isShowingError: Binding<Bool> {
-        Binding(get: { app.error != nil }, set: { if !$0 { app.error = nil } })
+        .sharedErrorAlert(in: .root)
     }
 }
 
