@@ -194,10 +194,11 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     public var sessionDate: Date                   // trend, date filters
     public var eventType: EventType                // competition default scope
 
-    // 1b, added when the 1b filters and ball report land (§6 Filters, By condition):
-    // public var centerID: CenterID?
-    // public var leagueID: LeagueID?
-    // public var oilPatternID: OilPatternID?
+    // 1b (#41, #38): the session's center, league, and pattern, for the filters and
+    // the ball report's "By condition" (§6).
+    public var centerID: CenterID?
+    public var leagueID: LeagueID?
+    public var oilPatternID: OilPatternID?
 
     /// Public because Swift's memberwise init is internal and other packages
     /// (BowlingData, fixtures, tests) must build games (#17, PR #52).
@@ -205,7 +206,8 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
         id: GameID = GameID(), bowlerID: BowlerID? = nil, gameIndex: Int,
         entryMode: EntryMode, defaultBallID: BallID? = nil, finalScore: Int,
         isComplete: Bool, frames: [FrameRecord] = [],
-        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType
+        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType,
+        centerID: CenterID? = nil, leagueID: LeagueID? = nil, oilPatternID: OilPatternID? = nil
     )
 }
 ```
@@ -848,8 +850,8 @@ The app links `BowlingFixtures` for previews only (#65).
 Listed so nobody builds against a guess. Each gets its own contract PR before 1b work
 starts.
 
-- `StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
-  center, league, pattern IDs.
+- ~~`StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
+  center, league, pattern IDs.~~ Pinned in sections 4.1 and 2.5 (#41).
 - `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
   by-frame, what-if (§6).
 - Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
