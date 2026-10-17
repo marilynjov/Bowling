@@ -99,6 +99,32 @@ import Testing
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
     }
 
+    @Test func frameRankedByItsNewestRollKeepsTheOlderFrameWithNewerRolls() throws {
+        let game = try savedGame()
+        // Frame 2 stamped a minute older but rolls two minutes newer, as an edit of its rolls
+        // written before frames were stamped with them: its newest row is base + 120.
+        let olderFrame = insertFrame(2, pins: [6, 3], updatedAt: base.addingTimeInterval(120), in: game)
+        olderFrame.updatedAt = base.addingTimeInterval(-60)
+        // Frame 2 stamped a minute newer, rolls too: its newest row is base + 60, so it loses.
+        insertFrame(2, pins: [0, 0], updatedAt: base.addingTimeInterval(60), in: game)
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        #expect(try frame(2, of: game).id == olderFrame.id)
+        // Frame 1: 7 + 2 = 9. Frame 2: 9 + 6 + 3 = 18.
+        #expect(try store.games.game(game.id).finalScore == 18)
+    }
+
+    @Test func editingARollStampsItsFrame() throws {
+        let game = try savedGame()
+
+        _ = try store.games.replaceRoll(frameIndex: 1, rollIndex: 2, with: .count(3), ballID: nil, in: game.id)
+
+        #expect(try frame(1, of: game).updatedAt > base)
+        #expect(try frame(2, of: game).updatedAt == base)
+    }
+
     @Test func equalUpdatedAtKeepsTheSmallerUUIDString() throws {
         let game = try savedGame()
         let frame1 = try frame(1, of: game)
