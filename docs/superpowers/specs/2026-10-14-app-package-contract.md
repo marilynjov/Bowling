@@ -870,6 +870,9 @@ UTF-8 with a byte order mark for Excel. UUIDs uppercase; dates ISO 8601 UTC with
 milliseconds; booleans `true`/`false`; nil is an empty field; enums are the stored raw
 string, unknown values included. Columns are only ever appended, never renamed or
 reordered, so phase 3 can re-import by UUID. Photos are not exported.
+Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
+them as formulas; this is accepted for now and tracked in
+[#86](https://github.com/marilynjov/Bowling/issues/86).
 
 ## 7. What the app may not do
 
