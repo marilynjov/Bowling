@@ -9,20 +9,36 @@ extension GameRepository {
     /// since frames written before they were stamped on roll edits carry their creation
     /// time), ties to the smaller UUID string, so every device keeps the same rows; deletes the others and rescores the game.
     ///
-    /// Does not validate: repair runs before validation, so a synced game can be saved
-    /// again. Phase 2 calls it after every remote import.
+    /// The kept rows can still form an invalid game, such as two rolls that each fit their
+    /// own device's frame but not each other. Rolls are then cleared from the first one that
+    /// no longer fits, as `replaceRoll` does, so every device ends with the same valid game.
+    /// Phase 2 calls it after every remote import.
     /// - Returns: The games that had duplicates.
     func repairDuplicates() throws -> Set<GameID> {
         let games = try context.fetch(FetchDescriptor<Game>())
         return try context.write {
-            Set(games.filter { $0.removeDuplicateRows(in: context) }.map { game in
-                let scored = Self.scored(game.record())
-                game.finalScore = scored.finalScore
-                game.isComplete = scored.isComplete
-                game.updatedAt = .now
-                return game.id
-            })
+            try Set(games.filter { game in
+                guard game.removeDuplicateRows(in: context) else { return false }
+                try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
+                return true
+            }.map(\.id))
         }
+    }
+
+    /// `record` with its rolls kept, in order, up to the first one that does not validate.
+    private static func clearedFromFirstInvalidRoll(_ record: GameRecord) -> GameRecord {
+        guard !Scorer.validate(record).isEmpty else { return record }
+        let rolls = record.frames.flatMap { frame in frame.rolls.map { (frameIndex: frame.frameIndex, roll: $0) } }
+        var kept: [(frameIndex: Int, roll: RollRecord)] = []
+        for next in rolls {
+            var candidate = record
+            candidate.frames = frames(kept + [next])
+            guard Scorer.validate(candidate).isEmpty else { break }
+            kept.append(next)
+        }
+        var cleared = record
+        cleared.frames = frames(kept)
+        return cleared
     }
 }
 

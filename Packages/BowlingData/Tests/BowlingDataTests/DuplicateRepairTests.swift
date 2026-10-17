@@ -24,14 +24,20 @@ import Testing
     /// A countOnly game saved as frame 1 [7, 2], frame 2 [X], every row stamped `base`.
     /// Running totals: frame 1 = 7 + 2 = 9; frame 2 waits for its bonus, so the cache is 9.
     private func savedGame() throws -> Game {
+        let game = try savedGame([
+            FrameRecord(frameIndex: 1, rolls: [Self.count(1, 7), Self.count(2, 2)]),
+            FrameRecord(frameIndex: 2, rolls: [Self.count(1, 10)]),
+        ])
+        #expect(game.finalScore == 9)
+        return game
+    }
+
+    private func savedGame(_ frames: [FrameRecord]) throws -> Game {
         let metadata = SessionMetadata(date: base, eventType: .practice)
         let session = try store.sessions.startSession(metadata, bowlers: [(owner.id, nil)], entryMode: .countOnly)
         var record = try #require(try store.sessions.session(session).bowlers.first?.games.first)
-        record.frames = [
-            FrameRecord(frameIndex: 1, rolls: [Self.count(1, 7), Self.count(2, 2)]),
-            FrameRecord(frameIndex: 2, rolls: [Self.count(1, 10)]),
-        ]
-        #expect(try store.games.save(record).finalScore == 9)
+        record.frames = frames
+        _ = try store.games.save(record)
         let game = try context.game(record.id)
         for frame in game.frames ?? [] {
             frame.updatedAt = base
@@ -123,6 +129,50 @@ import Testing
 
         #expect(try frame(1, of: game).updatedAt > base)
         #expect(try frame(2, of: game).updatedAt == base)
+    }
+
+    @Test func invalidRepairInFrame1ClearsFromTheRollThatNoLongerFits() throws {
+        // Frame 1 [2, 5], frame 2 [3, 4]: 2 + 5 = 7, 7 + 3 + 4 = 14.
+        let game = try savedGame([
+            FrameRecord(frameIndex: 1, rolls: [Self.count(1, 2), Self.count(2, 5)]),
+            FrameRecord(frameIndex: 2, rolls: [Self.count(1, 3), Self.count(2, 4)]),
+        ])
+        #expect(game.finalScore == 14)
+        // Roll 1 of frame 1, a minute newer: 8 replaces 2, and 8 + 5 = 13 > 10 pins.
+        insertRoll(1, pinCount: 8, updatedAt: base.addingTimeInterval(60), in: try frame(1, of: game))
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        // Cleared from frame 1 roll 2, the first roll that no longer fits; frame 2 goes with it.
+        let repaired = try store.games.game(game.id)
+        #expect(repaired.frames == [FrameRecord(frameIndex: 1, rolls: [Self.count(1, 8)])])
+        #expect(Scorer.validate(repaired).isEmpty)
+        // Frame 1 [8] is unfinished, so no frame has a running total yet.
+        #expect(repaired.finalScore == 0)
+        #expect(!repaired.isComplete)
+    }
+
+    @Test func invalidRepairInFrame10ClearsTheUnearnedThirdRoll() throws {
+        let opens = (1...9).map { FrameRecord(frameIndex: $0, rolls: [Self.count(1, 0), Self.count(2, 0)]) }
+        // Frames 1 to 9 score 0; frame 10 [7, 3, 5] is a spare plus its bonus: 7 + 3 + 5 = 15.
+        let game = try savedGame(opens + [
+            FrameRecord(frameIndex: 10, rolls: [Self.count(1, 7), Self.count(2, 3), Self.count(3, 5)]),
+        ])
+        #expect(game.finalScore == 15)
+        #expect(game.isComplete)
+        // Roll 2 of frame 10, a minute newer: 2 replaces 3, so 7 + 2 is open and roll 3 unearned.
+        insertRoll(2, pinCount: 2, updatedAt: base.addingTimeInterval(60), in: try frame(10, of: game))
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        let repaired = try store.games.game(game.id)
+        #expect(repaired.frames == opens + [FrameRecord(frameIndex: 10, rolls: [Self.count(1, 7), Self.count(2, 2)])])
+        #expect(Scorer.validate(repaired).isEmpty)
+        // 0 + 7 + 2 = 9, and an open frame 10 ends the game.
+        #expect(repaired.finalScore == 9)
+        #expect(repaired.isComplete)
     }
 
     @Test func equalUpdatedAtKeepsTheSmallerUUIDString() throws {
