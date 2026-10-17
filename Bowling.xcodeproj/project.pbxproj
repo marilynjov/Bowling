@@ -11,6 +11,7 @@
 		8F16A0030000000000000002 /* BowlingData in Frameworks */ = {isa = PBXBuildFile; productRef = 8F16A0020000000000000002 /* BowlingData */; };
 		8F3D6A35307710280041C3D2 /* 2026-10-07-program-roadmap.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */; };
 		8F3D6A36307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md in Resources */ = {isa = PBXBuildFile; fileRef = 8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */; };
+		8F16A0030000000000000003 /* BowlingFixtures in Frameworks */ = {isa = PBXBuildFile; productRef = 8F16A0020000000000000003 /* BowlingFixtures */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 			files = (
 				8F16A0030000000000000001 /* BowlingCore in Frameworks */,
 				8F16A0030000000000000002 /* BowlingData in Frameworks */,
+				8F16A0030000000000000003 /* BowlingFixtures in Frameworks */,
 			);
 		};
 		8F2BD15230805B8300B0DC7E /* Frameworks */ = {
@@ -131,6 +133,7 @@
 			packageProductDependencies = (
 				8F16A0020000000000000001 /* BowlingCore */,
 				8F16A0020000000000000002 /* BowlingData */,
+				8F16A0020000000000000003 /* BowlingFixtures */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* Bowling.app */;
@@ -516,6 +519,10 @@
 		8F16A0020000000000000002 /* BowlingData */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BowlingData;
+		};
+		8F16A0020000000000000003 /* BowlingFixtures */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BowlingFixtures;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
