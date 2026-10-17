@@ -123,7 +123,7 @@ struct BallDeliveries {
             for (index, (roll, rack)) in zip(frame.rolls, frame.racks).enumerated() where rack.isFresh {
                 if thrownWith(roll) {
                     firstBalls.append(FirstBall(
-                        pinCount: roll.pinCount, isStrike: marks[index] == .strike,
+                        pinCount: roll.scoredCount, isStrike: marks[index] == .strike,
                         headPinDown: pinsKnown && !roll.isFoul ? roll.pinsDown.contains(.pin1) : nil
                     ))
                 }

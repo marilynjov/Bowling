@@ -103,6 +103,30 @@ import Testing
         ])
     }
 
+    @Test func aFoulFirstBallCountsZeroWhateverItsStoredPinCount() {
+        let ball = BallID()
+        // Frame 1 opens with a foul stored as 5 pins, then 7 on the full rack; frames 2 to
+        // 10 are 7-2.
+        let frames = (1...10).map { index in
+            FrameRecord(frameIndex: index, rolls: index == 1
+                ? [RollRecord(rollIndex: 1, pinCount: 5, pinsKnown: false, isFoul: true),
+                   RollRecord(rollIndex: 2, pinCount: 7, pinsKnown: false)]
+                : [RollRecord(rollIndex: 1, pinCount: 7, pinsKnown: false),
+                   RollRecord(rollIndex: 2, pinCount: 2, pinsKnown: false)])
+        }
+        let game = GameRecord(
+            gameIndex: 1, entryMode: .countOnly, defaultBallID: ball, finalScore: 88,
+            isComplete: true, frames: frames, sessionID: SessionID(), sessionDate: MixedBallExpected.now,
+            eventType: .practice
+        )
+        let report = StatsEngine.ballReport(
+            for: ball, games: [game],
+            maintenance: BallMaintenance(ball: ball, games: [game], events: [], resurfaceIntervalGames: nil)
+        )
+        // 10 first balls: the foul counts 0, not 5; then 9 × 7 = 63. 0 + 63 = 63.
+        #expect(report.firstBallAverage == Mean(total: 63, count: 10))
+    }
+
     @Test(arguments: [MixedBallExpected.strikeBall, MixedBallExpected.spareBall])
     func overTimeIsStrikeRatePerSession(_ expected: MixedBallExpected.Report) {
         let points = expected.overTime.map {
