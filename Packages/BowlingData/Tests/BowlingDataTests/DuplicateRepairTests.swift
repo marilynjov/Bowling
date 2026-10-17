@@ -39,6 +39,7 @@ import Testing
         record.frames = frames
         _ = try store.games.save(record)
         let game = try context.game(record.id)
+        game.updatedAt = base
         for frame in game.frames ?? [] {
             frame.updatedAt = base
             for roll in frame.rolls ?? [] { roll.updatedAt = base }
@@ -100,6 +101,7 @@ import Testing
         // Frame 1: spare, 10 + next roll 6 = 16. Frame 2: 16 + 6 + 3 = 25. Frame 3 unplayed.
         #expect(repaired.finalScore == 25)
         #expect(!repaired.isComplete)
+        #expect(game.updatedAt > base)
         // 2 frames x 2 rolls survive; the losing frames' rolls go with them.
         #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 2)
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
@@ -173,6 +175,25 @@ import Testing
         // 0 + 7 + 2 = 9, and an open frame 10 ends the game.
         #expect(repaired.finalScore == 9)
         #expect(repaired.isComplete)
+    }
+
+    @Test func repairThatReopensFrame10ClearsIsComplete() throws {
+        let opens = (1...9).map { FrameRecord(frameIndex: $0, rolls: [Self.count(1, 0), Self.count(2, 0)]) }
+        // Frames 1 to 9 score 0; an open frame 10 [7, 2] ends the game at 0 + 7 + 2 = 9.
+        let game = try savedGame(opens + [FrameRecord(frameIndex: 10, rolls: [Self.count(1, 7), Self.count(2, 2)])])
+        #expect(game.finalScore == 9)
+        #expect(game.isComplete)
+        // Frame 10 from the other device, a minute newer: [X] still owes two bonus rolls.
+        insertFrame(10, pins: [10], updatedAt: base.addingTimeInterval(60), in: game)
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        let repaired = try store.games.game(game.id)
+        #expect(!repaired.isComplete)
+        // Frame 10 has no running total yet, so the cache is frame 9's: 0.
+        #expect(repaired.finalScore == 0)
+        #expect(game.updatedAt > base)
     }
 
     @Test func equalUpdatedAtKeepsTheSmallerUUIDString() throws {
