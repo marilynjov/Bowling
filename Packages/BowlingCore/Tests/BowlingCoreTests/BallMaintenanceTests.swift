@@ -78,6 +78,16 @@ import Testing
         #expect(maintenance.gamesSinceResurface == 1)
     }
 
+    /// The date is a full timestamp, not a day: on the day of a session, a resurface at
+    /// 2 hours before the session starts counts the session's game, 2 hours after does not.
+    @Test(arguments: [(-2.0, 1), (2.0, 0)])
+    func aSameDayResurfaceComparesTimes(hoursFromSessionStart: Double, sinceResurface: Int) {
+        let games = [Self.game(day: 1, defaultBall: Self.ball)]
+        let resurface = MaintenanceRecord(date: Self.day(1).addingTimeInterval(hoursFromSessionStart * 3_600), kind: .resurface)
+        let maintenance = BallMaintenance(ball: Self.ball, games: games, events: [resurface], resurfaceIntervalGames: nil)
+        #expect(maintenance.gamesSinceResurface == sinceResurface)
+    }
+
     @Test(arguments: [(2, true), (3, true), (4, false)])
     func resurfaceIsDueAtOrPastTheInterval(interval: Int, due: Bool) {
         let maintenance = BallMaintenance(ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: interval)

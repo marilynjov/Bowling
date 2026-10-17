@@ -338,7 +338,7 @@ public enum MaintenanceKind: String, Sendable, Hashable, Codable, CaseIterable {
 
 public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
     public var id: MaintenanceEventID
-    public var date: Date
+    public var date: Date                          // full timestamp, not a day
     public var kind: MaintenanceKind
     public var surfaceGritAfter: String
     public var gamesOnBallAtTime: Int              // games with session date <= date (§3.2)
@@ -422,7 +422,7 @@ extension BallRepository {
     /// Snapshots the games with session date <= `date`, so a back-dated event matches
     /// when it happened; a non-empty grit becomes the ball's current surface (§3.2).
     /// Throws .invalidMaintenance(.dateInFuture) for a date after now, or .notFound.
-    public func logMaintenance(_ kind: MaintenanceKind, date: Date, surfaceGritAfter: String,
+    public func logMaintenance(_ kind: MaintenanceKind, date: Date = .now, surfaceGritAfter: String,
                                notes: String, for ball: BallID) throws -> MaintenanceRecord
 }
 ```
@@ -441,6 +441,9 @@ Rules:
   `balls.activeBalls()` IDs.
 - `GameRecord.centerID`, `leagueID`, and `oilPatternID` (section 2.5) are filled by the
   repository from the game's session.
+- A maintenance date is a full timestamp; `logMaintenance` defaults it to now. On the
+  day of a session, a resurface before the session's start time counts that session's
+  games as since the resurface; one after it does not.
 - `logMaintenance` refuses a date after now with `.invalidMaintenance(.dateInFuture)`:
   a future resurface would be the latest and hold games since resurface at 0. The app's
   `ErrorText` needs a message for it.

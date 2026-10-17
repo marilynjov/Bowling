@@ -83,6 +83,12 @@ import Testing
         #expect(event.gamesOnBallAtTime == 2)
     }
 
+    @Test func theDateDefaultsToNow() throws {
+        let before = Date.now
+        let event = try balls.logMaintenance(.polish, surfaceGritAfter: "", notes: "", for: ballID)
+        #expect((before...Date.now).contains(event.date))
+    }
+
     @Test func aFutureDateIsRefused() throws {
         // A future resurface would be the latest and hold games since resurface at 0.
         let tomorrow = Date.now.addingTimeInterval(86_400)
