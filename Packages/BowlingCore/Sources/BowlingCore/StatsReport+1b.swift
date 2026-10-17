@@ -6,8 +6,8 @@ public struct FrameStats: Sendable, Hashable, Codable {
     public var frameIndex: Int
     /// Strikes on roll 1 over games.
     public var strikes: Rate
-    /// Pins of the frame's own rolls per game, bonuses excluded. Frame 10 includes its fill
-    /// balls; a foul counts 0.
+    /// Pins on the frame's first rack per game: the first ball, plus the second unless the
+    /// first was a strike. Frame 10's fill balls are left out; a foul counts 0.
     public var pins: Mean
 
     public init(frameIndex: Int, strikes: Rate, pins: Mean) {

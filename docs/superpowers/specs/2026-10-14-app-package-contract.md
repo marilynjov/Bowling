@@ -856,8 +856,9 @@ extension StatsReport {   // stored properties on the struct
 public struct FrameStats: Sendable, Hashable, Codable {
     public var frameIndex: Int                     // 1...10
     public var strikes: Rate                       // strikes on roll 1 / games
-    public var pins: Mean                          // the frame's own pins per game, bonuses excluded;
-                                                   // frame 10 includes fill balls
+    public var pins: Mean                          // first-rack pins per game: ball 1, plus ball 2
+                                                   // unless ball 1 was a strike; frame 10's fill
+                                                   // balls are left out, like a bonus
 }
 
 public struct WhatIfSinglePins: Sendable, Hashable, Codable {

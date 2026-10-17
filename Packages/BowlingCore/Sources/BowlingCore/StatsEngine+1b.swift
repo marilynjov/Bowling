@@ -20,7 +20,7 @@ extension StatsEngine {
             return FrameStats(
                 frameIndex: offset + 1,
                 strikes: Rate(hits: column.filter { $0.marks.first == .strike }.count, attempts: column.count),
-                pins: Mean(total: column.map(\.pinfall).reduce(0, +), count: column.count)
+                pins: Mean(total: column.map(\.firstRackPinfall).reduce(0, +), count: column.count)
             )
         }
         report.whatIfSinglePins = whatIfSinglePins(pinned)
@@ -73,6 +73,10 @@ extension PlayedFrame {
         zip(rolls, racks).filter { $0.1.isFresh }.map(\.0)
     }
 
-    /// The frame's own pins, bonuses excluded.
-    var pinfall: Int { rolls.map(\.scoredCount).reduce(0, +) }
+    /// Pins on the frame's first rack: roll 1, plus roll 2 unless roll 1 was a strike.
+    /// Frame 10's fill balls are left out so it compares with frames 1-9 on the by-frame
+    /// chart; with them it read about 20 pins against about 9.7 (review of #82).
+    var firstRackPinfall: Int {
+        rolls.prefix(marks.first == .strike ? 1 : 2).map(\.scoredCount).reduce(0, +)
+    }
 }
