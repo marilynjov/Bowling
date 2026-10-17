@@ -4,7 +4,7 @@ import Testing
 @testable import BowlingData
 
 /// One test per row of the delete-rule table in the phase 1 spec, section 3.3.
-@Suite struct DeleteRuleTests {
+@MainActor @Suite struct DeleteRuleTests {
     let container: ModelContainer
     let context: ModelContext
 
