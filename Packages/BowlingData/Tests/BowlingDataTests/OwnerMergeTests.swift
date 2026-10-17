@@ -264,6 +264,41 @@ import Testing
         #expect(try games().map(\.gameIndex).sorted() == [1, 2, 3, 4, 5])
     }
 
+    // MARK: Games without a bowler
+
+    /// Phase 2 sync can deliver a game whose bowler was deleted on another device.
+    @Test func gamesWithoutABowlerMoveToTheKeptOwner() throws {
+        let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let session = insertSession(daysAfterT0: 1)
+        let orphan = Game(gameIndex: 1)
+        context.insert(orphan)
+        orphan.session = session
+        orphan.updatedAt = Self.t0
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(orphan.bowler === older)
+        #expect(orphan.gameIndex == 1)
+        #expect(orphan.updatedAt > Self.t0)
+    }
+
+    @Test func gamesWithoutABowlerMoveToTheOnlyOwner() throws {
+        let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let orphan = Game(gameIndex: 1)
+        context.insert(orphan)
+        orphan.session = insertSession(daysAfterT0: 1)
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(orphan.bowler === owner)
+        // Bowlers: the one owner, unchanged.
+        #expect(try owners().map(\.id) == [Self.idA])
+        #expect(owner.updatedAt == Self.t0)
+    }
+
     // MARK: Idempotence and no-ops
 
     @Test func runningTheMergeAgainChangesNothing() throws {
