@@ -421,7 +421,7 @@ extension BallRepository {
     public func maintenance(for ball: BallID) throws -> BallMaintenance
     /// Snapshots the games with session date <= `date`, so a back-dated event matches
     /// when it happened; a non-empty grit becomes the ball's current surface (§3.2).
-    /// Throws .notFound.
+    /// Throws .invalidMaintenance(.dateInFuture) for a date after now, or .notFound.
     public func logMaintenance(_ kind: MaintenanceKind, date: Date, surfaceGritAfter: String,
                                notes: String, for ball: BallID) throws -> MaintenanceRecord
 }
@@ -441,6 +441,9 @@ Rules:
   `balls.activeBalls()` IDs.
 - `GameRecord.centerID`, `leagueID`, and `oilPatternID` (section 2.5) are filled by the
   repository from the game's session.
+- `logMaintenance` refuses a date after now with `.invalidMaintenance(.dateInFuture)`:
+  a future resurface would be the latest and hold games since resurface at 0. The app's
+  `ErrorText` needs a message for it.
 
 ## 3. Repositories (BowlingData)
 
@@ -471,11 +474,13 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
+    case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future-dated events
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
+public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None

@@ -83,6 +83,16 @@ import Testing
         #expect(event.gamesOnBallAtTime == 2)
     }
 
+    @Test func aFutureDateIsRefused() throws {
+        // A future resurface would be the latest and hold games since resurface at 0.
+        let tomorrow = Date.now.addingTimeInterval(86_400)
+        #expect(throws: RepositoryError.invalidMaintenance(.dateInFuture)) {
+            try balls.logMaintenance(.resurface, date: tomorrow, surfaceGritAfter: "2000 Abralon", notes: "", for: ballID)
+        }
+        #expect(try balls.maintenance(for: ballID).events.isEmpty)
+        #expect(try store.context.ball(ballID).surfaceGrit == "")
+    }
+
     @Test func emptyGritLeavesTheSurfaceAlone() throws {
         try store.context.ball(ballID).surfaceGrit = "3000 polished"
         _ = try balls.logMaintenance(.oilExtraction, date: Self.day(1), surfaceGritAfter: "", notes: "", for: ballID)

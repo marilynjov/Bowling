@@ -14,6 +14,7 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case ownerAlreadyExists
     case invalidBall(BallFieldError)
     case invalidBowler(BowlerFieldError)
+    case invalidMaintenance(MaintenanceFieldError)
     /// Only a finalOnly game has a typed score; the others are scored from their rolls.
     case notFinalOnly
 }
@@ -22,6 +23,11 @@ public enum BallFieldError: Sendable, Hashable {
     case emptyName
     /// Outside 6 through 16 pounds.
     case weightOutOfRange
+}
+
+public enum MaintenanceFieldError: Sendable, Hashable {
+    /// A future resurface would be the latest and hold games since resurface at 0.
+    case dateInFuture
 }
 
 public enum BowlerFieldError: Sendable, Hashable {
