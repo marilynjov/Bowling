@@ -240,28 +240,48 @@ import Testing
 
     // MARK: Two owners in one session
 
-    @Test func movedGamesInASharedSessionFollowTheKeptOwnersGames() throws {
+    @Test func movedGamesInASharedSessionKeepFreeIndicesAndAppendClashes() throws {
         let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         let middle = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(30))
         let newest = insertOwner(Self.idC, name: "S.", createdAt: Self.t0.addingTimeInterval(60))
         let session = insertSession(daysAfterT0: 1)
         insertGame(for: older, in: session, gameIndex: 1, lineupIndex: 2)
         insertGame(for: older, in: session, gameIndex: 2, lineupIndex: 2)
+        let c5 = insertGame(for: newest, in: session, gameIndex: 5, lineupIndex: 3)
         let c1 = insertGame(for: newest, in: session, gameIndex: 1, lineupIndex: 3)
+        let b3 = insertGame(for: middle, in: session, gameIndex: 3, lineupIndex: 1)
         let b2 = insertGame(for: middle, in: session, gameIndex: 2, lineupIndex: 1)
-        let b1 = insertGame(for: middle, in: session, gameIndex: 1, lineupIndex: 1)
         try context.save()
 
         try store.mergeOwners()
 
-        // Kept owner's highest gameIndex in the session is 2. Moved games follow in owner
-        // rank (B before C), then by their own gameIndex: B1 -> 2 + 1 = 3, B2 -> 4, C1 -> 5.
-        #expect(b1.gameIndex == 3)
-        #expect(b2.gameIndex == 4)
-        #expect(c1.gameIndex == 5)
+        // A holds {1, 2}. Moved games in owner rank (B before C), then gameIndex:
+        // B2 clashes, B3 is free and stays 3, C1 clashes, C5 is free and stays 5.
+        // Taken is now {1, 2, 3, 5}; clashes append in the same order after the max 5:
+        // B2 -> 5 + 1 = 6, C1 -> 5 + 2 = 7.
+        #expect(b3.gameIndex == 3)
+        #expect(c5.gameIndex == 5)
+        #expect(b2.gameIndex == 6)
+        #expect(c1.gameIndex == 7)
         // Every game of one bowler in a session carries the same lineupIndex: A's 2.
-        #expect([b1, b2, c1].map(\.lineupIndex) == [2, 2, 2])
-        #expect(try games().map(\.gameIndex).sorted() == [1, 2, 3, 4, 5])
+        #expect([b2, b3, c1, c5].map(\.lineupIndex) == [2, 2, 2, 2])
+        #expect(try games().map(\.gameIndex).sorted() == [1, 2, 3, 5, 6, 7])
+    }
+
+    @Test func aSessionOnlyAMovedOwnerBowledKeepsItsIndices() throws {
+        let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let session = insertSession(daysAfterT0: 1)
+        let b2 = insertGame(for: newer, in: session, gameIndex: 2, lineupIndex: 3)
+        let b4 = insertGame(for: newer, in: session, gameIndex: 4, lineupIndex: 3)
+        _ = older
+        try context.save()
+
+        try store.mergeOwners()
+
+        // A has no game in the session, so nothing clashes and B's positions stay.
+        #expect([b2, b4].map(\.gameIndex) == [2, 4])
+        #expect([b2, b4].map(\.lineupIndex) == [3, 3])
     }
 
     // MARK: Games without a bowler

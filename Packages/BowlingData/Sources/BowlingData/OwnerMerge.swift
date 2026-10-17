@@ -27,20 +27,23 @@ extension BowlingStore {
 
     /// A session two owners bowled in would otherwise hold two games with the same
     /// `gameIndex` and two lineup positions for one bowler. The first owner in merge order
-    /// keeps its games' positions there; later owners' games follow its last game and take
-    /// its `lineupIndex`. Orphan games come last, after every owner's.
+    /// keeps its games' positions there. A moved game keeps its `gameIndex` when the kept
+    /// owner has no game with it in that session; the ones that clash go after the
+    /// highest, in merge order. Moved games take the first owner's `lineupIndex`. Orphan
+    /// games come last, after every owner's.
     private func moveGames(_ groups: [[Game]], to kept: Bowler) {
-        var last: [PersistentIdentifier: (gameIndex: Int, lineupIndex: Int)] = [:]
-        for games in groups {
-            var firstSeen: [PersistentIdentifier: (gameIndex: Int, lineupIndex: Int)] = [:]
+        var taken: [PersistentIdentifier: Set<Int>] = [:]
+        var lineup: [PersistentIdentifier: Int] = [:]
+        var clashes: [(game: Game, session: PersistentIdentifier)] = []
+        for (rank, games) in groups.enumerated() {
             for game in games.sorted(by: Game.mergeOrder) {
                 if let session = game.session?.persistentModelID {
-                    if let previous = last[session] {
-                        game.gameIndex = previous.gameIndex + 1
-                        game.lineupIndex = previous.lineupIndex
-                        last[session] = (game.gameIndex, game.lineupIndex)
+                    if rank > 0, let first = lineup[session] { game.lineupIndex = first }
+                    lineup[session] = game.lineupIndex
+                    if rank > 0, taken[session]?.contains(game.gameIndex) == true {
+                        clashes.append((game, session))
                     } else {
-                        firstSeen[session] = (game.gameIndex, game.lineupIndex)
+                        taken[session, default: []].insert(game.gameIndex)
                     }
                 }
                 if game.bowler !== kept {
@@ -48,7 +51,10 @@ extension BowlingStore {
                     game.updatedAt = .now
                 }
             }
-            last.merge(firstSeen) { current, _ in current }
+        }
+        for (game, session) in clashes {
+            game.gameIndex = (taken[session]?.max() ?? 0) + 1
+            taken[session, default: []].insert(game.gameIndex)
         }
     }
 }
