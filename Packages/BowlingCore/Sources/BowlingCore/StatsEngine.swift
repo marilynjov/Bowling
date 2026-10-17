@@ -17,7 +17,7 @@ public enum StatsEngine {
             return Rate(hits: matching.map(\.hits).reduce(0, +), attempts: matching.map(\.attempts).reduce(0, +))
         }
         let splits = conversion([.split])
-        return StatsReport(
+        var report = StatsReport(
             filter: filter, scoreGames: scored.count, rollGames: rolled.count, pinGames: pinned.count,
             average: average(scored), averageLast10: average(scored.suffix(10)),
             averageLast30: average(scored.suffix(30)), highGame: highGame(scored),
@@ -29,6 +29,8 @@ public enum StatsEngine {
             makeableConversion: conversion([.makeable, .singlePin]), singlePinConversion: conversion([.singlePin]),
             leaves: leaves, leftMostMadeLeast: leftMostMadeLeast(leaves)
         )
+        add1bStats(to: &report, rolled: rolled, pinned: pinned)
+        return report
     }
 
     /// §6 "Default scope": league and tournament when `preferCompetition` (from

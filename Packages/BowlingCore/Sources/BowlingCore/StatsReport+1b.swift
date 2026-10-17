@@ -38,10 +38,10 @@ public struct WhatIfSinglePins: Sendable, Hashable, Codable {
         self.rewritten = rewritten
     }
 
-    /// Pins per game gained; nil with no games.
+    /// Pins per game gained; nil with no games. Both means cover the same games, so the
+    /// totals are subtracted first and 1176/6 to 1232/6 reads as exactly 56/6.
     public var difference: Double? {
-        guard let made = allMade.value, let real = actual.value else { return nil }
-        return made - real
+        Mean(total: allMade.total - actual.total, count: actual.count).value
     }
 
     static let none = WhatIfSinglePins(actual: Mean(total: 0, count: 0), allMade: Mean(total: 0, count: 0),
