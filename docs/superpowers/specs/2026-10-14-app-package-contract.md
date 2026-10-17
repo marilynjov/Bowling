@@ -315,13 +315,131 @@ public enum LeaveClassifier {
 public enum StatsEngine {
     /// §6. `games` is already filtered; `filter` is for labeling.
     public static func report(games: [GameRecord], filter: StatsFilter) -> StatsReport
-    // 1b: ballReport(for:games:) -> BallReport, compareBalls(games:) -> [BallComparisonRow]
+    // 1b: ballReport(for:games:maintenance:), compareBalls(_:games:), section 2.9
 }
 ```
 
 `ScoringError` case names are proposed; the set of cases traces to §4. A
 `finalScoreOutOfRange` case is included because §4 bounds `finalScore` to 0...300 and
 repositories refuse invalid games.
+
+### 2.9 Maintenance and ball report (1b, §3.2 MaintenanceEvent, §6 "Ball report", #38, #42)
+
+**Contract change, both developers review.** The spec's `ballReport(for:games:)` and
+`compareBalls(games:)` gain one parameter each, because `[GameRecord]` cannot tell the
+engine a ball's maintenance log or which balls are retired.
+
+```swift
+public typealias MaintenanceEventID = UUID
+
+public enum MaintenanceKind: String, Sendable, Hashable, Codable, CaseIterable {
+    case resurface, polish, oilExtraction, plugAndRedrill, other, unknown
+}
+
+public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
+    public var id: MaintenanceEventID
+    public var date: Date
+    public var kind: MaintenanceKind
+    public var surfaceGritAfter: String
+    public var gamesOnBallAtTime: Int              // snapshot when logged (§3.2)
+    public var notes: String
+}
+
+/// §3.2 derived values, over every game the ball was used in (not the stats filter).
+public struct BallMaintenance: Sendable, Hashable {
+    public var gamesBowled: Int                    // default or any roll override, once per game
+    public var gamesSinceResurface: Int            // games strictly after the latest resurface
+    public var lastResurface: Date?                // nil: never resurfaced, counts since purchase
+    public var resurfaceIntervalGames: Int?
+    public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
+    public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
+    public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
+                resurfaceIntervalGames: Int?)
+}
+
+extension GameRecord {
+    public func uses(_ ball: BallID) -> Bool       // default ball or any roll override
+}
+
+public struct BallReport: Sendable, Hashable {
+    public var ballID: BallID
+    // Usage, over complete games in the filter that use the ball
+    public var gamesBowled: Int
+    public var firstBalls: Int
+    public var spareAttempts: Int                  // second roll thrown with the ball
+    public var firstUsed: Date?
+    public var lastUsed: Date?
+    public var maintenance: BallMaintenance
+    // As a strike ball, over first balls thrown with it
+    public var strikes: Rate
+    public var firstBallAverage: Mean              // a foul counts as 0
+    public var headPin: Rate                       // pinByPin, fouls excluded
+    public var averageAsMainBall: Mean             // games with it as the default ball
+    // As a spare ball, over spare attempts thrown with it
+    public var spares: Rate
+    public var singlePinConversion: Rate
+    public var splitConversion: Rate
+    public var leaves: [LeaveRow]                  // same order as StatsReport.leaves
+    // By condition
+    public var byOilPattern: [ConditionRow]
+    public var byCenter: [ConditionRow]
+    // Over time
+    public var overTime: [BallTrendPoint]          // one per session with a first ball, oldest first
+}
+
+public struct ConditionRow: Sendable, Hashable, Codable {
+    public var id: UUID?                           // pattern or center; nil = "Other"
+    public var strikes: Rate
+    public var firstBallAverage: Mean
+}
+
+public struct BallTrendPoint: Sendable, Hashable, Codable {
+    public var sessionID: SessionID?
+    public var date: Date
+    public var strikes: Rate
+}
+
+public struct BallComparisonRow: Sendable, Hashable, Codable {
+    public var ballID: BallID
+    public var gamesBowled: Int
+    public var averageAsMainBall: Mean
+    public var strikes: Rate
+    public var firstBallAverage: Mean
+    public var spares: Rate
+}
+
+extension StatsEngine {
+    /// `games` already filtered; `maintenance` from `BallRepository.maintenance(for:)`.
+    public static func ballReport(for ball: BallID, games: [GameRecord],
+                                  maintenance: BallMaintenance) -> BallReport
+    /// One row per ball, in the order given; the app passes `activeBalls()` IDs.
+    public static func compareBalls(_ balls: [BallID], games: [GameRecord]) -> [BallComparisonRow]
+}
+
+extension BallRepository {
+    /// Throws .notFound.
+    public func maintenance(for ball: BallID) throws -> BallMaintenance
+    /// Snapshots games bowled; a non-empty grit becomes the ball's current surface (§3.2).
+    /// Throws .notFound.
+    public func logMaintenance(_ kind: MaintenanceKind, date: Date, surfaceGritAfter: String,
+                               notes: String, for ball: BallID) throws -> MaintenanceRecord
+}
+```
+
+Rules:
+
+- Every roll counts for its override ball, else the game's default ball (§6). A spare
+  attempt belongs to the ball that threw the second roll, at the leave.
+- A pattern or center with fewer than 10 first balls with the ball, and games with no
+  pattern or center recorded, are summed into the "Other" row (`id == nil`), listed last
+  and only when it has first balls. Shown rows: most first balls first, ties by UUID.
+- The app reads names for `ConditionRow.id` from `SessionRepository.centers()` and
+  `oilPatterns()`.
+- The ball detail calls `stats.games(matching:)`, `balls.maintenance(for:)`, then
+  `StatsEngine.ballReport`. Compare calls `StatsEngine.compareBalls` with
+  `balls.activeBalls()` IDs.
+- `GameRecord.centerID`, `leagueID`, and `oilPatternID` (section 2.5) are filled by the
+  repository from the game's session.
 
 ## 3. Repositories (BowlingData)
 
@@ -568,8 +686,10 @@ Settings "delete all data with double confirmation" (§7) is `BowlingStore.delet
     public func addBall(name: String, weightPounds: Int,
                         intendedRole: BallRole, brand: String) throws -> BallSummary
 
-    // 1b: full add/edit form, photo, retire, delete with affected-game count (§3.3),
-    // maintenance log, resurface due, ballReport, compare.
+    // 1b: maintenance(for:), logMaintenance(_:date:surfaceGritAfter:notes:for:),
+    // section 2.9.
+    // 1b, not yet pinned: full add/edit form, photo, retire, delete with affected-game
+    // count (§3.3).
 }
 ```
 
