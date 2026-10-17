@@ -289,6 +289,47 @@ import Testing
         #expect(indices == [[1, 1], [2, 1]])
     }
 
+    @Test func theKeptOwnersUpdatedAtStaysWhenNothingIsCopied() throws {
+        // Both owners keep the defaults (handedness, statsProfile "unknown"; layouts,
+        // scope ""; email nil) and the kept owner has a name, so nothing is copied.
+        let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(older.updatedAt == Self.t0)
+    }
+
+    @Test func anEmptyNameIsFilled() throws {
+        let older = insertOwner(Self.idA, name: "", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(older.name == "Samuel")
+        // A field was copied, so updatedAt moves from t0 to the merge time.
+        #expect(older.updatedAt > Self.t0)
+    }
+
+    @Test func movedGamesGetANewUpdatedAt() throws {
+        let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let session = insertSession(daysAfterT0: 1)
+        let kept = insertGame(for: older, in: session, gameIndex: 1)
+        let moved = insertGame(for: newer, in: session, gameIndex: 2)
+        kept.updatedAt = Self.t0
+        moved.updatedAt = Self.t0
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(moved.updatedAt > Self.t0)
+        // The kept owner's own game does not move, so it keeps t0.
+        #expect(kept.updatedAt == Self.t0)
+    }
+
     @Test func oneOwnerIsLeftUntouched() throws {
         let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         try context.save()
