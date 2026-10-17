@@ -17,9 +17,10 @@ extension StatsPreset {
 
     /// The layout to store after Customize: `cards` in order, each written once, with every
     /// ID of `previous` this build cannot show kept right after the shown card it followed
-    /// (or after the nearest earlier card still present, or first).
+    /// (or after the nearest earlier card still present, or first). An unavailable card in
+    /// `cards` is dropped, so it is written only where `previous` kept it.
     public static func layoutToSave(_ cards: [StatsCardID], replacing previous: [String]) -> [String] {
-        let cards = unique(cards)
+        let cards = unique(cards.filter(\.isAvailable))
         var leading: [String] = []
         var following: [StatsCardID: [String]] = [:]
         var anchor: StatsCardID?

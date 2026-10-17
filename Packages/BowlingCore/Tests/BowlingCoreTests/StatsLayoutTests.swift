@@ -89,6 +89,15 @@ import BowlingCore
         #expect(StatsPreset.layoutToSave([.fouls], replacing: ["whatIfSinglePins", "fouls"]) == ["whatIfSinglePins", "fouls"])
     }
 
+    // Passing an unavailable card does not write it a second time: whatIfSinglePins is
+    // kept once from previous (leading, before fouls), and the passed copy is dropped,
+    // so the result is whatIfSinglePins, fouls.
+    @Test func unavailableCardsPassedInAreNotWrittenTwice() throws {
+        try #require(!StatsCardID.whatIfSinglePins.isAvailable)
+        #expect(StatsPreset.layoutToSave([.fouls, .whatIfSinglePins], replacing: ["whatIfSinglePins", "fouls"])
+            == ["whatIfSinglePins", "fouls"])
+    }
+
     @Test func savedCardsAreWrittenOnce() {
         #expect(StatsPreset.layoutToSave([.average, .fouls, .average], replacing: []) == ["average", "fouls"])
     }
