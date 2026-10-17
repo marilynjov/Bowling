@@ -838,6 +838,43 @@ starts.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
 
+### Leave occurrences (1b, #40, §6 "Definitions (1b)")
+
+Pinned by #40; needs review by both developers.
+
+```swift
+/// One spare attempt at a leave, addressed by game ID plus frame index (OQ-7).
+public struct LeaveOccurrence: Sendable, Hashable, Codable {
+    public var game: GameRef           // game ID, session ID, session date
+    public var gameIndex: Int
+    public var frameIndex: Int         // 1...10; a frame holds at most one spare attempt
+    public var ballID: BallID?         // spare roll's override, else the game's default ball
+    public var isConverted: Bool
+}
+
+extension StatsEngine {
+    /// Complete pinByPin games only, like the leaves table; matches on `leave.pins`.
+    /// Newest first: session date, session, game index, frame, all descending.
+    public static func leaveOccurrences(of leave: Leave, games: [GameRecord]) -> [LeaveOccurrence]
+}
+
+extension StatsRepository {
+    /// Same games as games(matching:seasonLeague:now:calendar:), then the engine.
+    public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter,
+                                 seasonLeague: LeagueID? = nil,
+                                 now: Date, calendar: Calendar) -> [LeaveOccurrence]
+}
+```
+
+Rules:
+
+- The app passes the `LeaveRow.leave` it was tapped from and the same filter as the
+  report, so the list's count equals the row's count.
+- Occurrences after a first-ball foul do not exist (no leave, §5), and a frame 10 fill
+  ball is not a spare attempt, so its leave is never listed.
+- The app shows the session from `game.sessionID` and the ball name from `ballID` via
+  the existing read models; it does not re-sort the list.
+
 ## 7. What the app may not do
 
 - Import SwiftData or touch `ModelContext` (OQ-1).
