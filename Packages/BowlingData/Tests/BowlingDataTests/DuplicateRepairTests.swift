@@ -194,6 +194,21 @@ import Testing
         #expect(repaired.finalScore == 20)
     }
 
+    @Test func staleCachedScoreIsRescoredWithoutDuplicates() throws {
+        let game = try savedGame()
+        // A half-imported game: the rows arrived, the cached score did not.
+        game.finalScore = 0
+        game.updatedAt = base
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        // Frame 1: 7 + 2 = 9; frame 2 waits for its bonus.
+        #expect(try store.games.game(game.id).finalScore == 9)
+        #expect(game.updatedAt > base)
+        #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 3)
+    }
+
     @Test func gameWithoutDuplicatesIsLeftAlone() throws {
         let game = try savedGame()
         let updatedAt = game.updatedAt

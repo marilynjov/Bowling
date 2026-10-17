@@ -12,14 +12,26 @@ extension GameRepository {
     /// The kept rows can still form an invalid game, such as two rolls that each fit their
     /// own device's frame but not each other. Rolls are then cleared from the first one that
     /// no longer fits, as `replaceRoll` does, so every device ends with the same valid game.
-    /// Phase 2 calls it after every remote import.
-    /// - Returns: The games that had duplicates.
+    ///
+    /// Also rescores every game whose cached `finalScore` or `isComplete` is stale, such as one
+    /// whose rows were imported before its cached values, and stamps `updatedAt` only on a
+    /// game that changed. Phase 2 calls it after every remote import.
+    /// - Returns: The games that changed.
     func repairDuplicates() throws -> Set<GameID> {
+        // TODO(Phase 2): read SwiftData persistent history to visit only the games an import
+        // touched; every game is fetched for now.
         let games = try context.fetch(FetchDescriptor<Game>())
         return try context.write {
             try Set(games.filter { game in
-                guard game.removeDuplicateRows(in: context) else { return false }
-                try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
+                if game.removeDuplicateRows(in: context) {
+                    try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
+                    return true
+                }
+                let scored = Self.scored(game.record())
+                guard (scored.finalScore, scored.isComplete) != (game.finalScore, game.isComplete) else { return false }
+                game.finalScore = scored.finalScore
+                game.isComplete = scored.isComplete
+                game.updatedAt = .now
                 return true
             }.map(\.id))
         }
