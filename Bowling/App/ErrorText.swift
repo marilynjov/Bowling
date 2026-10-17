@@ -26,6 +26,8 @@ enum ErrorText {
             String(localized: "Ball weight must be 6 to 16 pounds.")
         case .invalidBowler(.emptyName):
             String(localized: "Enter a name.")
+        case .invalidMaintenance(.dateInFuture):
+            String(localized: "The maintenance date can't be in the future.")
         case .notFinalOnly:
             String(localized: "This game is scored from its rolls, so its score can't be typed.")
         }
