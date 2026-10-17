@@ -20,7 +20,8 @@ extension Game {
             frames: (frames ?? []).sorted { $0.frameIndex < $1.frameIndex }.map { $0.record() },
             sessionID: session?.id,
             sessionDate: session?.date ?? createdAt,
-            eventType: session.map { BowlingCore.EventType(storedValue: $0.eventType) } ?? .unknown
+            eventType: session.map { BowlingCore.EventType(storedValue: $0.eventType) } ?? .unknown,
+            centerID: session?.center?.id, leagueID: session?.league?.id, oilPatternID: session?.oilPattern?.id
         )
     }
 
