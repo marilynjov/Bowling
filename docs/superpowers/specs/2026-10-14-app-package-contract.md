@@ -29,7 +29,7 @@ developers review.
    also `Codable`. No SwiftData model, `ModelContext`, or `PersistentIdentifier` is
    returned to the app (§2). `BowlingStore.schema` and
    `BowlingStore.makeContainer(inMemory:)` are public on main and return SwiftData types;
-   see OQ-20.
+   OQ-20 decided to make them internal (#76).
 2. **Identity is a UUID** generated on device (§3.1). Typed aliases keep call sites
    readable; `BallID` is the name the spec already uses (§6, ball report).
 
@@ -365,7 +365,7 @@ public final class BowlingStore {
     /// every device on the iCloud account, and the confirmation must say so.
     public func deleteAllData() throws
 
-    // Public on main but outside the value-type boundary (OQ-20):
+    // Becoming internal (OQ-20, #76); not for the app:
     public nonisolated static var schema: Schema { get }
     /// CloudKit off until phase 2.
     public nonisolated static func makeContainer(inMemory: Bool = false) throws -> ModelContainer
@@ -1056,3 +1056,6 @@ starts.
     `BowlingStore.makeContainer(inMemory:)` are public in BowlingData (44f7523) and hand
     out a SwiftData `Schema` and `ModelContainer`, which rule 1 and OQ-1 keep away from
     the app. Make them internal, or keep them public for app wiring and say so in rule 1?
+   **Decision:** Make both internal (#76). The app doesn't use them; with no `@Query` in 1a it
+   never needs a `ModelContainer`, and `BowlingStore(inMemory:)` covers previews and tests.
+   Phase 2's CloudKit setup stays inside BowlingData.
