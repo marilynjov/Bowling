@@ -25,8 +25,11 @@ import BowlingFixtures
         #expect(firstBalls.count == DemoFixtureExpected.game(expected.game).firstBalls)
         #expect(firstBalls.map { $0.roll.isFoul ? 0 : $0.roll.pinCount }.reduce(0, +) == expected.firstBallPins)
 
+        // The first rack: roll 1, plus roll 2 unless roll 1 was a strike.
         let framePins = (1...10).map { index in
-            rolls.filter { $0.frameIndex == index }.map { $0.roll.isFoul ? 0 : $0.roll.pinCount }.reduce(0, +)
+            let frame = rolls.filter { $0.frameIndex == index }
+            let rack = frame.first?.roll.pinCount == 10 ? frame.prefix(1) : frame.prefix(2)
+            return rack.map { $0.roll.isFoul ? 0 : $0.roll.pinCount }.reduce(0, +)
         }
         #expect(framePins == expected.framePins)
         let strikeFrames = firstBalls.filter { $0.roll.pinCount == 10 && $0.roll.rollIndex == 1 }.map(\.frameIndex)
