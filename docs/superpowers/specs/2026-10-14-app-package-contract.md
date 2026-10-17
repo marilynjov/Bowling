@@ -838,6 +838,46 @@ starts.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
 
+### StatsReport 1b fields (§6 "Definitions (1b)", #39)
+
+Added to `StatsReport` with default values, so its 1a initializer is unchanged;
+`StatsEngine.report(games:filter:)` always fills them.
+
+```swift
+extension StatsReport {   // stored properties on the struct
+    public var openFrames: Rate                    // frames with no strike or spare / frames (rollGames)
+    public var cleanGames: Rate                    // games with no open frame / rollGames
+    public var firstBallAverage: Mean              // pins / firstBalls; a foul counts 0 (rollGames)
+    public var headPin: Rate                       // pin 1 down / first balls that were not fouls (pinGames)
+    public var byFrame: [FrameStats]               // always 10 rows, frames 1...10 (rollGames)
+    public var whatIfSinglePins: WhatIfSinglePins  // pinGames
+}
+
+public struct FrameStats: Sendable, Hashable, Codable {
+    public var frameIndex: Int                     // 1...10
+    public var strikes: Rate                       // strikes on roll 1 / games
+    public var pins: Mean                          // the frame's own pins per game, bonuses excluded;
+                                                   // frame 10 includes fill balls
+}
+
+public struct WhatIfSinglePins: Sendable, Hashable, Codable {
+    public var actual: Mean                        // real average of the pinByPin games
+    public var allMade: Mean                       // same games, missed single pins made, rescored
+    public var rewritten: Int                      // missed single-pin leaves rewritten
+    public var difference: Double? { get }         // allMade - actual per game; nil with no games
+}
+```
+
+Rules:
+
+- A frame is open when none of its marks is a strike or a spare. Frame 10 gets a fill
+  ball only after one of them, so "X 10 -" is not open and "4 -" is.
+- The what-if rewrites the second ball of every missed single-pin spare attempt to knock
+  the pin down and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball
+  of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
+  are not rewritten.
+- `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
+
 ## 7. What the app may not do
 
 - Import SwiftData or touch `ModelContext` (OQ-1).
