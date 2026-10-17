@@ -126,6 +126,43 @@ import Testing
         }
     }
 
+    // MARK: Row order
+
+    /// Sessions oldest first, by `daysAgo` descending: casualOuting 40, friendPractice 20,
+    /// earlyLeague 16, tournament 9, practice 5, friendCasual 3, leagueNight 2,
+    /// practiceInProgress 0. Within leagueNight the owner is lineup 1 and the partner 2.
+    /// 2 + 2 + 3 + 4 + 2 + 2 + 6 + 1 = 22 games.
+    @Test func gamesFollowSessionDateLineupAndGameIndex() throws {
+        let expected: [DemoGame] = [
+            .casualOuting1, .casualOuting2, .friendPractice1, .friendPractice2,
+            .earlyLeague1, .earlyLeague2, .earlyLeague3,
+            .tournament1, .tournament2, .tournament3, .tournament4,
+            .practice1, .practice2, .friendCasual1, .friendCasual2,
+            .leagueNight1, .leagueNight2, .leagueNight3,
+            .leagueNightPartner1, .leagueNightPartner2, .leagueNightPartner3,
+            .practiceInProgress,
+        ]
+        #expect(try ids("games.csv") == expected.map(\.id.uuidString))
+    }
+
+    /// leagueNight1 is "10 /^", "X", "7-10 7", "2-8 /", "F /", "X", "X", "3-6-10 10",
+    /// "1-2-10 10", "X 10 /": 2 + 1 + 2 + 2 + 2 + 1 + 1 + 2 + 2 + 3 = 18 rolls.
+    @Test func framesAndRollsFollowTheirIndexes() throws {
+        let frames = try table("frames.csv")
+        let gameFrames = try frames.rows.filter { try frames.value($0, "gameID") == DemoGame.leagueNight1.id.uuidString }
+        #expect(try gameFrames.map { try frames.value($0, "frameIndex") } == (1...10).map(String.init))
+
+        let frameIndex = try Dictionary(uniqueKeysWithValues: gameFrames.map { ($0[0], try frames.value($0, "frameIndex")) })
+        let rolls = try table("rolls.csv")
+        let order = try rolls.rows.compactMap { row in
+            try frameIndex[rolls.value(row, "frameID")].map { "\($0).\(try rolls.value(row, "rollIndex"))" }
+        }
+        #expect(order == [
+            "1.1", "1.2", "2.1", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "6.1", "7.1",
+            "8.1", "8.2", "9.1", "9.2", "10.1", "10.2", "10.3",
+        ])
+    }
+
     // MARK: Values
 
     @Test func ownerRow() throws {
