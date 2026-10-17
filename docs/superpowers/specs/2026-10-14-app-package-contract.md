@@ -578,7 +578,9 @@ Settings "delete all data with double confirmation" (§7) is `BowlingStore.delet
 ```swift
 @MainActor public final class StatsRepository {
     /// Applies the filter (predicates where possible, rest in memory, §6) and returns
-    /// games for StatsEngine. Sorted by sessionDate, then gameIndex.
+    /// games for StatsEngine. Sorted by sessionDate, then gameIndex. 1b (#41): every
+    /// field is a SwiftData predicate; thisSeason uses `filter.leagueID`'s seasonStart and
+    /// seasonEnd when both are set and in order, otherwise the last 9 months.
     public func games(matching filter: StatsFilter, now: Date, calendar: Calendar) -> [GameRecord]
     /// §6 "Default scope": EventType.competition when the bowler has at least one
     /// complete league or tournament game and `preferCompetition` is true; otherwise
@@ -594,7 +596,7 @@ stored as `Bowler.statsScope` (OQ-14).
 
 ## 4. Stats (1a)
 
-### 4.1 StatsFilter (§6 "Filters")
+### 4.1 StatsFilter (§6 "Filters"; 1b fields #41)
 
 ```swift
 public enum DatePreset: String, Sendable, Hashable, Codable, CaseIterable {
@@ -605,13 +607,37 @@ public struct StatsFilter: Sendable, Hashable, Codable {
     public var datePreset: DatePreset
     public var eventTypes: Set<EventType>
     public var bowlerID: BowlerID                  // OQ-15
-    // 1b: customRange: ClosedRange<Date>?, ballID, oilPatternID, centerID, leagueID
 
-    /// Resolves the preset by calendar day in the device calendar and time zone (§8).
-    /// In 1a there is no league filter, so thisSeason is always the last 9 months (§6).
+    // 1b (#41). nil means any; all fields combine with AND.
+    public var customRange: ClosedRange<Date>?     // calendar days, end day included; replaces datePreset
+    public var ballID: BallID?                     // game's default ball OR any roll override (§6)
+    public var oilPatternID: OilPatternID?         // the session's pattern
+    public var centerID: CenterID?                 // the session's center
+    public var leagueID: LeagueID?                 // the session's league; also thisSeason's dates
+
+    public init(
+        datePreset: DatePreset = .allTime, eventTypes: Set<EventType> = Set(EventType.allCases),
+        customRange: ClosedRange<Date>? = nil, bowlerID: BowlerID, ballID: BallID? = nil,
+        oilPatternID: OilPatternID? = nil, centerID: CenterID? = nil, leagueID: LeagueID? = nil
+    )
+
+    /// Resolves the dates by calendar day in the device calendar and time zone (§8),
+    /// with thisSeason as the last 9 months (§6).
     public func dateInterval(now: Date, calendar: Calendar) -> DateInterval?   // nil = all time
+    /// `leagueSeason` is the season of `leagueID`'s league; StatsRepository looks it up.
+    public func dateInterval(now: Date, calendar: Calendar, leagueSeason: DateInterval?) -> DateInterval?
+    /// In-memory form of the repository's predicate, for callers holding GameRecords.
+    public func matches(_ game: GameRecord, now: Date, calendar: Calendar, leagueSeason: DateInterval? = nil) -> Bool
 }
 ```
+
+1b rules (#41):
+
+- A filter saved by 1a decodes with every 1b field nil.
+- League filters match the session's league, whatever its event type; pair it with
+  `eventTypes` to also require league sessions.
+- The 1a-only `StatsRepository.games(matching:seasonLeague:now:calendar:)` overload is
+  removed: the league that gives thisSeason its dates is now `filter.leagueID`.
 
 ### 4.2 StatsReport (§6 "Definitions (1a)")
 
