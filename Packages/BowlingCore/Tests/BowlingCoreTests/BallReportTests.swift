@@ -70,6 +70,39 @@ import Testing
         #expect(report.byCenter == rows(expected.byCenter))
     }
 
+    @Test func aGroupNeedsAtLeastTenFirstBallsToBeShown() {
+        let ball = BallID()
+        let otherBall = BallID()
+        let tenCenter = UUID()
+        let nineCenter = UUID()
+        /// A complete countOnly game of ten 7-2 frames (90); `ball` throws the first balls of
+        /// frames 1 through `ballFrames`, `otherBall` everything else.
+        func game(at center: UUID, ballFrames: Int) -> GameRecord {
+            let frames = (1...10).map { index in
+                FrameRecord(frameIndex: index, rolls: [
+                    RollRecord(rollIndex: 1, pinCount: 7, pinsKnown: false, ballID: index <= ballFrames ? ball : otherBall),
+                    RollRecord(rollIndex: 2, pinCount: 2, pinsKnown: false, ballID: otherBall),
+                ])
+            }
+            return GameRecord(
+                gameIndex: 1, entryMode: .countOnly, defaultBallID: otherBall, finalScore: 90,
+                isComplete: true, frames: frames, sessionID: SessionID(), sessionDate: MixedBallExpected.now,
+                eventType: .practice, centerID: center
+            )
+        }
+        let games = [game(at: tenCenter, ballFrames: 10), game(at: nineCenter, ballFrames: 9)]
+        let report = StatsEngine.ballReport(
+            for: ball, games: games,
+            maintenance: BallMaintenance(ball: ball, games: games, events: [], resurfaceIntervalGames: nil)
+        )
+        // 10 first balls at tenCenter: shown, 0 strikes, 10 × 7 = 70 pins.
+        // 9 at nineCenter: 9 < 10, so Other, 0 strikes, 9 × 7 = 63 pins.
+        #expect(report.byCenter == [
+            ConditionRow(id: tenCenter, strikes: Rate(hits: 0, attempts: 10), firstBallAverage: Mean(total: 70, count: 10)),
+            ConditionRow(id: nil, strikes: Rate(hits: 0, attempts: 9), firstBallAverage: Mean(total: 63, count: 9)),
+        ])
+    }
+
     @Test(arguments: [MixedBallExpected.strikeBall, MixedBallExpected.spareBall])
     func overTimeIsStrikeRatePerSession(_ expected: MixedBallExpected.Report) {
         let points = expected.overTime.map {
