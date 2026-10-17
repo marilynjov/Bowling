@@ -341,7 +341,7 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
     public var date: Date
     public var kind: MaintenanceKind
     public var surfaceGritAfter: String
-    public var gamesOnBallAtTime: Int              // snapshot when logged (§3.2)
+    public var gamesOnBallAtTime: Int              // games with session date <= date (§3.2)
     public var notes: String
 }
 
@@ -419,7 +419,8 @@ extension StatsEngine {
 extension BallRepository {
     /// Throws .notFound.
     public func maintenance(for ball: BallID) throws -> BallMaintenance
-    /// Snapshots games bowled; a non-empty grit becomes the ball's current surface (§3.2).
+    /// Snapshots the games with session date <= `date`, so a back-dated event matches
+    /// when it happened; a non-empty grit becomes the ball's current surface (§3.2).
     /// Throws .notFound.
     public func logMaintenance(_ kind: MaintenanceKind, date: Date, surfaceGritAfter: String,
                                notes: String, for ball: BallID) throws -> MaintenanceRecord

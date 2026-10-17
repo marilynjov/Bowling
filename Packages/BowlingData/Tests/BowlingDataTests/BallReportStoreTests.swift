@@ -62,6 +62,12 @@ import Testing
         #expect(maintenance.gamesBowled == 6)
         #expect(maintenance.gamesSinceResurface == 4)
         #expect(maintenance.isResurfaceDue)
+        // Logged after every game was stored, yet each snapshot matches the fixture: the
+        // polish 8 days ago follows league1, league2, practice1, practiceInProgress = 4;
+        // the resurface 15 days ago follows league1, league2 = 2. Newest first.
+        #expect(maintenance.events.map(\.gamesOnBallAtTime)
+            == MixedBallFixture.strikeBallMaintenance(relativeTo: now).reversed().map(\.gamesOnBallAtTime))
+        #expect(maintenance.events.map(\.gamesOnBallAtTime) == [4, 2])
         // The polish's grit is the latest copied to the ball.
         #expect(try store.context.ball(strikeBall).surfaceGrit == "3000 polished")
 

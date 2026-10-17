@@ -73,6 +73,16 @@ import Testing
         #expect(try balls.maintenance(for: ballID).events == [event])
     }
 
+    @Test func aBackDatedEventSnapshotsOnlyTheGamesUpToItsDate() throws {
+        try insert(day: 1, defaultBall: ballID)
+        try insert(day: 2, defaultBall: otherBallID, override: ballID)
+        try insert(day: 3, defaultBall: ballID)
+
+        let event = try balls.logMaintenance(.resurface, date: Self.day(2), surfaceGritAfter: "", notes: "", for: ballID)
+        // Logged after day 3, dated day 2: days 1 and 2 (session date <= day 2) = 2, not 3.
+        #expect(event.gamesOnBallAtTime == 2)
+    }
+
     @Test func emptyGritLeavesTheSurfaceAlone() throws {
         try store.context.ball(ballID).surfaceGrit = "3000 polished"
         _ = try balls.logMaintenance(.oilExtraction, date: Self.day(1), surfaceGritAfter: "", notes: "", for: ballID)
