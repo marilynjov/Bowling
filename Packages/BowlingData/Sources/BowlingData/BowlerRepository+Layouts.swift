@@ -4,13 +4,21 @@ import BowlingCore
 // owner; an empty one means the profile's preset.
 extension BowlerRepository {
     /// Saves the Stats cards in order, keeping stored card IDs this build cannot show.
+    /// Saving the profile's preset unedited stores "", so the owner keeps following it.
     public func setStatsLayout(_ cards: [StatsCardID]) throws {
-        try writeOwner { $0.statsLayout = Self.saved(cards, replacing: $0.statsLayout) }
+        try writeOwner {
+            let preset = StatsPreset.statsCards(for: StatsProfile(storedValue: $0.statsProfile))
+            $0.statsLayout = Self.saved(cards, replacing: $0.statsLayout, preset: preset)
+        }
     }
 
     /// Saves the Home tiles in order, keeping stored card IDs this build cannot show.
+    /// Saving the profile's preset unedited stores "", so the owner keeps following it.
     public func setHomeLayout(_ cards: [StatsCardID]) throws {
-        try writeOwner { $0.homeLayout = Self.saved(cards, replacing: $0.homeLayout) }
+        try writeOwner {
+            let preset = StatsPreset.homeTiles(for: StatsProfile(storedValue: $0.statsProfile))
+            $0.homeLayout = Self.saved(cards, replacing: $0.homeLayout, preset: preset)
+        }
     }
 
     /// "Reset to preset" on Stats. Unknown card IDs are cleared too.
@@ -40,8 +48,11 @@ extension BowlerRepository {
         }
     }
 
-    private static func saved(_ cards: [StatsCardID], replacing stored: String) -> String {
+    // An explicit copy of the preset would freeze it: cards added to the preset later,
+    // such as a 1b card becoming available, would never reach this owner.
+    private static func saved(_ cards: [StatsCardID], replacing stored: String, preset: [StatsCardID]) -> String {
         let previous = stored.split(separator: ",").map(String.init)
-        return StatsPreset.layoutToSave(cards, replacing: previous).joined(separator: ",")
+        let layout = StatsPreset.layoutToSave(cards, replacing: previous)
+        return layout == preset.map(\.rawValue) ? "" : layout.joined(separator: ",")
     }
 }

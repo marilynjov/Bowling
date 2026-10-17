@@ -34,6 +34,27 @@ import Testing
         #expect(try storedOwner().homeLayout == "highGame,strikePct")
     }
 
+    // Saving the casual preset unedited stores "", so the owner keeps following the preset
+    // and gets cards that become available later. Casual Stats is average, highGame,
+    // trendChart, strikePct, sparePct; casual Home is average, highGame, strikePct.
+    @Test func savingThePresetUneditedStoresEmpty() throws {
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        try bowlers.setStatsLayout([.average, .highGame, .trendChart, .strikePct, .sparePct])
+        try bowlers.setHomeLayout([.average, .highGame, .strikePct])
+        #expect(try storedOwner().statsLayout == "")
+        #expect(try storedOwner().homeLayout == "")
+    }
+
+    // The casual preset with average and highGame swapped, and Home without strikePct,
+    // are edits, so they are stored as given.
+    @Test func editedPresetIsStoredAsIs() throws {
+        _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        try bowlers.setStatsLayout([.highGame, .average, .trendChart, .strikePct, .sparePct])
+        try bowlers.setHomeLayout([.average, .highGame])
+        #expect(try storedOwner().statsLayout == "highGame,average,trendChart,strikePct,sparePct")
+        #expect(try storedOwner().homeLayout == "average,highGame")
+    }
+
     @Test func savingALayoutTouchesUpdatedAt() throws {
         _ = try bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
         let before = Date.distantPast

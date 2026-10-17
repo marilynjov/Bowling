@@ -550,7 +550,8 @@ Rules:
     public func deleteBowler(_ id: BowlerID) throws
 
     // 1b, §7 Customize (#46). Each throws .notFound without an owner and touches
-    // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave);
+    // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave)
+    // and stores "" when the result equals the profile's preset (§4.3);
     // a reset clears the stored layout, unknown IDs included.
     public func setStatsLayout(_ cards: [StatsCardID]) throws
     public func setHomeLayout(_ cards: [StatsCardID]) throws
@@ -782,6 +783,10 @@ Rules:
 - Display (1b, #46) lists each card once, first occurrence wins. A layout with no card
   this build can show displays the preset, so Stats and Home are never blank. Saving an
   empty list with no unknown IDs stores "", which is the preset.
+- Saving a layout identical to the owner's current preset for that surface (`statsCards`
+  for Stats, `homeTiles` for Home) stores "", not an explicit list, so the owner keeps
+  following the preset and gets cards added to it later. Any edit is stored as given.
+  BowlerRepository applies this rule (#46).
 
 ## 5. Demo fixture data (1a, §2, §9, issue #22)
 
