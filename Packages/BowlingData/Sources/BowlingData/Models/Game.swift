@@ -12,6 +12,9 @@ final class Game {
     var bowler: Bowler?
     /// 1-based order within the session for this bowler.
     var gameIndex: Int = 1
+    /// 1-based position of the bowler in the session's lineup, the order Scoring rotates
+    /// through. Every game of one bowler in a session carries the same value.
+    var lineupIndex: Int = 1
     var entryMode: String = EntryMode.pinByPin.rawValue
     var defaultBall: Ball?
     /// Cached. Scorer output for pinByPin and countOnly, typed by the user for finalOnly.

@@ -106,11 +106,16 @@ public enum StatsEngine {
             }
     }
 
-    /// §6: the highest count times miss rate, which is the miss count. A tie goes to the
-    /// leave higher in the table, so the one left more often. Nil when nothing was missed.
+    /// Below this a leave is too rare to call out: one unlucky night would name it (OQ-17).
+    static let calloutMinimumCount = 3
+
+    /// §6: the highest count times miss rate, which is the miss count, among leaves seen at
+    /// least `calloutMinimumCount` times. A tie goes to the leave higher in the table, so
+    /// the one left more often. Nil when no such leave was missed.
     private static func leftMostMadeLeast(_ rows: [LeaveRow]) -> LeaveRow? {
         func misses(_ row: LeaveRow) -> Int { row.conversion.attempts - row.conversion.hits }
-        guard let worst = rows.min(by: { misses($0) > misses($1) }), misses(worst) > 0 else { return nil }
+        let frequent = rows.filter { $0.conversion.attempts >= calloutMinimumCount }
+        guard let worst = frequent.min(by: { misses($0) > misses($1) }), misses(worst) > 0 else { return nil }
         return worst
     }
 

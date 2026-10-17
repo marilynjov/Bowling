@@ -96,12 +96,43 @@ import Testing
         }
     }
 
+    // The pin deck defaults to tapping the pins left standing (§7); the repository, not
+    // the app, turns them into the pins that fell.
+    @Test func pinsLeftAreConvertedToThePinsThatFell() throws {
+        let game = try startGame(.pinByPin)
+        _ = try games.recordRoll(.pinsLeft(PinSet(pins: [7, 10])), ballID: nil, in: game)
+        _ = try games.recordRoll(.pinsLeft([]), ballID: nil, in: game)
+        let record = try games.recordRoll(.pinsLeft([]), ballID: nil, in: game)
+
+        #expect(record.frames == [
+            FrameRecord(frameIndex: 1, rolls: [
+                RollRecord(rollIndex: 1, pinsDown: PinSet.all.subtracting(PinSet(pins: [7, 10])), pinCount: 8,
+                           pinsKnown: true),
+                RollRecord(rollIndex: 2, pinsDown: PinSet(pins: [7, 10]), pinCount: 2, pinsKnown: true),
+            ]),
+            FrameRecord(frameIndex: 2, rolls: [
+                RollRecord(rollIndex: 1, pinsDown: .all, pinCount: 10, pinsKnown: true),
+            ]),
+        ])
+    }
+
+    @Test func pinsLeftThatWereNotStandingAreRefused() throws {
+        let game = try startGame(.pinByPin)
+        let first = try games.recordRoll(.pinsLeft(PinSet(pins: [7, 10])), ballID: nil, in: game)
+        #expect(throws: RepositoryError.invalidGame([.notSubsetOfStanding(frameIndex: 1, rollIndex: 2)])) {
+            try games.recordRoll(.pinsLeft(PinSet(pins: [6, 7])), ballID: nil, in: game)
+        }
+        #expect(try games.game(game) == first)
+        #expect(try savedRollCount() == 1)
+    }
+
     @Test func inputForTheOtherModeIsRefused() throws {
         let pinGame = try startGame(.pinByPin)
         let countGame = try startGame(.countOnly)
         let finalGame = try startGame(.finalOnly)
         #expect(throws: RepositoryError.invalidGame([])) { try games.recordRoll(.count(3), ballID: nil, in: pinGame) }
         #expect(throws: RepositoryError.invalidGame([])) { try games.recordRoll(.pins(PinSet(pins: [1])), ballID: nil, in: countGame) }
+        #expect(throws: RepositoryError.invalidGame([])) { try games.recordRoll(.pinsLeft([]), ballID: nil, in: countGame) }
         #expect(throws: RepositoryError.invalidGame([])) { try games.recordRoll(.foul, ballID: nil, in: finalGame) }
         #expect(try savedRollCount() == 0)
     }
@@ -187,6 +218,21 @@ import Testing
             RollRecord(rollIndex: 1, pinsDown: PinSet(pins: [1, 2, 4, 5]), pinCount: 4, pinsKnown: true),
         ])])
         #expect(outcome.clearedFrames == [1])
+    }
+
+    // The rack an edited roll faced is the one before it, not the end of the game.
+    @Test func editWithPinsLeftUsesTheRackTheRollFaced() throws {
+        let game = try startGame(.pinByPin)
+        _ = try games.recordRoll(.pinsLeft(PinSet(pins: [7, 10])), ballID: nil, in: game)
+        _ = try games.recordRoll(.pinsLeft(PinSet(pins: [10])), ballID: nil, in: game)
+        _ = try games.recordRoll(.pinsLeft(PinSet(pins: [4])), ballID: nil, in: game)
+
+        let outcome = try games.replaceRoll(frameIndex: 1, rollIndex: 2, with: .pinsLeft([]), ballID: nil, in: game)
+        #expect(outcome.game.frames.first?.rolls.last?.pinsDown == PinSet(pins: [7, 10]))
+        #expect(outcome.clearedFrames == [])
+        #expect(throws: RepositoryError.invalidGame([.notSubsetOfStanding(frameIndex: 1, rollIndex: 2)])) {
+            try games.replaceRoll(frameIndex: 1, rollIndex: 2, with: .pinsLeft(PinSet(pins: [1])), ballID: nil, in: game)
+        }
     }
 
     @Test func editThatIsItselfInvalidIsRefusedAndNothingChanges() throws {

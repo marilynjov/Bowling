@@ -50,18 +50,18 @@ public final class GameRepository {
 
     /// Marks a finalOnly game complete with the typed score.
     /// - Throws: `.invalidGame([.finalScoreOutOfRange])` outside 0 through 300, and
-    ///   `.invalidGame([])` for a game scored from rolls, whose score is never typed.
+    ///   `.notFinalOnly` for a game scored from rolls, whose score is never typed.
     public func setFinalScore(_ score: Int, for game: GameID) throws {
         var record = try self.game(game)
-        guard record.entryMode == .finalOnly else { throw RepositoryError.invalidGame([]) }
+        guard record.entryMode == .finalOnly else { throw RepositoryError.notFinalOnly }
         record.finalScore = score
         record.isComplete = true
         _ = try save(record)
     }
 
-    /// Adds the next game for every bowler in the session, with the entry mode and default
-    /// ball of that bowler's latest game.
-    /// - Returns: The new games, in the session's bowler order.
+    /// Adds the next game for every bowler in the session, with the entry mode, default
+    /// ball, and lineup position of that bowler's latest game.
+    /// - Returns: The new games, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID] {
         let session = try context.session(session)
         return try context.write {
@@ -70,6 +70,7 @@ public final class GameRepository {
                 let game = Game(gameIndex: latest.gameIndex + 1)
                 context.insert(game)
                 game.entryMode = latest.entryMode
+                game.lineupIndex = latest.lineupIndex
                 game.session = session
                 game.bowler = group.bowler
                 game.defaultBall = latest.defaultBall

@@ -32,9 +32,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: xcodebuild -version
-      - name: Build for iOS Simulator
+      - name: Build and test for iOS Simulator
         run: |
-          xcodebuild build \
+          xcodebuild build test \
             -project Bowling.xcodeproj \
             -scheme Bowling \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \

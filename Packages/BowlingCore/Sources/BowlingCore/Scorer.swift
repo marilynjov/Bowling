@@ -4,13 +4,18 @@ public struct FrameScore: Sendable, Hashable {
     public var frameIndex: Int
     /// One per roll, in `rollIndex` order.
     public var marks: [Mark]
+    /// The leave of the frame's spare attempt rack, for the split indicator and the leave
+    /// diagram. At most one per frame because fill-ball leaves are not listed (#57); nil for
+    /// strikes, countOnly and finalOnly games, and first-ball fouls.
+    public var leave: Leave?
     /// Nil until the frame is finished and its bonus rolls exist, so the UI shows a blank
     /// as a lane monitor does.
     public var runningTotal: Int?
 
-    public init(frameIndex: Int, marks: [Mark], runningTotal: Int?) {
+    public init(frameIndex: Int, marks: [Mark], leave: Leave? = nil, runningTotal: Int?) {
         self.frameIndex = frameIndex
         self.marks = marks
+        self.leave = leave
         self.runningTotal = runningTotal
     }
 }
@@ -76,7 +81,9 @@ public enum Scorer {
             } else {
                 runningTotal = nil
             }
-            return FrameScore(frameIndex: frame.frameIndex, marks: frame.marks, runningTotal: runningTotal)
+            return FrameScore(
+                frameIndex: frame.frameIndex, marks: frame.marks, leave: frame.leave, runningTotal: runningTotal
+            )
         }
         return Scorecard(frames: frames, finalScore: frames.last?.runningTotal)
     }
@@ -236,6 +243,19 @@ struct PlayedFrame {
 
     var marks: [Mark] {
         zip(racks, rolls).map { $0.mark(for: $1) }
+    }
+
+    /// What a first ball left for the spare attempt, shown as soon as the bowler faces it.
+    /// A frame 10 ball on a fresh rack with no roll left after it is a fill ball, not a
+    /// first ball of a spare attempt. Nil after a foul, which respots all ten (§5), and
+    /// when the pins are unknown.
+    var leave: Leave? {
+        let faced = racks + [nextRack].compactMap { $0 }
+        for (index, roll) in rolls.enumerated() where racks[index].isFresh && !roll.isFoul {
+            guard index + 1 < faced.count, !faced[index + 1].isFresh else { continue }
+            return faced[index + 1].pins.map(LeaveClassifier.classify)
+        }
+        return nil
     }
 
     /// Pins plus bonus, or nil while the frame or its bonus is incomplete.
