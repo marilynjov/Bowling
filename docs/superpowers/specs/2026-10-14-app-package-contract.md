@@ -549,7 +549,16 @@ Rules:
     /// §3.3: .cannotDeleteOwner, .bowlerHasGames(count:).
     public func deleteBowler(_ id: BowlerID) throws
 
-    // 1b: setStatsLayout(_:), setHomeLayout(_:), resetLayouts() (§7 Customize).
+    // 1b, §7 Customize (#46). Each throws .notFound without an owner and touches
+    // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave);
+    // a reset clears the stored layout, unknown IDs included.
+    public func setStatsLayout(_ cards: [StatsCardID]) throws
+    public func setHomeLayout(_ cards: [StatsCardID]) throws
+    /// "Reset to preset" on Stats or Home: clears that surface only.
+    public func resetStatsLayout() throws
+    public func resetHomeLayout() throws
+    /// Clears both, when the user accepts the new preset after a bowling style change.
+    public func resetLayouts() throws
 }
 ```
 
@@ -752,6 +761,9 @@ public enum StatsPreset {
     /// the right preset (#54).
     public static func displayedStatsCards(layout: [String], profile: StatsProfile) -> [StatsCardID]
     public static func displayedHomeTiles(layout: [String], profile: StatsProfile) -> [StatsCardID]
+    /// 1b (#46): the raw layout to store after Customize. BowlerRepository calls it; the
+    /// app does not need to.
+    public static func layoutToSave(_ cards: [StatsCardID], replacing previous: [String]) -> [String]
 }
 ```
 
@@ -763,7 +775,13 @@ Rules:
 - In 1a the league preset omits `openPct` until 1b ships (§7).
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
-- Saving a layout (1b) keeps unknown IDs (§7).
+- Saving a layout (1b) keeps unknown IDs (§7). "Unknown" means any stored ID this build
+  cannot show: not a `StatsCardID`, or a card whose `isAvailable` is false. Each one stays
+  right after the shown card it followed, or after the nearest earlier card still in the
+  layout, or first if none came before it (#46).
+- Display (1b, #46) lists each card once, first occurrence wins. A layout with no card
+  this build can show displays the preset, so Stats and Home are never blank. Saving an
+  empty list with no unknown IDs stores "", which is the preset.
 
 ## 5. Demo fixture data (1a, §2, §9, issue #22)
 
