@@ -56,8 +56,9 @@ extension Bowler {
         (lhs.createdAt, lhs.id.uuidString) < (rhs.createdAt, rhs.id.uuidString)
     }
 
-    /// Unknown enum values and empty strings count as missing. Returns whether anything
-    /// was copied.
+    /// Empty strings count as missing, and so does "unknown" in the enum fields. Missing is
+    /// decided on the stored string, not the decoded enum: a raw value from a newer app
+    /// decodes as `.unknown` here but is a real value. Returns whether anything was copied.
     fileprivate func copyMissingFields(from other: Bowler) -> Bool {
         var copied = false
         func fill(_ field: ReferenceWritableKeyPath<Bowler, String>, isMissing: (String) -> Bool) {
@@ -65,12 +66,13 @@ extension Bowler {
             self[keyPath: field] = other[keyPath: field]
             copied = true
         }
+        let isUnset: (String) -> Bool = { $0.isEmpty || $0 == "unknown" }
         fill(\.name) { $0.isEmpty }
-        fill(\.handedness) { BowlingCore.Handedness(storedValue: $0) == .unknown }
-        fill(\.statsProfile) { BowlingCore.StatsProfile(storedValue: $0) == .unknown }
+        fill(\.handedness, isMissing: isUnset)
+        fill(\.statsProfile, isMissing: isUnset)
         fill(\.statsLayout) { $0.isEmpty }
         fill(\.homeLayout) { $0.isEmpty }
-        fill(\.statsScope) { StatsScope(storedValue: $0) == .unknown }
+        fill(\.statsScope, isMissing: isUnset)
         if (email ?? "").isEmpty, let otherEmail = other.email, !otherEmail.isEmpty {
             email = otherEmail
             copied = true

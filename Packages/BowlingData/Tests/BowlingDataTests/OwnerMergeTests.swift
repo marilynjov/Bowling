@@ -130,6 +130,43 @@ import Testing
         #expect(kept.statsScope == "competition")
     }
 
+    /// A newer app version can store a raw value this one does not know. It decodes as
+    /// `.unknown` here, but it is a real value: only "" and "unknown" count as missing.
+    @Test func unrecognisedRawValuesCountAsSet() throws {
+        let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        older.handedness = "both"
+        older.statsProfile = "senior"
+        older.statsScope = "tournament"
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        newer.handedness = Bowler.Handedness.left.rawValue
+        newer.statsProfile = Bowler.StatsProfile.league.rawValue
+        newer.statsScope = "all"
+        try context.save()
+
+        try store.mergeOwners()
+
+        let kept = try #require(try owners().first)
+        #expect(kept.handedness == "both")
+        #expect(kept.statsProfile == "senior")
+        #expect(kept.statsScope == "tournament")
+    }
+
+    @Test func unrecognisedRawValuesAreCopiedAsStored() throws {
+        insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        newer.handedness = "both"
+        newer.statsProfile = "senior"
+        newer.statsScope = "tournament"
+        try context.save()
+
+        try store.mergeOwners()
+
+        let kept = try #require(try owners().first)
+        #expect(kept.handedness == "both")
+        #expect(kept.statsProfile == "senior")
+        #expect(kept.statsScope == "tournament")
+    }
+
     @Test func nonOwnersAndTheirGamesAreLeftAlone() throws {
         let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
