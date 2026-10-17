@@ -14,25 +14,34 @@ extension BowlingStore {
     /// - Parameter now: Names the zip, "Bowling Export 2026-10-14.zip", in the device's time zone.
     /// - Returns: The zip's URL.
     public func exportCSV(now: Date = .now) throws -> URL {
-        let name = "Bowling Export \(now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day()))"
-        let workspace = FileManager.default.temporaryDirectory.appending(path: "CSVExport-\(UUID().uuidString)")
-        let folder = workspace.appending(path: name)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        for table in try csvTables() {
-            try table.data.write(to: folder.appending(path: table.fileName))
-        }
+        try exportCSV(now: now, workspace: FileManager.default.temporaryDirectory.appending(path: "CSVExport-\(UUID().uuidString)"))
+    }
 
-        // Reading a folder with `.forUploading` hands the accessor a zip of it, which only
-        // lives until the accessor returns, so it is copied out. No third-party zip needed.
-        let zip = workspace.appending(path: "\(name).zip")
-        var coordinationError: NSError?
-        var copyError: (any Error)?
-        NSFileCoordinator().coordinate(readingItemAt: folder, options: .forUploading, error: &coordinationError) { zipped in
-            do { try FileManager.default.copyItem(at: zipped, to: zip) } catch { copyError = error }
+    /// - Parameter workspace: The folder the export writes into; deleted if the export fails.
+    func exportCSV(now: Date, workspace: URL) throws -> URL {
+        let name = "Bowling Export \(now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day()))"
+        do {
+            let folder = workspace.appending(path: name)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for table in try csvTables() {
+                try table.data.write(to: folder.appending(path: table.fileName))
+            }
+
+            // Reading a folder with `.forUploading` hands the accessor a zip of it, which only
+            // lives until the accessor returns, so it is copied out. No third-party zip needed.
+            let zip = workspace.appending(path: "\(name).zip")
+            var coordinationError: NSError?
+            var copyError: (any Error)?
+            NSFileCoordinator().coordinate(readingItemAt: folder, options: .forUploading, error: &coordinationError) { zipped in
+                do { try FileManager.default.copyItem(at: zipped, to: zip) } catch { copyError = error }
+            }
+            if let error = coordinationError ?? copyError { throw error }
+            try FileManager.default.removeItem(at: folder)
+            return zip
+        } catch {
+            try? FileManager.default.removeItem(at: workspace)
+            throw error
         }
-        if let error = coordinationError ?? copyError { throw error }
-        try FileManager.default.removeItem(at: folder)
-        return zip
     }
 
     /// Every exported table, in file order. Games are ordered by session date, lineup, and

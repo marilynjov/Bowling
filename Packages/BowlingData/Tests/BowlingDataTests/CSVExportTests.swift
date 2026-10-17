@@ -276,6 +276,18 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: first.path))
     }
 
+    /// A file already where the zip goes makes the copy out of the coordinator fail, after
+    /// the CSVs are written.
+    @Test func failedExportRemovesItsFolder() throws {
+        let workspace = FileManager.default.temporaryDirectory.appending(path: "CSVExportTest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: workspace) }
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        try Data().write(to: workspace.appending(path: "Bowling Export 2026-10-14.zip"))
+
+        #expect(throws: (any Error).self) { try store.exportCSV(now: DemoFixture.referenceDate, workspace: workspace) }
+        #expect(!FileManager.default.fileExists(atPath: workspace.path))
+    }
+
     #if os(macOS)
     @Test func zipHoldsEveryFileByteForByte() throws {
         let url = try store.exportCSV(now: DemoFixture.referenceDate)
