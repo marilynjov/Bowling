@@ -93,7 +93,7 @@ public enum StatsEngine {
 
     /// Most left first; equal counts by pin numbers ascending (contract OQ-17). Attempts
     /// after a first-ball foul have no leave (§5) and are left out.
-    private static func leaveRows(_ attempts: [SpareAttempt]) -> [LeaveRow] {
+    static func leaveRows(_ attempts: [SpareAttempt]) -> [LeaveRow] {
         Dictionary(grouping: attempts.filter { $0.leave != nil }) { $0.leave! }
             .map { leave, attempts in
                 LeaveRow(leave: leave, conversion: Rate(hits: attempts.filter(\.isConverted).count,
