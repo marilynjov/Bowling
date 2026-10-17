@@ -3,7 +3,7 @@ import SwiftData
 import Testing
 @testable import BowlingData
 
-@Suite struct SchemaTests {
+@MainActor @Suite struct SchemaTests {
     @Test func inMemoryContainerLoadsEveryEntity() throws {
         let container = try BowlingStore.makeContainer(inMemory: true)
         let names = Set(container.schema.entities.map(\.name))
