@@ -2,7 +2,7 @@ import BowlingCore
 import SwiftUI
 
 /// The ten-pin triangle for marking a roll (spec §7, Scoring). Tap toggles a pin; dragging
-/// sets every pin the finger reaches to the first pin's new state (`PinMarking`). Pins not
+/// sets every pin the finger crosses to the first pin's new state (`PinDeckDrag`). Pins not
 /// in `available` are down from an earlier roll: dimmed and untouchable. The deck fills
 /// its width; on a phone that keeps pins at 48 pt or more.
 ///
@@ -12,8 +12,9 @@ struct PinDeckView: View {
     var available: PinSet
     @Binding var standing: PinSet
 
-    /// The gesture in progress, so one drag never flips a pin back.
-    @State private var marking: PinMarking?
+    /// The touch in progress, so one drag never flips a pin back. Replaced when a touch
+    /// starts somewhere new, because a drag iOS cancelled never reaches `onEnded`.
+    @State private var drag: PinDeckDrag?
 
     /// Height over width, from the layout's own geometry.
     private static let heightRatio = PinDeckLayout(width: 1).height
@@ -36,6 +37,7 @@ struct PinDeckView: View {
         }
         .aspectRatio(1 / Self.heightRatio, contentMode: .fit)
         .sensoryFeedback(.selection, trigger: standing)
+        .onChange(of: available) { drag = nil }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(AccessibilityText.deckSummary(standing: shown))
     }
@@ -43,16 +45,15 @@ struct PinDeckView: View {
     private func drag(in layout: PinDeckLayout) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                var current = marking ?? PinMarking(available: available, standing: standing)
-                if let pin = layout.pin(at: value.location) {
-                    current.touch(pin)
-                }
-                marking = current
+                var current = drag.flatMap { $0.continues(start: value.startLocation, available: available) ? $0 : nil }
+                    ?? PinDeckDrag(start: value.startLocation, available: available, standing: standing, layout: layout)
+                current.move(to: value.location, in: layout)
+                drag = current
                 if current.standing != standing {
                     standing = current.standing
                 }
             }
-            .onEnded { _ in marking = nil }
+            .onEnded { _ in drag = nil }
     }
 
     @ViewBuilder private func pinView(_ pin: Int, diameter: CGFloat) -> some View {
