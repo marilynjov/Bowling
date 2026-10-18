@@ -5,6 +5,15 @@ struct ScoringModesStep: View {
     var isSaving: Bool
     var onStart: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// The "Default" tag beside the title, or under it at accessibility sizes.
+    private var titleLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
+
     private static let modes: [(title: String, detail: String, isDefault: Bool)] = [
         ("Pin by pin", "Tap the pins on each ball. Unlocks leaves, splits, and spare stats.", true),
         ("Count only", "Enter how many pins fell on each ball.", false),
@@ -35,7 +44,7 @@ struct ScoringModesStep: View {
 
     private func row(_ title: String, _ detail: String, isDefault: Bool) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            titleLayout {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(.ink)
@@ -68,5 +77,8 @@ struct ScoringModesStep: View {
 }
 #Preview("Ways to score, AX3") {
     NavigationStack { ScoringModesStep(isSaving: false, onStart: {}) }.dynamicTypeSize(.accessibility3)
+}
+#Preview("Ways to score, AX5") {
+    NavigationStack { ScoringModesStep(isSaving: false, onStart: {}) }.dynamicTypeSize(.accessibility5)
 }
 #endif

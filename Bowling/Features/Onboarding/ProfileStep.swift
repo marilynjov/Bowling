@@ -7,6 +7,12 @@ struct ProfileStep: View {
     var onContinue: () -> Void
 
     @FocusState private var nameFocused: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Side by side, or stacked at accessibility sizes so "Right" never wraps mid-word.
+    private var handLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+    }
 
     var body: some View {
         ScrollView {
@@ -17,6 +23,8 @@ struct ProfileStep: View {
                         .foregroundStyle(.ink)
                     TextField("Name", text: $draft.name)
                         .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
                         .submitLabel(.done)
                         .focused($nameFocused)
                         .onSubmit { nameFocused = false }
@@ -31,7 +39,7 @@ struct ProfileStep: View {
                     Text("You bowl")
                         .font(.headline)
                         .foregroundStyle(.ink)
-                    HStack(spacing: 12) {
+                    handLayout {
                         hand("Right", .right)
                         hand("Left", .left)
                     }
@@ -68,5 +76,8 @@ private struct ProfileStepPreview: View {
 #Preview("Welcome, light") { ProfileStepPreview().preferredColorScheme(.light) }
 #Preview("Welcome, dark") { ProfileStepPreview().preferredColorScheme(.dark) }
 #Preview("Welcome, AX3") { ProfileStepPreview().dynamicTypeSize(.accessibility3) }
+#Preview("Welcome, AX5") {
+    ProfileStepPreview(draft: OnboardingDraft(name: "Ana", handedness: .left)).dynamicTypeSize(.accessibility5)
+}
 #Preview("Welcome, filled") { ProfileStepPreview(draft: OnboardingDraft(name: "Ana", handedness: .left)) }
 #endif
