@@ -12,7 +12,8 @@ enum PinDeckStyle: Sendable {
 ///
 /// Both styles put every pin at the same x, so a finger lands on the same pin in either.
 /// The pins style squashes the rows (perspective) and stands each pin on its spot, the
-/// front rows overlapping the ones behind, as in the drawing the art was cut from.
+/// front rows overlapping the ones behind, as in the drawing the art was cut from. Taps
+/// count on each pin's belly only, in a circle the circles style's size.
 struct PinDeckLayout {
     static let rows: [[Int]] = [[7, 8, 9, 10], [4, 5, 6], [2, 3], [1]]
 
@@ -76,27 +77,30 @@ struct PinDeckLayout {
                       width: size.width, height: size.height)
     }
 
-    /// What a finger can touch for `pin` (pins style): the whole body, widened to most of
-    /// the gap so thin pins stay easy to hit, down to the bottom of the spot.
-    func hitArea(of pin: Int) -> CGRect {
-        let body = pinFrame(of: pin)
-        let spotBottom = center(of: pin).y + spotSize.height / 2
-        let hitWidth = spacing * 0.9
-        return CGRect(x: body.midX - hitWidth / 2, y: body.minY,
-                      width: hitWidth, height: max(body.maxY, spotBottom) - body.minY)
-    }
-
-    /// The pin under `point`, or nil in the gaps. In the pins style the front rows are
-    /// drawn over the back ones, so they are tested first.
-    func pin(at point: CGPoint) -> Int? {
+    /// The center of what a finger can touch: the circle itself, or the drawn pin's belly,
+    /// its widest point, 64% of the way down the art. The head and neck don't count.
+    func hitCenter(of pin: Int) -> CGPoint {
         switch style {
         case .circles:
-            return (1...10).first { pin in
-                let c = center(of: pin)
-                return hypot(point.x - c.x, point.y - c.y) <= pinDiameter / 2
-            }
+            return center(of: pin)
         case .pins:
-            return Self.rows.reversed().joined().first { hitArea(of: $0).contains(point) }
+            let body = pinFrame(of: pin)
+            return CGPoint(x: body.midX, y: body.minY + body.height * 0.64)
+        }
+    }
+
+    /// The square around a pin's tap circle, which is the circles style's size in both
+    /// styles. The circles never overlap, so no pin covers another's.
+    func hitArea(of pin: Int) -> CGRect {
+        let c = hitCenter(of: pin)
+        return CGRect(x: c.x - pinDiameter / 2, y: c.y - pinDiameter / 2, width: pinDiameter, height: pinDiameter)
+    }
+
+    /// The pin whose tap circle holds `point`, or nil in the gaps.
+    func pin(at point: CGPoint) -> Int? {
+        (1...10).first { pin in
+            let c = hitCenter(of: pin)
+            return hypot(point.x - c.x, point.y - c.y) <= pinDiameter / 2
         }
     }
 }

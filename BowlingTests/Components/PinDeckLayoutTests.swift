@@ -48,25 +48,37 @@ import Testing
         #expect(frame.height > frame.width * 2)
     }
 
-    @Test func tappingAPinFindsItByHeadOrBase() {
+    @Test func tappingAPinFindsItByItsBelly() {
         for pin in 1...10 {
             let frame = pins.pinFrame(of: pin)
-            #expect(pins.pin(at: CGPoint(x: frame.midX, y: frame.maxY - 2)) == pin)
+            let belly = CGPoint(x: frame.midX, y: frame.minY + frame.height * 0.64)
+            #expect(pins.pin(at: belly) == pin)
+            // As wide as a circle in the circles style, well past the pin's own edge.
+            #expect(pins.pin(at: CGPoint(x: belly.x + pins.pinDiameter / 2 - 1, y: belly.y)) == pin)
         }
-        let head = pins.pinFrame(of: 7)
-        #expect(pins.pin(at: CGPoint(x: head.midX, y: head.minY + 4)) == 7)
     }
 
-    @Test func theFrontPinWinsWhereTwoOverlap() {
-        // Pin 1's body overlaps the bottom of pin 2's, as in the drawing.
-        let one = pins.hitArea(of: 1), two = pins.hitArea(of: 2)
-        let overlap = one.intersection(two)
-        #expect(!overlap.isNull)
-        #expect(pins.pin(at: CGPoint(x: overlap.midX, y: overlap.midY)) == 1)
+    @Test func theTopOfAPinIsNotATapTarget() {
+        for pin in 1...10 {
+            let frame = pins.pinFrame(of: pin)
+            #expect(pins.pin(at: CGPoint(x: frame.midX, y: frame.minY + 4)) != pin)
+        }
     }
 
-    @Test func pinTapAreasAreAtLeast48PointsWideOnTheSmallestPhone() {
-        for pin in 1...10 { #expect(pins.hitArea(of: pin).width >= 48) }
+    @Test func pinTapAreasAreTheCirclesStyleSize() {
+        for pin in 1...10 {
+            #expect(pins.hitArea(of: pin).width == layout.pinDiameter)
+            #expect(pins.hitArea(of: pin).height == layout.pinDiameter)
+        }
+    }
+
+    @Test func pinTapCirclesNeverOverlap() {
+        for a in 1...9 {
+            for b in (a + 1)...10 {
+                let p = pins.hitArea(of: a), q = pins.hitArea(of: b)
+                #expect(hypot(p.midX - q.midX, p.midY - q.midY) >= pins.pinDiameter)
+            }
+        }
     }
 
     @Test func spotsOutsideAnyPinHitNothing() {
