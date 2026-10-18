@@ -194,8 +194,9 @@ The views get no unit tests. They are checked in previews.
 
 ## Previews
 
-**Data.** Demo data from `BowlingStore.demo()`, which is already on `main`, so #5 doesn't
-wait on #71. It is turned into real `Scorecard`, `Leave`, and `StatsReport` values.
+**Data.** Demo data from `BowlingStore.demo()` and the `BowlingFixtures` games (linked
+into the app in #71). It is turned into real `Scorecard`, `Leave`, and `StatsReport`
+values.
 
 **Variants.** Each component has light, dark, and AX3 text size previews, plus edge
 cases:
