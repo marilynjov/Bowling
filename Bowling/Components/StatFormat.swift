@@ -5,12 +5,14 @@ import Foundation
 enum StatFormat {
     enum Unit { case games, frames, chances }
 
-    /// A whole percent. It stops at 99% until every attempt hits, so 199 of 200 never
-    /// reads as perfect. Formatted for `locale`, so en_CO reads "41 %".
+    /// A whole percent that never overstates: it stays at 99% until every attempt hits and
+    /// at 1% or more once one does, so 199 of 200 isn't "100%" and 1 of 201 isn't "0%".
+    /// Formatted for `locale`, so en_CO reads "41 %".
     static func percent(_ rate: Rate, locale: Locale = .current) -> String {
         guard let value = rate.value else { return "–" }
         var whole = Int((value * 100).rounded())
         if rate.hits < rate.attempts { whole = min(whole, 99) }
+        if rate.hits > 0 { whole = max(whole, 1) }
         return (Double(whole) / 100).formatted(.percent.precision(.fractionLength(0)).locale(locale))
     }
 
@@ -22,7 +24,9 @@ enum StatFormat {
 
     static func sample(_ count: Int, _ unit: Unit) -> String {
         switch (unit, count) {
-        case (_, 0): String(localized: "No games yet")
+        case (.games, 0): String(localized: "No games yet")
+        case (.frames, 0): String(localized: "No frames yet")
+        case (.chances, 0): String(localized: "No chances yet")
         case (.games, 1): String(localized: "1 game")
         case (.games, _): String(localized: "\(count) games")
         case (.frames, 1): String(localized: "1 frame")

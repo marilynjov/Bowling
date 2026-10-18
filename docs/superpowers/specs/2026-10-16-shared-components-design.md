@@ -140,7 +140,9 @@ StatTile(title: LocalizedStringKey, mean: Mean)                         // "186"
    don't.
 4. The sample size, in `.figure` and InkMuted.
 
-**No data.** A nil `Rate.value` or `Mean.value` shows "–" with "No games yet".
+**No data.** A nil `Rate.value` or `Mean.value` shows "–" with "No games yet", "No frames
+yet", or "No chances yet", matching the tile's unit. A bowler with 30 games and no split
+chances shouldn't read "No games yet".
 
 **VoiceOver.** The tile is one element, for example "Strike percentage, 41 percent,
 216 frames".
