@@ -29,6 +29,7 @@
 		8F2BD15530805B8300B0DC7E /* BowlingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BowlingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8F3D6A30307710280041C3D2 /* 2026-10-07-phase-1-core-scoring-design.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-10-07-phase-1-core-scoring-design.md"; sourceTree = "<group>"; };
 		8F3D6A31307710280041C3D2 /* 2026-10-07-program-roadmap.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-10-07-program-roadmap.md"; sourceTree = "<group>"; };
+		8F3E10000000000000000001 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -65,6 +66,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* Bowling */,
+				8F3E10000000000000000002 /* Config */,
 				8F3D6A34307710280041C3D2 /* docs */,
 				8F2BD15630805B8300B0DC7E /* BowlingTests */,
 				000000000000000000000020 /* Products */,
@@ -111,6 +113,14 @@
 				8F3D6A33307710280041C3D2 /* superpowers */,
 			);
 			path = docs;
+			sourceTree = "<group>";
+		};
+		8F3E10000000000000000002 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				8F3E10000000000000000001 /* Signing.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -242,6 +252,7 @@
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Bowling" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8F3E10000000000000000001 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -306,6 +317,7 @@
 		};
 		000000000000000012000000 /* Release configuration for PBXProject "Bowling" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8F3E10000000000000000001 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -374,7 +386,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.marilynjov.bowling;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marilynjov.bowling$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -406,7 +418,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.marilynjov.bowling;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marilynjov.bowling$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -433,7 +445,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.marilynjov.BowlingTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marilynjov.BowlingTests$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -456,7 +468,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.marilynjov.BowlingTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.marilynjov.BowlingTests$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;

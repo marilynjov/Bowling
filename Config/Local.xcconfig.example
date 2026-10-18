@@ -1,0 +1,4 @@
+// Copy to Config/Local.xcconfig (git ignores it) and fill in your own values.
+// See docs/running-on-iphone.md.
+DEVELOPMENT_TEAM = ABCDE12345
+BUNDLE_ID_SUFFIX = .yourname

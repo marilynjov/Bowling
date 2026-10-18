@@ -1,0 +1,7 @@
+// Signing for running the app on your own iPhone. Each developer keeps their Apple ID
+// team and a bundle ID suffix in Config/Local.xcconfig, which git ignores, so the
+// project file never changes when someone signs in. See docs/running-on-iphone.md.
+DEVELOPMENT_TEAM =
+BUNDLE_ID_SUFFIX =
+
+#include? "Local.xcconfig"
