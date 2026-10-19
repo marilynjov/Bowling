@@ -4,12 +4,12 @@ import SwiftData
 
 extension StatsRepository {
     /// The occurrence list behind a tap on a leave (spec §6 "Leave occurrences"): the games
-    /// `games(matching:seasonLeague:now:calendar:)` returns for the same filter, so the list
+    /// `games(matching:now:calendar:)` returns for the same filter, so the list
     /// agrees with the leaves table it was opened from. Newest first, with sessions on the
     /// same date in History's order (`SessionRepository.sessions()`).
-    public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter, seasonLeague: LeagueID? = nil,
+    public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter,
                                  now: Date, calendar: Calendar) -> [LeaveOccurrence] {
-        let games = games(matching: filter, seasonLeague: seasonLeague, now: now, calendar: calendar)
+        let games = games(matching: filter, now: now, calendar: calendar)
         return StatsEngine.leaveOccurrences(of: leave, games: oldestSessionFirst(games))
     }
 
