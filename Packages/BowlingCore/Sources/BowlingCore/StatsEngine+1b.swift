@@ -26,19 +26,33 @@ extension StatsEngine {
         report.whatIfSinglePins = whatIfSinglePins(pinned)
     }
 
+    /// A game whose rewrite does not rescore is left out of both averages: counting its real
+    /// score as the rescored one would show the card a false gain of 0. When the game scored
+    /// before the rewrite, the rewrite broke it, so that asserts; a game marked complete
+    /// whose frames never finish (only hand-built test input) is skipped quietly.
     private static func whatIfSinglePins(_ games: [GameRecord]) -> WhatIfSinglePins {
-        let rescored = games.map(singlePinsMade)
+        let rescored = games.compactMap { game -> (actual: Int, made: Int, rewritten: Int)? in
+            let made = singlePinsMade(game)
+            guard let score = made.score else {
+                if Scorer.scorecard(for: game).finalScore != nil {
+                    assertionFailure("What-if rewrite of game \(game.id) no longer scores")
+                }
+                return nil
+            }
+            return (game.finalScore, score, made.rewritten)
+        }
         return WhatIfSinglePins(
-            actual: Mean(total: games.map(\.finalScore).reduce(0, +), count: games.count),
-            allMade: Mean(total: rescored.map(\.score).reduce(0, +), count: games.count),
+            actual: Mean(total: rescored.map(\.actual).reduce(0, +), count: rescored.count),
+            allMade: Mean(total: rescored.map(\.made).reduce(0, +), count: rescored.count),
             rewritten: rescored.map(\.rewritten).reduce(0, +)
         )
     }
 
     /// Rewrites each missed single-pin spare attempt so the second ball knocks the pin down,
     /// and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball of 0,
-    /// since the bowler never threw one.
-    private static func singlePinsMade(_ game: GameRecord) -> (score: Int, rewritten: Int) {
+    /// since the bowler never threw one. The score is nil when the rewritten game does not
+    /// finish, which a valid complete game never does.
+    static func singlePinsMade(_ game: GameRecord) -> (score: Int?, rewritten: Int) {
         var rewritten = 0
         let frames = Scorer.playedFrames(game).map { frame in
             var rolls = frame.rolls
@@ -59,7 +73,7 @@ extension StatsEngine {
         }
         var made = game
         made.frames = frames
-        return (Scorer.scorecard(for: made).finalScore ?? game.finalScore, rewritten)
+        return (Scorer.scorecard(for: made).finalScore, rewritten)
     }
 }
 
