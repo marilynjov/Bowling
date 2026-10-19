@@ -782,7 +782,9 @@ Rules:
   layout, or first if none came before it (#46).
 - Display (1b, #46) lists each card once, first occurrence wins. A layout with no card
   this build can show displays the preset, so Stats and Home are never blank. Saving an
-  empty list with no unknown IDs stores "", which is the preset.
+  empty list with no unknown IDs stores "", which is the preset: an empty save means
+  "use the preset", not "show nothing". The app disables Save while the list is empty,
+  so a user who wants the preset uses "Reset to preset".
 - Saving a layout identical to the owner's current preset for that surface (`statsCards`
   for Stats, `homeTiles` for Home) stores "", not an explicit list, so the owner keeps
   following the preset and gets cards added to it later. Any edit is stored as given.
