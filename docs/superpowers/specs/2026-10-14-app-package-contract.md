@@ -789,6 +789,9 @@ Rules:
   for Stats, `homeTiles` for Home) stores "", not an explicit list, so the owner keeps
   following the preset and gets cards added to it later. Any edit is stored as given.
   BowlerRepository applies this rule (#46).
+- A surface is customized when its stored layout is not "". A layout holding only
+  unknown IDs from a newer device counts as customized on purpose: it displays the
+  preset here, but a save keeps those IDs, so the newer device's layout survives (#46).
 
 ## 5. Demo fixture data (1a, §2, §9, issue #22)
 
