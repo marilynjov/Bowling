@@ -198,10 +198,11 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     public var sessionDate: Date                   // trend, date filters
     public var eventType: EventType                // competition default scope
 
-    // 1b, added when the 1b filters and ball report land (§6 Filters, By condition):
-    // public var centerID: CenterID?
-    // public var leagueID: LeagueID?
-    // public var oilPatternID: OilPatternID?
+    // 1b (#41, #38): the session's center, league, and pattern, for the filters and
+    // the ball report's "By condition" (§6).
+    public var centerID: CenterID?
+    public var leagueID: LeagueID?
+    public var oilPatternID: OilPatternID?
 
     /// Public because Swift's memberwise init is internal and other packages
     /// (BowlingData, fixtures, tests) must build games (#17, PR #52).
@@ -209,7 +210,8 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
         id: GameID = GameID(), bowlerID: BowlerID? = nil, gameIndex: Int,
         entryMode: EntryMode, defaultBallID: BallID? = nil, finalScore: Int,
         isComplete: Bool, frames: [FrameRecord] = [],
-        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType
+        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType,
+        centerID: CenterID? = nil, leagueID: LeagueID? = nil, oilPatternID: OilPatternID? = nil
     )
 }
 ```
@@ -633,16 +635,12 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
 
 ```swift
 @MainActor public final class StatsRepository {
-    /// Applies the filter as a SwiftData predicate (1a needs no in-memory pass, §6) and
-    /// returns games of every completion state for StatsEngine, sorted by sessionDate,
-    /// then gameIndex. thisSeason is the last nine months. Games with no session or no
-    /// bowler never match.
+    /// Applies the filter as a SwiftData predicate (no in-memory pass, §6) and returns
+    /// games of every completion state for StatsEngine, sorted by sessionDate, then
+    /// gameIndex. 1b (#41): thisSeason uses `filter.leagueID`'s seasonStart and seasonEnd
+    /// when both are set and in order, otherwise the last nine months. Games with no
+    /// session or no bowler never match.
     public func games(matching filter: StatsFilter, now: Date, calendar: Calendar) -> [GameRecord]
-    /// seasonLeague: the league whose seasonStart and seasonEnd thisSeason uses when both
-    /// are set and in order. It does not restrict games to that league; in 1b it becomes
-    /// the filter's league.
-    public func games(matching filter: StatsFilter, seasonLeague: LeagueID?,
-                      now: Date, calendar: Calendar) -> [GameRecord]
     /// §6 "Default scope": EventType.competition when the bowler has at least one
     /// complete league or tournament game and `preferCompetition` is true; otherwise
     /// every event type, `.unknown` included. The app passes the owner's explicit `statsScope` as
@@ -657,7 +655,7 @@ stored as `Bowler.statsScope` (OQ-14).
 
 ## 4. Stats (1a)
 
-### 4.1 StatsFilter (§6 "Filters")
+### 4.1 StatsFilter (§6 "Filters"; 1b fields #41)
 
 ```swift
 public enum DatePreset: String, Sendable, Hashable, Codable, CaseIterable {
@@ -669,22 +667,30 @@ public struct StatsFilter: Sendable, Hashable, Codable {
     /// "All games" is every case, `.unknown` included; "Competition" is EventType.competition.
     public var eventTypes: Set<EventType>
     public var bowlerID: BowlerID                  // OQ-15
-    // 1b: customRange: ClosedRange<Date>?, ballID, oilPatternID, centerID, leagueID
 
-    public init(datePreset: DatePreset = .allTime,
-                eventTypes: Set<EventType> = Set(EventType.allCases),
-                bowlerID: BowlerID)
+    // 1b (#41). nil means any; all fields combine with AND.
+    public var customRange: ClosedRange<Date>?     // calendar days, end day included; replaces datePreset
+    public var ballID: BallID?                     // game's default ball OR any roll override (§6)
+    public var oilPatternID: OilPatternID?         // the session's pattern
+    public var centerID: CenterID?                 // the session's center
+    public var leagueID: LeagueID?                 // the session's league; also thisSeason's dates
 
-    /// Resolves the preset by calendar day in `calendar`'s time zone (§8). Half-open:
-    /// start <= date < end; nil = all time. In 1a there is no league filter, so
-    /// thisSeason is always the last 9 months (§6).
+    public init(
+        datePreset: DatePreset = .allTime, eventTypes: Set<EventType> = Set(EventType.allCases),
+        customRange: ClosedRange<Date>? = nil, bowlerID: BowlerID, ballID: BallID? = nil,
+        oilPatternID: OilPatternID? = nil, centerID: CenterID? = nil, leagueID: LeagueID? = nil
+    )
+
+    /// Resolves the dates by calendar day in `calendar`'s time zone (§8). Half-open:
+    /// start <= date < end; nil = all time. thisSeason is the last 9 months (§6).
     public func dateInterval(now: Date, calendar: Calendar) -> DateInterval?
-    /// leagueSeason: the league's seasonStart and seasonEnd, when both exist. thisSeason
-    /// then covers those calendar days, the end day included. Other presets ignore it.
+    /// leagueSeason: the seasonStart and seasonEnd of `leagueID`'s league, when both exist;
+    /// StatsRepository looks it up. thisSeason then covers those calendar days, the end
+    /// day included. Other presets and a custom range ignore it.
     public func dateInterval(now: Date, calendar: Calendar,
                              leagueSeason: DateInterval?) -> DateInterval?
-    /// The in-memory form of the filter: bowler, event type, and date. Incomplete games
-    /// match too; StatsEngine excludes them.
+    /// The in-memory form of the repository's predicate, for callers holding GameRecords.
+    /// Incomplete games match too; StatsEngine excludes them.
     public func matches(_ game: GameRecord, now: Date, calendar: Calendar,
                         leagueSeason: DateInterval? = nil) -> Bool
 }
@@ -692,6 +698,16 @@ public struct StatsFilter: Sendable, Hashable, Codable {
 
 `DatePreset` raw values are persisted with a saved filter, so the stable raw value rule
 (section 1, rule 7) applies to them.
+
+1b rules (#41):
+
+- A filter saved by 1a decodes with every 1b field nil.
+- `customRange` is stored as instants and resolved with the reader's calendar, so a saved
+  filter opened in another time zone can shift by a day. Accepted for now.
+- League filters match the session's league, whatever its event type; pair it with
+  `eventTypes` to also require league sessions.
+- The 1a-only `StatsRepository.games(matching:seasonLeague:now:calendar:)` overload is
+  removed: the league that gives thisSeason its dates is now `filter.leagueID`.
 
 ### 4.2 StatsReport (§6 "Definitions (1a)")
 
@@ -932,8 +948,8 @@ The app links `BowlingFixtures` for previews only (#65).
 Listed so nobody builds against a guess. Each gets its own contract PR before 1b work
 starts.
 
-- `StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
-  center, league, pattern IDs.
+- ~~`StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
+  center, league, pattern IDs.~~ Pinned in sections 4.1 and 2.5 (#41).
 - `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
   by-frame, what-if (§6).
 - Leave occurrences: date, session, frame number, ball on the spare attempt (§6).

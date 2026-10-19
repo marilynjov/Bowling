@@ -26,8 +26,8 @@ import BowlingFixtures
         }
     }
 
-    private func fetch(_ filter: StatsFilter, seasonLeague: LeagueID? = nil) -> [GameRecord] {
-        store.stats.games(matching: filter, seasonLeague: seasonLeague, now: now, calendar: calendar)
+    private func fetch(_ filter: StatsFilter) -> [GameRecord] {
+        store.stats.games(matching: filter, now: now, calendar: calendar)
     }
 
     /// The fixture games the in-memory filter keeps, sorted by session date then game index.
@@ -57,34 +57,6 @@ import BowlingFixtures
         // Frames and rolls come back in index order with balls, masks, and fouls intact.
         let fixture = DemoFixture.games(relativeTo: now).first { $0.id == DemoGame.leagueNight1.id }
         #expect(games.first == fixture)
-    }
-
-    @Test func thisSeasonUsesTheLeaguesSeasonDates() throws {
-        // 20 September to 10 October: earlyLeague (28 Sep), tournament (5 Oct), practice (9 Oct).
-        let league = League(name: "Tuesday Mixed")
-        league.seasonStart = calendar.date(from: DateComponents(year: 2026, month: 9, day: 20))
-        league.seasonEnd = calendar.date(from: DateComponents(year: 2026, month: 10, day: 10))
-        context.insert(league)
-        try context.save()
-
-        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
-        let games = fetch(filter, seasonLeague: league.id)
-        #expect(games.map(\.id) == [
-            DemoGame.earlyLeague1, .earlyLeague2, .earlyLeague3,
-            .tournament1, .tournament2, .tournament3, .tournament4,
-            .practice1, .practice2,
-        ].map(\.id))
-    }
-
-    @Test func thisSeasonFallsBackToNineMonthsWhenTheLeagueLacksADate() throws {
-        let league = League(name: "Summer")
-        league.seasonStart = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1))
-        context.insert(league)
-        try context.save()
-
-        let filter = StatsFilter(datePreset: .thisSeason, bowlerID: DemoBowler.owner.id)
-        #expect(fetch(filter, seasonLeague: league.id) == expected(filter))
-        #expect(fetch(filter, seasonLeague: UUID()) == expected(filter))
     }
 
     @Test func storedEventTypeFromANewerVersionMatchesOnlyAllGames() throws {
