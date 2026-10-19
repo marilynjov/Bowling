@@ -115,6 +115,23 @@ import Testing
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
     }
 
+    @Test func secondRepairChangesNothing() throws {
+        let game = try savedGame()
+        insertFrame(2, pins: [6, 3], updatedAt: base.addingTimeInterval(60), in: game)
+        try context.save()
+        #expect(try store.games.repairDuplicates() == [game.id])
+        let repaired = try store.games.game(game.id)
+        let updatedAt = game.updatedAt
+
+        #expect(try store.games.repairDuplicates().isEmpty)
+
+        #expect(try store.games.game(game.id) == repaired)
+        #expect(game.updatedAt == updatedAt)
+        // Frame 1 [7, 2] and frame 2 [6, 3]: 2 frames, 4 rolls.
+        #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 2)
+        #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
+    }
+
     @Test func frameRankedByItsNewestRollKeepsTheOlderFrameWithNewerRolls() throws {
         let game = try savedGame()
         // Frame 2 stamped a minute older but rolls two minutes newer, as an edit of its rolls
