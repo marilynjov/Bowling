@@ -24,4 +24,8 @@ import Testing
         #expect(NameSearch.addName(for: "sunset lanes", existing: ["Sunset Lanes"]) == nil)
         #expect(NameSearch.addName(for: "Sunset", existing: ["Sunset Lanes"]) == "Sunset")
     }
+
+    @Test func noAddRowForAnExistingNameWithoutItsAccents() {
+        #expect(NameSearch.addName(for: "cafe lanes", existing: ["Café Lanes"]) == nil)
+    }
 }

@@ -9,6 +9,8 @@ struct AddBowlerPicker: View {
     @State private var search = ""
 
     let candidates: [BowlerRecord]
+    /// Decides the Add row: a nil name hides it.
+    let addName: (String) -> String?
     let onPick: (BowlerRecord) -> Void
     /// Creates a bowler from a trimmed name.
     let create: (String) throws -> BowlerRecord
@@ -18,7 +20,7 @@ struct AddBowlerPicker: View {
             ForEach(NameSearch.filter(candidates, by: search, name: \.name)) { bowler in
                 PickerRow(name: bowler.name, isPicked: false) { pick(bowler) }
             }
-            if let name = NameSearch.addName(for: search, existing: candidates.map(\.name)) {
+            if let name = addName(search) {
                 AddRow(name: name) { add(name) }
             }
         }
@@ -50,7 +52,12 @@ private struct AddBowlerPickerPreview: View {
     var body: some View {
         NavigationStack {
             let _ = app.revision
-            AddBowlerPicker(candidates: app.store.bowlers.bowlers().filter { !$0.isOwner }, onPick: { _ in }) { name in
+            let bowlers = app.store.bowlers.bowlers()
+            AddBowlerPicker(
+                candidates: bowlers.filter { !$0.isOwner },
+                addName: { NameSearch.addName(for: $0, existing: bowlers.map(\.name)) },
+                onPick: { _ in }
+            ) { name in
                 try app.write { try $0.bowlers.createBowler(name: name) }
             }
         }

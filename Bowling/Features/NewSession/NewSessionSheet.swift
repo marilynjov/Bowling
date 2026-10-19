@@ -99,7 +99,11 @@ struct NewSessionSheet: View {
                 .onDelete { draft.wrappedValue.remove(atOffsets: $0) }
                 .onMove { draft.wrappedValue.move(fromOffsets: $0, toOffset: $1) }
                 NavigationLink {
-                    AddBowlerPicker(candidates: candidates(for: draft.wrappedValue), onPick: { draft.wrappedValue.add($0) }) { name in
+                    AddBowlerPicker(
+                        candidates: draft.wrappedValue.candidates(from: bowlers),
+                        addName: { draft.wrappedValue.addBowlerName(for: $0, among: bowlers) },
+                        onPick: { draft.wrappedValue.add($0) }
+                    ) { name in
                         try app.write { try $0.bowlers.createBowler(name: name) }
                     }
                 } label: {
@@ -148,11 +152,6 @@ struct NewSessionSheet: View {
 
     private func ballName(_ id: BallID?) -> String {
         balls.first { $0.id == id }.map(BallPicker.label) ?? "No ball"
-    }
-
-    private func candidates(for draft: NewSessionDraft) -> [BowlerRecord] {
-        let inLineup = Set(draft.lineup.map(\.bowlerID))
-        return bowlers.filter { !$0.isOwner && !inLineup.contains($0.id) }
     }
 
     /// Lists reload after every write; the draft is made once, from the remembered values.

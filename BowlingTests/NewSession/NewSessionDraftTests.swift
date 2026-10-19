@@ -97,4 +97,21 @@ import Testing
         #expect(detail.bowlers[0].games[0].defaultBallID == nil)
         #expect(detail.bowlers[0].games[0].entryMode == .countOnly)
     }
+
+    @Test func addBowlerOffersOnlyPeopleNotInTheLineup() {
+        var d = NewSessionDraft(owner: owner, date: .now)
+        let all = store.bowlers.bowlers()
+        #expect(d.candidates(from: all).map(\.id) == [friend.id])
+        d.add(friend)
+        #expect(d.candidates(from: all).isEmpty)
+    }
+
+    @Test func addBowlerNeverDuplicatesSomeoneInTheLineup() {
+        var d = NewSessionDraft(owner: owner, date: .now)
+        d.add(friend)
+        let all = store.bowlers.bowlers()
+        #expect(d.addBowlerName(for: "ana", among: all) == nil)
+        #expect(d.addBowlerName(for: " sam ", among: all) == nil)
+        #expect(d.addBowlerName(for: "Luz", among: all) == "Luz")
+    }
 }
