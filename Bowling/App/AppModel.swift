@@ -43,24 +43,6 @@ import Observation
         return store.bowlers.owner() == nil
     }
 
-    /// Home's temporary Start (#4): a practice session for the owner, opened in Scoring.
-    /// - Throws: `.notFound` before first launch.
-    func startPracticeSession() throws {
-        guard let owner = store.bowlers.owner() else { throw RepositoryError.notFound }
-        let target = try write { store in
-            let sessionID = try store.sessions.startSession(
-                SessionMetadata(date: .now, eventType: .practice),
-                bowlers: [(bowlerID: owner.id, defaultBallID: nil)],
-                entryMode: .pinByPin
-            )
-            guard let gameID = try store.sessions.session(sessionID).bowlers.first?.games.first?.id else {
-                throw RepositoryError.notFound
-            }
-            return ScoringTarget(sessionID: sessionID, gameID: gameID)
-        }
-        scoring = target
-    }
-
     /// The sheet's Start: creates the session, remembers the form's values for its event
     /// type, closes the sheet, and opens Scoring on the first lineup bowler's first game.
     /// Does nothing once the sheet is closed, so a second tap can't start a second session.

@@ -26,6 +26,10 @@ struct RootView: View {
                 }
             }
         }
+        .sheet(isPresented: $app.isStartingSession) {
+            NewSessionSheet()
+                .sharedErrorAlert(in: .newSession)
+        }
         .fullScreenCover(item: $app.scoring) { _ in
             ScoringPlaceholder()
                 .sharedErrorAlert(in: .scoring)
