@@ -741,7 +741,17 @@ Rules:
     /// §3.3: .cannotDeleteOwner, .bowlerHasGames(count:).
     public func deleteBowler(_ id: BowlerID) throws
 
-    // 1b: setStatsLayout(_:), setHomeLayout(_:), resetLayouts() (§7 Customize).
+    // 1b, §7 Customize (#46). Each throws .notFound without an owner and touches
+    // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave)
+    // and stores "" when the result equals the profile's preset (§4.3);
+    // a reset clears the stored layout, unknown IDs included.
+    public func setStatsLayout(_ cards: [StatsCardID]) throws
+    public func setHomeLayout(_ cards: [StatsCardID]) throws
+    /// "Reset to preset" on Stats or Home: clears that surface only.
+    public func resetStatsLayout() throws
+    public func resetHomeLayout() throws
+    /// Clears both, when the user accepts the new preset after a bowling style change.
+    public func resetLayouts() throws
 }
 ```
 
@@ -991,6 +1001,9 @@ public enum StatsPreset {
     /// the right preset (#54).
     public static func displayedStatsCards(layout: [String], profile: StatsProfile) -> [StatsCardID]
     public static func displayedHomeTiles(layout: [String], profile: StatsProfile) -> [StatsCardID]
+    /// 1b (#46): the raw layout to store after Customize. BowlerRepository calls it; the
+    /// app does not need to.
+    public static func layoutToSave(_ cards: [StatsCardID], replacing previous: [String]) -> [String]
 }
 ```
 
@@ -1002,7 +1015,22 @@ Rules:
 - In 1a the league preset omits `openPct` until 1b ships (§7).
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
-- Saving a layout (1b) keeps unknown IDs (§7).
+- Saving a layout (1b) keeps unknown IDs (§7). "Unknown" means any stored ID this build
+  cannot show: not a `StatsCardID`, or a card whose `isAvailable` is false. Each one stays
+  right after the shown card it followed, or after the nearest earlier card still in the
+  layout, or first if none came before it (#46).
+- Display (1b, #46) lists each card once, first occurrence wins. A layout with no card
+  this build can show displays the preset, so Stats and Home are never blank. Saving an
+  empty list with no unknown IDs stores "", which is the preset: an empty save means
+  "use the preset", not "show nothing". The app disables Save while the list is empty,
+  so a user who wants the preset uses "Reset to preset".
+- Saving a layout identical to the owner's current preset for that surface (`statsCards`
+  for Stats, `homeTiles` for Home) stores "", not an explicit list, so the owner keeps
+  following the preset and gets cards added to it later. Any edit is stored as given.
+  BowlerRepository applies this rule (#46).
+- A surface is customized when its stored layout is not "". A layout holding only
+  unknown IDs from a newer device counts as customized on purpose: it displays the
+  preset here, but a save keeps those IDs, so the newer device's layout survives (#46).
 - `StatsCardID` has no `.unknown` case: layouts are stored as raw strings and unknown
   IDs are skipped on display, so no fallback case is needed.
 
@@ -1095,8 +1123,9 @@ starts.
   `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
   affected-game count, resurface due (§3.2, §7 Arsenal 1b).
-- Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
-  `displayedStatsCards` and `displayedHomeTiles` (section 4.3).
+- ~~Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
+  `displayedStatsCards` and `displayedHomeTiles` (section 4.3).~~ Pinned in sections 3.5
+  and 4.3 (#46).
 - Ball, center, league, pattern delete warnings (§3.3).
 - CSV export (§7 Settings 1b): pinned in section 6.1.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
