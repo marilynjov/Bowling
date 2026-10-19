@@ -64,18 +64,24 @@ extension Frame {
         )
     }
 
+    /// Stamps `updatedAt` when a roll is inserted, changed, or deleted, so duplicate repair
+    /// ranks the frame by its last edit, not by when it was created.
     fileprivate func apply(_ record: FrameRecord, balls: BallLookup, in context: ModelContext) throws {
         var existing = Dictionary(grouping: rolls ?? [], by: \.rollIndex)
+        var changed = false
         for rollRecord in record.rolls {
             let roll = existing.removeValue(forKey: rollRecord.rollIndex)?.first ?? {
                 let roll = Roll(rollIndex: rollRecord.rollIndex)
                 context.insert(roll)
                 roll.frame = self
+                changed = true
                 return roll
             }()
-            try roll.apply(rollRecord, balls: balls)
+            if try roll.apply(rollRecord, balls: balls) { changed = true }
         }
-        existing.values.joined().forEach(context.delete)
+        let removed = Array(existing.values.joined())
+        removed.forEach(context.delete)
+        if changed || !removed.isEmpty { updatedAt = .now }
     }
 }
 
@@ -91,15 +97,17 @@ extension Roll {
         )
     }
 
-    fileprivate func apply(_ record: RollRecord, balls: BallLookup) throws {
+    /// - Returns: Whether the roll changed.
+    fileprivate func apply(_ record: RollRecord, balls: BallLookup) throws -> Bool {
         let newBall = try balls.ball(record.ballID)
-        guard self.record() != record else { return }
+        guard self.record() != record else { return false }
         pinsDownMask = Int(record.pinsDown.rawValue)
         pinCount = record.pinCount
         pinsKnown = record.pinsKnown
         isFoul = record.isFoul
         ball = newBall
         updatedAt = .now
+        return true
     }
 }
 
