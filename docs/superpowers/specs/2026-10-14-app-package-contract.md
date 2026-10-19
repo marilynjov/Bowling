@@ -1090,8 +1090,8 @@ starts.
 - `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
   by-frame, what-if (§6).
 - Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
-- `BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
-  `compareBalls(games:)` (§6 "Ball report").
+- ~~`BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
+  `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
   affected-game count, resurface due (§3.2, §7 Arsenal 1b).
 - Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
