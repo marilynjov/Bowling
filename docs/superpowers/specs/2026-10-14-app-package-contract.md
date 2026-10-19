@@ -27,7 +27,9 @@ developers review.
 1. **Value types only cross the boundary.** Everything the app receives is a `struct`
    or `enum` that is `Sendable` and `Hashable`. Types that are stored or exported are
    also `Codable`. No SwiftData model, `ModelContext`, or `PersistentIdentifier` is
-   returned to the app (§2).
+   returned to the app (§2). `BowlingStore.schema` and
+   `BowlingStore.makeContainer(inMemory:)` are public on main and return SwiftData types;
+   OQ-20 decided to make them internal (#76).
 2. **Identity is a UUID** generated on device (§3.1). Typed aliases keep call sites
    readable; `BallID` is the name the spec already uses (§6, ball report).
 
@@ -55,6 +57,8 @@ developers review.
    isolation. Anything that depends on "now" or the calendar takes them as parameters.
 6. **Repositories are `@MainActor` and synchronous.** They wrap the SwiftData main
    context, `throw` a `RepositoryError` on refusal, and save before returning (OQ-2).
+   A failed write rolls the context back, so nothing is saved when one throws. Passing
+   `.unknown` for an enum in a repository write keeps the stored value.
 7. **Stable string raw values never change.** Enum raw values and stats card IDs are
    persisted (§3.2 Bowler.statsLayout) and synced in phase 2. They may be added, never
    renamed or removed (§3.1, additive only).
@@ -74,7 +78,7 @@ public struct PinSet: OptionSet, Sendable, Hashable, Codable {
     public static let pin10 = PinSet(rawValue: 1 << 9)
     public static let all: PinSet          // pin1 through pin10
 
-    /// Pin numbers 1...10, ascending.
+    /// Pin numbers 1...10, in any order; numbers outside that range are ignored.
     public init(pins: some Sequence<Int>)
     public var pins: [Int] { get }         // ascending
     public var count: Int { get }
@@ -215,7 +219,8 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
 Rules:
 
 - The repository fills session context on every conversion; the app treats it as
-  read-only on a `GameRecord` (OQ-8).
+  read-only on a `GameRecord` (OQ-8). A game with no session gets `sessionID == nil`,
+  `sessionDate` = the game's `createdAt`, and `eventType == .unknown`.
 - Only `isComplete == true` games count toward any stat (§6). `StatsEngine` enforces
   this itself, so callers may pass incomplete games.
 - While a game is incomplete, `finalScore` holds the last known running total (OQ-9).
@@ -253,23 +258,30 @@ public struct FrameScore: Sendable, Hashable {
 
 public struct Scorecard: Sendable, Hashable {
     public var frames: [FrameScore]    // always 10 entries, frameIndex 1...10
-    public var finalScore: Int?        // tenth frame's running total; nil until known
+    public var finalScore: Int?        // tenth frame's running total, or the typed score
+                                       // of a finalOnly game; nil until known
 }
 
 /// Where the next roll goes and what the bowler faces.
 public struct RollPosition: Sendable, Hashable {
     public var frameIndex: Int
     public var rollIndex: Int
-    public var standingPins: PinSet    // pins the deck enables (§7 Scoring 3)
+    public var standingPins: PinSet    // pins the deck enables (§7 Scoring 3); all ten when
+                                       // earlier rolls on this rack were countOnly
     public var standingCount: Int      // the most this roll can knock down; bounds countOnly (#56)
     public var isFreshRack: Bool       // counts as a first ball (§6 "First balls")
+    public init(frameIndex: Int, rollIndex: Int, standingPins: PinSet,
+                standingCount: Int, isFreshRack: Bool)
 }
 ```
+
+A finalOnly game's scorecard has ten frames with no marks and no running totals.
 
 ### 2.7 Leave (1a, §5)
 
 ```swift
-public enum LeaveKind: String, Sendable, Hashable, Codable {
+/// Not stored (recomputed from the roll's PinSet), so it has no `.unknown` case.
+public enum LeaveKind: String, Sendable, Hashable, Codable, CaseIterable {
     case strike, singlePin, makeable, split
 }
 
@@ -277,7 +289,9 @@ public struct Leave: Sendable, Hashable, Codable {
     public var pins: PinSet            // standing after the first ball
     public var kind: LeaveKind
     public var isWashout: Bool
-    public var name: String { get }    // ascending pin numbers joined by "-", e.g. "3-6-10"
+    public init(pins: PinSet, kind: LeaveKind, isWashout: Bool)
+    public var name: String { get }    // ascending pin numbers joined by "-", e.g. "3-6-10";
+                                       // empty for a strike
 }
 ```
 
@@ -291,7 +305,8 @@ accessibility label ("Leave 3, 6, 10, makeable", §10) is built by the app.
 public enum Scorer {
     /// §4 "Validation". Empty means valid.
     public static func validate(_ game: GameRecord) -> [ScoringError]
-    /// OQ-3.
+    /// OQ-3. Best effort on an invalid game: duplicates and out-of-range indices are
+    /// dropped.
     public static func scorecard(for game: GameRecord) -> Scorecard
     /// OQ-3. nil when the game is complete or finalOnly.
     public static func nextRoll(in game: GameRecord) -> RollPosition?
@@ -317,13 +332,21 @@ public enum LeaveClassifier {
 public enum StatsEngine {
     /// §6. `games` is already filtered; `filter` is for labeling.
     public static func report(games: [GameRecord], filter: StatsFilter) -> StatsReport
+    /// §6 "Default scope" over games already in memory: EventType.competition when
+    /// `preferCompetition` and `bowler` has a complete league or tournament game in
+    /// `games`; otherwise every event type, `.unknown` included. StatsRepository has the
+    /// store-backed version (section 3.7).
+    public static func defaultEventTypes(games: [GameRecord], bowler: BowlerID,
+                                         preferCompetition: Bool) -> Set<EventType>
     // 1b: ballReport(for:games:) -> BallReport, compareBalls(games:) -> [BallComparisonRow]
 }
 ```
 
 `ScoringError` case names are proposed; the set of cases traces to §4. A
 `finalScoreOutOfRange` case is included because §4 bounds `finalScore` to 0...300 and
-repositories refuse invalid games.
+repositories refuse invalid games. `outOfOrder` also covers an index out of range or
+skipped, rolls after an unfinished frame, and a roll after a spare or open in frames 1
+to 9.
 
 ## 3. Repositories (BowlingData)
 
@@ -343,6 +366,11 @@ public final class BowlingStore {
     /// included, so the app returns to first launch. From phase 2 the deletion syncs to
     /// every device on the iCloud account, and the confirmation must say so.
     public func deleteAllData() throws
+
+    // Becoming internal (OQ-20, #76); not for the app:
+    public nonisolated static var schema: Schema { get }
+    /// CloudKit off until phase 2.
+    public nonisolated static func makeContainer(inMemory: Bool = false) throws -> ModelContainer
 }
 
 public enum RepositoryError: Error, Sendable, Hashable {
@@ -362,7 +390,9 @@ public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None
-are `async` in 1a.
+are `async` in 1a. `.invalidGame([])` (no scoring errors) is the refusal for a write that
+does not apply to the game at all: roll input of the other entry mode, or a roll on a
+finalOnly or complete game.
 
 ### 3.2 Read models returned to screens (OQ-1)
 
@@ -391,7 +421,7 @@ public struct SessionSummary: Sendable, Hashable, Identifiable {   // History ro
     public var leagueName: String?
     public var bowlerCount: Int
     public var games: [GameRecord]                 // sorted by bowler, then gameIndex
-    public var isComplete: Bool                    // OQ-10
+    public var isComplete: Bool                    // every game complete (OQ-10)
 }
 
 public struct SessionDetail: Sendable, Hashable, Identifiable {
@@ -415,6 +445,9 @@ public struct SessionMetadata: Sendable, Hashable {
     public var oilPatternID: OilPatternID?
     public var lanes: String
     public var notes: String
+    public init(date: Date, eventType: EventType, centerID: CenterID? = nil,
+                leagueID: LeagueID? = nil, oilPatternID: OilPatternID? = nil,
+                lanes: String = "", notes: String = "")
 }
 
 public struct NamedRef: Sendable, Hashable, Identifiable {         // center, league, pattern pickers
@@ -428,36 +461,45 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
     public var brand: String
     public var weightPounds: Int
     public var intendedRole: BallRole
-    public var gamesBowled: Int                    // §3.2 derived value
+    public var gamesBowled: Int                    // §3.2 derived value: default ball or any
+                                                   // roll override, each game once
 }
 ```
+
+Of these, only `SessionMetadata` has a public init (and `RollEditOutcome`, section 3.4);
+the others are built by the repositories only.
 
 ### 3.3 SessionRepository (1a)
 
 ```swift
 @MainActor public final class SessionRepository {
-    /// History and Home's recent list. Sorted by date descending (OQ-11 for ties).
+    /// History and Home's recent list. Date descending, then createdAt descending (OQ-11).
     public func sessions() -> [SessionSummary]
     public func session(_ id: SessionID) throws -> SessionDetail
-    /// Home "Resume session" (§7). Most recent session with an incomplete game (OQ-10).
+    /// Home "Resume session" (§7). First session in `sessions()` order with an
+    /// incomplete game (OQ-10).
     public func resumableSession() -> SessionSummary?
 
     /// New session "Start" (§7): creates the session and game 1 for each bowler.
     /// `bowlers` is in lineup order; each position is stored as Game.lineupIndex
-    /// (OQ-11). Returns the session; games are read back with `session(_:)`.
+    /// (OQ-11). Returns the session; games are read back with `session(_:)`. Throws
+    /// .notFound for a missing bowler, ball, center, league, or pattern.
     public func startSession(_ metadata: SessionMetadata,
                              bowlers: [(bowlerID: BowlerID, defaultBallID: BallID?)],
                              entryMode: EntryMode) throws -> SessionID
-    /// Home "Quick score" (§7): casual session dated now, one finalOnly game, owner.
+    /// Home "Quick score" (§7): casual session dated `now`, one complete finalOnly game
+    /// for the owner. Throws .notFound before first launch, .invalidGame outside 0...300.
     public func quickScore(finalScore: Int, now: Date) throws -> SessionID
     /// History edit (§7), including changing a Quick score's event type.
     public func updateMetadata(_ id: SessionID, _ metadata: SessionMetadata) throws
     /// Cascades to games, frames, rolls (§3.3).
     public func deleteSession(_ id: SessionID) throws
-    /// §8: backing out before any roll deletes the session. No-op if any roll exists.
+    /// §8: backing out before anything was entered deletes the session. No-op when any
+    /// game has a roll or is complete (a typed finalOnly score). Throws .notFound.
     public func discardIfUnstarted(_ id: SessionID) throws
 
-    // Pickers with inline create (§7 New session). Sorted by name.
+    // Pickers with inline create (§7 New session). Sorted by name (localized standard
+    // compare). createLeague throws .notFound for a missing center.
     public func centers() -> [NamedRef]
     public func leagues() -> [NamedRef]
     public func oilPatterns() -> [NamedRef]
@@ -483,32 +525,39 @@ public enum RollInput: Sendable, Hashable {
 
 public struct RollEditOutcome: Sendable, Hashable {
     public var game: GameRecord
-    public var clearedFrames: [Int]     // §8: frames whose later rolls were cleared
+    public var clearedFrames: [Int]     // §8: frames that lost rolls, ascending
+    public init(game: GameRecord, clearedFrames: [Int])
 }
 
 @MainActor public final class GameRepository {
     public func game(_ id: GameID) throws -> GameRecord
 
     /// Appends at Scorer.nextRoll(in:). Validates, saves after every roll (§8).
-    /// Throws .invalidGame and saves nothing if the result would be invalid.
+    /// Throws .invalidGame with the violations if the roll does not fit, .invalidGame([])
+    /// for other-mode input or a finalOnly or complete game, and .notFound for a missing
+    /// game or ball. Saves nothing when it throws.
     public func recordRoll(_ input: RollInput, ballID: BallID?, in game: GameID) throws -> GameRecord
-    /// §7 Undo. Removes the last roll. No-op on a game with no rolls.
+    /// §7 Undo. Removes the last roll, and its frame once empty. Returns the game
+    /// unchanged when it has no rolls.
     public func undoLastRoll(in game: GameID) throws -> GameRecord
     /// §8: editing an earlier roll re-validates later rolls and clears every roll from
-    /// the first invalid one onward.
+    /// the first invalid one onward. Throws .notFound for a missing game, roll, or ball,
+    /// and .invalidGame when the new roll itself does not fit.
     public func replaceRoll(frameIndex: Int, rollIndex: Int, with input: RollInput,
                             ballID: BallID?, in game: GameID) throws -> RollEditOutcome
 
     /// §8: allowed only before the first roll, else throws .entryModeLocked.
+    /// `.unknown` never locks and keeps the stored mode.
     public func setEntryMode(_ mode: EntryMode, for game: GameID) throws
     /// §8: the offer made after .entryModeLocked.
     public func clearRolls(in game: GameID) throws -> GameRecord
+    /// Throws .notFound for a missing ball.
     public func setDefaultBall(_ ballID: BallID?, for game: GameID) throws
     /// finalOnly only, 0...300 (§4). Marks the game complete. Throws .notFinalOnly on
-    /// a game scored from rolls.
+    /// a game scored from rolls, .invalidGame([.finalScoreOutOfRange]) outside 0...300.
     public func setFinalScore(_ score: Int, for game: GameID) throws
-    /// §7 "Next game": game gameIndex + 1 for every bowler, same default balls and
-    /// lineup order.
+    /// §7 "Next game": game gameIndex + 1 for every bowler, with the entry mode and
+    /// default ball of that bowler's latest game, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID]
     public func deleteGame(_ id: GameID) throws
 }
@@ -518,6 +567,10 @@ Rules:
 
 - The repository, not the app, sets `rollIndex`, `pinCount`, `pinsKnown`, and
   `isComplete`, and recomputes the cached `finalScore` with `Scorer` on every write.
+  `isComplete` is true when `Scorer.nextRoll(in:)` is nil.
+- A foul in a pinByPin game is stored with `pinsKnown == true`.
+- The single write path, `save(_:)`, is internal; the app writes only through the
+  methods above.
 - `.pins` or `.pinsLeft` on a countOnly game, or `.count` on a pinByPin game, is refused
   with `.invalidGame`. Any roll on a finalOnly game is refused.
 - `.pinsLeft` is what the pin deck sends by default, since it defaults to tapping the
@@ -542,9 +595,11 @@ Rules:
     /// New session "add others by name" (§7). Throws .invalidBowler(.emptyName) for a
     /// name that is blank after trimming, as do createOwner and updateOwner.
     public func createBowler(name: String) throws -> BowlerRecord
+    /// Throws .notFound before first launch.
     public func updateOwner(name: String, handedness: Handedness) throws
     /// Settings bowling style (§7). Does not touch a customized layout in 1a. A nil
-    /// statsScope follows the new style; an explicit one is kept (OQ-14).
+    /// statsScope follows the new style; an explicit one is kept (OQ-14). Throws
+    /// .notFound before first launch.
     public func setStatsProfile(_ profile: StatsProfile) throws
     /// Settings default stats scope (§6, §7). nil = follow the bowling style.
     public func setStatsScope(_ scope: StatsScope?) throws
@@ -555,7 +610,8 @@ Rules:
 }
 ```
 
-Settings "delete all data with double confirmation" (§7) is `BowlingStore.deleteAllData()`
+`statsLayout` and `homeLayout` are the stored comma-separated strings split on ",",
+unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `BowlingStore.deleteAllData()`
 (section 3.1, OQ-12).
 
 ### 3.6 BallRepository (1a basic, §7 Arsenal 1a)
@@ -565,7 +621,7 @@ Settings "delete all data with double confirmation" (§7) is `BowlingStore.delet
     /// Non-retired balls, sorted by name. The roll picker reorders them by
     /// `intendedRole` in the app (OQ-13).
     public func activeBalls() -> [BallSummary]
-    /// Name, weight, intended role, brand only (§7 Arsenal 1a).
+    /// Name, weight, intended role, brand only (§7 Arsenal 1a). The name is trimmed.
     /// Throws .invalidBall(.emptyName) or .invalidBall(.weightOutOfRange).
     public func addBall(name: String, weightPounds: Int,
                         intendedRole: BallRole, brand: String) throws -> BallSummary
@@ -579,20 +635,21 @@ Settings "delete all data with double confirmation" (§7) is `BowlingStore.delet
 
 ```swift
 @MainActor public final class StatsRepository {
-    /// Applies the filter (predicates where possible, rest in memory, §6) and returns
-    /// games for StatsEngine. Sorted by sessionDate, then gameIndex. 1b (#41): every
-    /// field is a SwiftData predicate; thisSeason uses `filter.leagueID`'s seasonStart and
-    /// seasonEnd when both are set and in order, otherwise the last 9 months.
+    /// Applies the filter as a SwiftData predicate (no in-memory pass, §6) and returns
+    /// games of every completion state for StatsEngine, sorted by sessionDate, then
+    /// gameIndex. 1b (#41): thisSeason uses `filter.leagueID`'s seasonStart and seasonEnd
+    /// when both are set and in order, otherwise the last nine months. Games with no
+    /// session or no bowler never match.
     public func games(matching filter: StatsFilter, now: Date, calendar: Calendar) -> [GameRecord]
     /// §6 "Default scope": EventType.competition when the bowler has at least one
     /// complete league or tournament game and `preferCompetition` is true; otherwise
-    /// every event type. The app passes the owner's explicit `statsScope` as
+    /// every event type, `.unknown` included. The app passes the owner's explicit `statsScope` as
     /// `preferCompetition` when set, and the bowling style's preference otherwise (OQ-14).
     public func defaultEventTypes(for bowler: BowlerID, preferCompetition: Bool) -> Set<EventType>
 }
 ```
 
-The app calls `stats.games(matching:)` and then `StatsEngine.report(games:filter:)`
+The app calls `stats.games(matching:now:calendar:)` and then `StatsEngine.report(games:filter:)`
 (§2: feature models "call repositories, and run engines"). The default stats scope is
 stored as `Bowler.statsScope` (OQ-14).
 
@@ -607,6 +664,7 @@ public enum DatePreset: String, Sendable, Hashable, Codable, CaseIterable {
 
 public struct StatsFilter: Sendable, Hashable, Codable {
     public var datePreset: DatePreset
+    /// "All games" is every case, `.unknown` included; "Competition" is EventType.competition.
     public var eventTypes: Set<EventType>
     public var bowlerID: BowlerID                  // OQ-15
 
@@ -623,15 +681,23 @@ public struct StatsFilter: Sendable, Hashable, Codable {
         oilPatternID: OilPatternID? = nil, centerID: CenterID? = nil, leagueID: LeagueID? = nil
     )
 
-    /// Resolves the dates by calendar day in the device calendar and time zone (§8),
-    /// with thisSeason as the last 9 months (§6).
-    public func dateInterval(now: Date, calendar: Calendar) -> DateInterval?   // nil = all time
-    /// `leagueSeason` is the season of `leagueID`'s league; StatsRepository looks it up.
-    public func dateInterval(now: Date, calendar: Calendar, leagueSeason: DateInterval?) -> DateInterval?
-    /// In-memory form of the repository's predicate, for callers holding GameRecords.
-    public func matches(_ game: GameRecord, now: Date, calendar: Calendar, leagueSeason: DateInterval? = nil) -> Bool
+    /// Resolves the dates by calendar day in `calendar`'s time zone (§8). Half-open:
+    /// start <= date < end; nil = all time. thisSeason is the last 9 months (§6).
+    public func dateInterval(now: Date, calendar: Calendar) -> DateInterval?
+    /// leagueSeason: the seasonStart and seasonEnd of `leagueID`'s league, when both exist;
+    /// StatsRepository looks it up. thisSeason then covers those calendar days, the end
+    /// day included. Other presets and a custom range ignore it.
+    public func dateInterval(now: Date, calendar: Calendar,
+                             leagueSeason: DateInterval?) -> DateInterval?
+    /// The in-memory form of the repository's predicate, for callers holding GameRecords.
+    /// Incomplete games match too; StatsEngine excludes them.
+    public func matches(_ game: GameRecord, now: Date, calendar: Calendar,
+                        leagueSeason: DateInterval? = nil) -> Bool
 }
 ```
+
+`DatePreset` raw values are persisted with a saved filter, so the stable raw value rule
+(section 1, rule 7) applies to them.
 
 1b rules (#41):
 
@@ -652,12 +718,14 @@ Every number carries the sample it was computed from (§6), so the UI can show "
 public struct Rate: Sendable, Hashable, Codable {
     public var hits: Int
     public var attempts: Int
+    public init(hits: Int, attempts: Int)
     public var value: Double? { get }              // nil when attempts == 0
 }
 
 public struct Mean: Sendable, Hashable, Codable {
     public var total: Int
     public var count: Int
+    public init(total: Int, count: Int)
     public var value: Double? { get }              // nil when count == 0
 }
 
@@ -727,6 +795,10 @@ public struct StatsReport: Sendable, Hashable, Codable {
 }
 ```
 
+`GameRef`, `HighGame`, `HighSeries`, `TrendPoint`, `LeaveRow`, and `StatsReport` also
+have public memberwise-style inits (for tests and fixtures); the app reads reports and
+does not build them.
+
 Rules:
 
 - `StatsEngine` ignores incomplete games and applies the applicability table itself:
@@ -794,6 +866,8 @@ Rules:
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
 - Saving a layout (1b) keeps unknown IDs (§7).
+- `StatsCardID` has no `.unknown` case: layouts are stored as raw strings and unknown
+  IDs are skipped on display, so no fallback case is needed.
 
 ## 5. Demo fixture data (1a, §2, §9, issue #22)
 
@@ -805,20 +879,36 @@ BowlingData read models (#57):
 ```swift
 // BowlingFixtures
 public enum DemoFixture {
-    /// A fixed reference date for tests. Previews pass Date.now.
+    /// 2026-10-14 12:00 UTC. Tests pass this; previews pass Date.now.
     public static let referenceDate: Date
 
-    /// About twenty games. Session dates are offsets from `now`, so date presets
-    /// ("this week", "last 30 days") always select the same games.
+    /// Every DemoGame (22), in DemoGame.allCases order. Session dates are whole days
+    /// before `now` in the Gregorian calendar, so date presets ("this week", "last 30
+    /// days") always select the same games.
     public static func games(relativeTo now: Date) -> [GameRecord]
 }
 
 /// Fixed-UUID fixture entities, each with `id` and `name`; DemoBall adds `owner` and
 /// `role`, DemoSession `eventType` and `daysAgo`, DemoGame `session` and `bowler`.
-public enum DemoBowler: Int, CaseIterable, Sendable { ... }
-public enum DemoBall: Int, CaseIterable, Sendable { ... }
-public enum DemoSession: Int, CaseIterable, Sendable { ... }
-public enum DemoGame: Int, CaseIterable, Sendable { ... }
+public enum DemoBowler: Int, CaseIterable, Sendable {
+    case owner = 1      // games in every event type and entry mode
+    case partner        // bowls the league night with the owner
+    case friend         // only casual and practice games: the "All games" fallback (§6)
+}
+public enum DemoBall: Int, CaseIterable, Sendable {
+    case ownerStrike = 1, ownerSpare, partnerStrike
+}
+public enum DemoSession: Int, CaseIterable, Sendable {
+    case leagueNight = 1     // three games, owner and partner
+    case tournament          // four games: a three- and a four-game series
+    case earlyLeague, practice, casualOuting
+    case practiceInProgress  // holds the one incomplete game, for Resume
+    case friendCasual, friendPractice
+}
+public enum DemoGame: Int, CaseIterable, Sendable {
+    // 22 cases, ordered by session, then bowler, then gameIndex. tournament1 is a
+    // perfect game; earlyLeague1 is all spares (150).
+}
 
 // BowlingData: seeds an in-memory store from BowlingFixtures (#62).
 
@@ -842,8 +932,14 @@ Coverage the games must include, each traced to §9 or a 1a screen:
 | A roll with a ball override differing from the game's default ball | §3.2, §7 Scoring |
 | A perfect game and an all-spares game | §11 |
 
-Expected values for every 1a stat are hand-computed and live in the test targets, not
-in the shipped fixture (OQ-5).
+`DemoBall` has no weight or brand, and `DemoBowler` no handedness or stats profile.
+
+Every row is covered by `DemoGames.swift`: for example leagueNight1 has a first-ball foul
+then a spare, a 2-8 sleeper, a 1-2-10 washout, and a roll with the spare ball as
+override; leagueNight2 a second-ball foul; tournament4 a tenth-frame foul.
+
+Expected values for every 1a stat are hand-computed and live in the BowlingCore test
+target (`Tests/BowlingCoreTests/Fixtures/`), not in the shipped fixture (OQ-5).
 
 The app links `BowlingFixtures` for previews only (#65).
 
@@ -864,13 +960,49 @@ starts.
 - Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
   `displayedStatsCards` and `displayedHomeTiles` (section 4.3).
 - Ball, center, league, pattern delete warnings (§3.3).
-- CSV export (§7 Settings 1b).
+- CSV export (§7 Settings 1b): pinned in section 6.1.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
 
+### 6.1 CSV export (1b, §7 Settings, §9 "CSV export", #43)
+
+```swift
+extension BowlingStore {
+    /// Writes one CSV per entity into a fresh folder in the temporary directory, zips it
+    /// with NSFileCoordinator `.forUploading`, and returns the zip's URL for the file
+    /// exporter or share sheet. The zip is "Bowling Export yyyy-MM-dd.zip" (device time zone).
+    @MainActor public func exportCSV(now: Date = .now) throws -> URL
+}
+```
+
+The zip holds a folder of the same name with these files, in this order. Every file
+starts with `id, createdAt, updatedAt, remoteID`; the remaining columns, in order:
+
+| File | Columns after the common four |
+|---|---|
+| bowlers.csv | name, isOwner, handedness, email, statsProfile, statsLayout, homeLayout, statsScope |
+| sessions.csv | date, eventType, centerID, leagueID, oilPatternID, lanes, notes |
+| games.csv | sessionID, bowlerID, gameIndex, lineupIndex, entryMode, defaultBallID, finalScore, isComplete, scanConfidence, invitationStatus, scoredByName |
+| frames.csv | gameID, frameIndex, rotationSlot |
+| rolls.csv | frameID, rollIndex, pinsDownMask, pinCount, pinsKnown, isFoul, ballID |
+| balls.csv | name, brand, weightPounds, coverstock, coverstockName, coreType, coreName, rg, differential, intermediateDifferential, intendedRole, serialNumber, colorDescription, releaseDate, purchaseDate, factoryFinish, surfaceGrit, resurfaceIntervalGames, isRetired, notes |
+| maintenance.csv | ballID, date, kind, surfaceGritAfter, gamesOnBallAtTime, notes |
+| centers.csv | name, notes, city, latitude, longitude |
+| leagues.csv | name, notes, centerID, seasonLabel, seasonStart, seasonEnd, gamesPerSession |
+| oilPatterns.csv | name, notes, lengthFeet, volumeMilliliters, patternKey |
+
+Encoding: RFC 4180 (CRLF, fields with a comma, quote, CR, or LF quoted, quotes doubled),
+UTF-8 with a byte order mark for Excel. UUIDs uppercase; dates ISO 8601 UTC with
+milliseconds; booleans `true`/`false`; nil is an empty field; enums are the stored raw
+string, unknown values included. Columns are only ever appended, never renamed or
+reordered, so phase 3 can re-import by UUID. Photos are not exported.
+Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
+them as formulas; this is accepted for now and tracked in
+[#86](https://github.com/marilynjov/Bowling/issues/86).
+
 ## 7. What the app may not do
 
-- Import SwiftData or touch `ModelContext` (OQ-1).
+- Import SwiftData or touch `ModelContext` (OQ-1, OQ-20).
 - Compute scores, leaves, marks, or stats itself, or convert pins left to pins that fell.
   It renders `Scorecard`, `Leave`, and `StatsReport` and sends `RollInput`.
 - Sort games, frames, or rolls, or compare raw enum strings.
@@ -972,3 +1104,10 @@ starts.
     games in the filter". Last by date across sessions, ordered by session date then
     `gameIndex` (proposed)?
     **Decision:** Accepted: session date, then session, then `gameIndex`.
+20. **OQ-20, public container factory.** `BowlingStore.schema` and
+    `BowlingStore.makeContainer(inMemory:)` are public in BowlingData (44f7523) and hand
+    out a SwiftData `Schema` and `ModelContainer`, which rule 1 and OQ-1 keep away from
+    the app. Make them internal, or keep them public for app wiring and say so in rule 1?
+   **Decision:** Make both internal (#76). The app doesn't use them; with no `@Query` in 1a it
+   never needs a `ModelContainer`, and `BowlingStore(inMemory:)` covers previews and tests.
+   Phase 2's CloudKit setup stays inside BowlingData.
