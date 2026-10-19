@@ -170,6 +170,8 @@ import Testing
             )
         }
         #expect(rows == expected)
+        // Compare's SwiftUI Table identifies a row by its ball.
+        #expect(rows.map(\.id) == [DemoBall.ownerSpare.id, DemoBall.ownerStrike.id])
     }
 }
 

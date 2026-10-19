@@ -100,7 +100,7 @@ public struct BallTrendPoint: Sendable, Hashable, Codable {
 }
 
 /// One row of the Arsenal's Compare table (§6 "Comparison"), each figure with its sample.
-public struct BallComparisonRow: Sendable, Hashable, Codable {
+public struct BallComparisonRow: Sendable, Hashable, Codable, Identifiable {
     public var ballID: BallID
     public var gamesBowled: Int
     public var averageAsMainBall: Mean
@@ -119,4 +119,6 @@ public struct BallComparisonRow: Sendable, Hashable, Codable {
         self.firstBallAverage = firstBallAverage
         self.spares = spares
     }
+
+    public var id: BallID { ballID }
 }

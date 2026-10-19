@@ -399,8 +399,9 @@ public struct BallTrendPoint: Sendable, Hashable, Codable {
     public var strikes: Rate
 }
 
-public struct BallComparisonRow: Sendable, Hashable, Codable {
+public struct BallComparisonRow: Sendable, Hashable, Codable, Identifiable {
     public var ballID: BallID
+    public var id: BallID { get }                  // ballID, for Compare's Table
     public var gamesBowled: Int
     public var averageAsMainBall: Mean
     public var strikes: Rate
