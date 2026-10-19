@@ -75,4 +75,13 @@ import BowlingFixtures
         let game = Self.games.filter { $0.id == DemoGame.leagueNight1.id }
         #expect(StatsEngine.leaveOccurrences(of: LeaveClassifier.classify(.all), games: game).isEmpty)
     }
+
+    // OQ-7: an occurrence is its game plus frame. The owner's competition "10" has two in
+    // leagueNight1 (F1 and F10), so the IDs differ by frame and all six are distinct.
+    @Test func occurrenceIDIsGamePlusFrame() {
+        let found = StatsEngine.leaveOccurrences(of: LeaveClassifier.classify(PinSet(pins: [10])),
+                                                 games: scoped(DemoFixtureExpected.ownerCompetition))
+        #expect(Set(found.map(\.id)).count == 6)
+        #expect(found[1].id == LeaveOccurrence.ID(gameID: DemoGame.leagueNight1.id, frameIndex: 10))
+    }
 }

@@ -844,7 +844,9 @@ Pinned by #40; needs review by both developers.
 
 ```swift
 /// One spare attempt at a leave, addressed by game ID plus frame index (OQ-7).
-public struct LeaveOccurrence: Sendable, Hashable, Codable {
+public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
+    public struct ID: Sendable, Hashable, Codable { public var gameID: GameID; public var frameIndex: Int }
+    public var id: ID { get }          // game ID plus frame index (OQ-7)
     public var game: GameRef           // game ID, session ID, session date
     public var gameIndex: Int
     public var frameIndex: Int         // 1...10; a frame holds at most one spare attempt

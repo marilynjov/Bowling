@@ -3,7 +3,17 @@ import Foundation
 /// One spare attempt at a leave (spec §6 "Definitions (1b)", "Leave occurrences"),
 /// addressed by game ID plus frame index (contract OQ-7). A frame holds at most one
 /// spare attempt, because a frame 10 fill ball is not one.
-public struct LeaveOccurrence: Sendable, Hashable, Codable {
+public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
+    public struct ID: Sendable, Hashable, Codable {
+        public var gameID: GameID
+        public var frameIndex: Int
+
+        public init(gameID: GameID, frameIndex: Int) {
+            self.gameID = gameID
+            self.frameIndex = frameIndex
+        }
+    }
+
     /// The game's ID, session, and session date.
     public var game: GameRef
     public var gameIndex: Int
@@ -12,6 +22,8 @@ public struct LeaveOccurrence: Sendable, Hashable, Codable {
     /// neither is set.
     public var ballID: BallID?
     public var isConverted: Bool
+
+    public var id: ID { ID(gameID: game.gameID, frameIndex: frameIndex) }
 
     public init(game: GameRef, gameIndex: Int, frameIndex: Int, ballID: BallID?, isConverted: Bool) {
         self.game = game
