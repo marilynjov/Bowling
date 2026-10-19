@@ -66,6 +66,51 @@ import BowlingFixtures
         #expect(matching(filter) == [.tuesdayLastSeason1])
     }
 
+    // MARK: Custom date range in a local time zone
+
+    private static let newYork: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        return calendar
+    }()
+
+    private func newYorkDay(_ year: Int, _ month: Int, _ day: Int, hour: Int = 0, minute: Int = 0) -> Date {
+        Self.newYork.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+    }
+
+    /// An owner game moved to `sessionDate`, matched against `filter` in New York.
+    private func matchesInNewYork(_ filter: StatsFilter, sessionDate: Date) -> Bool {
+        var game = FilterFixture.games(relativeTo: now).first { $0.id == FilterGame.tuesdayRecent1.id }!
+        game.sessionDate = sessionDate
+        return filter.matches(game, now: now, calendar: Self.newYork)
+    }
+
+    @Test func customRangeKeepsALateEveningGameOnTheLocalEndDay() {
+        // 5-7 Oct picked in New York (EDT, UTC-4): 5 Oct 04:00 UTC to 8 Oct 04:00 UTC.
+        let filter = StatsFilter(customRange: newYorkDay(2026, 10, 5)...newYorkDay(2026, 10, 7), bowlerID: owner)
+        #expect(filter.dateInterval(now: now, calendar: Self.newYork)
+                == DateInterval(start: day(2026, 10, 5, hour: 4), end: day(2026, 10, 8, hour: 4)))
+        // 7 Oct 23:30 EDT is 8 Oct 03:30 UTC: already 8 Oct in UTC, still the end day locally.
+        #expect(matchesInNewYork(filter, sessionDate: newYorkDay(2026, 10, 7, hour: 23, minute: 30)))
+        // 8 Oct 00:30 EDT is 8 Oct 04:30 UTC, the day after the end.
+        #expect(!matchesInNewYork(filter, sessionDate: newYorkDay(2026, 10, 8, hour: 0, minute: 30)))
+    }
+
+    @Test func customRangeAcrossTheEndOfDaylightSavingTime() {
+        // US clocks fall back on Sun 1 Nov 2026, 02:00 EDT -> 01:00 EST. 29 Oct-2 Nov starts
+        // at 29 Oct 00:00 EDT = 04:00 UTC and ends at 3 Nov 00:00 EST = 05:00 UTC:
+        // 5 days of 24 h plus the repeated hour, 5 * 24 + 1 = 121 h.
+        let filter = StatsFilter(customRange: newYorkDay(2026, 10, 29)...newYorkDay(2026, 11, 2), bowlerID: owner)
+        let interval = filter.dateInterval(now: now, calendar: Self.newYork)
+        #expect(interval == DateInterval(start: day(2026, 10, 29, hour: 4), end: day(2026, 11, 3, hour: 5)))
+        #expect(interval?.duration == TimeInterval(121 * 3600))
+        // 2 Nov 23:30 EST is 3 Nov 04:30 UTC, inside; a fixed 5 * 24 h from the start would
+        // end at 3 Nov 04:00 UTC and drop it.
+        #expect(matchesInNewYork(filter, sessionDate: newYorkDay(2026, 11, 2, hour: 23, minute: 30)))
+        // 3 Nov 00:30 EST is 3 Nov 05:30 UTC, the day after the end.
+        #expect(!matchesInNewYork(filter, sessionDate: newYorkDay(2026, 11, 3, hour: 0, minute: 30)))
+    }
+
     // MARK: Ball
 
     @Test func ballMatchesTheDefaultBall() {
