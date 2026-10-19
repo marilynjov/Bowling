@@ -441,6 +441,9 @@ Rules:
 - The ball detail calls `stats.games(matching:)`, `balls.maintenance(for:)`, then
   `StatsEngine.ballReport`. Compare calls `StatsEngine.compareBalls` with
   `balls.activeBalls()` IDs.
+- The ball detail's recent games are the last ten of the same `stats.games(matching:)`
+  result filtered with `uses(_:)` (`suffix(10)`, since it is sorted oldest first), so
+  the list follows the filter. `BallReport` does not carry them.
 - `GameRecord.centerID`, `leagueID`, and `oilPatternID` (section 2.5) are filled by the
   repository from the game's session.
 - A maintenance date is a full timestamp; `logMaintenance` defaults it to now. On the
