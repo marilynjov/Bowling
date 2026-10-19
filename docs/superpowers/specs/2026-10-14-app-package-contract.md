@@ -824,8 +824,8 @@ starts.
 
 - `StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
   center, league, pattern IDs.
-- `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
-  by-frame, what-if (§6).
+- ~~`StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
+  by-frame, what-if (§6).~~ Pinned in "StatsReport 1b fields" below (#39).
 - Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
 - `BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
   `compareBalls(games:)` (§6 "Ball report").
