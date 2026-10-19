@@ -857,12 +857,14 @@ public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
 
 extension StatsEngine {
     /// Complete pinByPin games only, like the leaves table; matches on `leave.pins`.
-    /// Newest first: session date, session, game index, frame, all descending.
+    /// Newest first: session date, session, game index, frame, all descending. Sessions
+    /// on the same date keep their order in `games`, a later one being newer.
     public static func leaveOccurrences(of leave: Leave, games: [GameRecord]) -> [LeaveOccurrence]
 }
 
 extension StatsRepository {
-    /// Same games as games(matching:seasonLeague:now:calendar:), then the engine.
+    /// Same games as games(matching:seasonLeague:now:calendar:), then the engine, with
+    /// same-date sessions in History's order (date, then createdAt, newest first).
     public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter,
                                  seasonLeague: LeagueID? = nil,
                                  now: Date, calendar: Calendar) -> [LeaveOccurrence]

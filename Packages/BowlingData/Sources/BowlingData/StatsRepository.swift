@@ -5,7 +5,7 @@ import SwiftData
 /// The games Stats is computed from (spec §6 "Filters", "Default scope").
 @MainActor
 public final class StatsRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context

@@ -57,4 +57,35 @@ import Testing
         #expect(found.map(\.frameIndex) == [7, 1])
         #expect(found.allSatisfy { $0.ballID == nil && $0.isConverted })
     }
+
+    // Two sessions on the same date: History (SessionRepository.sessions) shows the newer
+    // created one first, so the occurrence list must too. The newer session gets the
+    // smaller ID string, so a tie-break on IDs would put it second.
+    @Test func sameDateSessionsFollowHistoryOrder() throws {
+        let store = try BowlingStore(inMemory: true)
+        let date = now
+        let bowler = BowlerID()
+        func tenPinGame(_ session: String) -> GameRecord {
+            GameRecord(bowlerID: bowler, gameIndex: 1, entryMode: .pinByPin, finalScore: 10, isComplete: true,
+                       frames: [FrameRecord(frameIndex: 1, rolls: [
+                           RollRecord(rollIndex: 1, pinsDown: PinSet(pins: 1...9), pinCount: 9, pinsKnown: true),
+                           RollRecord(rollIndex: 2, pinsDown: PinSet(pins: [10]), pinCount: 1, pinsKnown: true),
+                       ])],
+                       sessionID: UUID(uuidString: session)!, sessionDate: date, eventType: .league)
+        }
+        let older = tenPinGame("FFFFFFFF-0000-0000-0000-000000000000")
+        let newer = tenPinGame("00000000-0000-0000-0000-000000000000")
+        // Inserted newer first, so neither insertion nor fetch order hides the tie-break.
+        _ = try insertGame(newer, into: store.context)
+        _ = try insertGame(older, into: store.context)
+        try store.context.session(older.sessionID!).createdAt = date.addingTimeInterval(-60)
+        try store.context.session(newer.sessionID!).createdAt = date
+        try store.context.save()
+
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: Set(EventType.allCases), bowlerID: bowler)
+        let found = store.stats.leaveOccurrences(of: LeaveClassifier.classify(PinSet(pins: [10])),
+                                                 matching: filter, now: now, calendar: calendar)
+        #expect(store.sessions.sessions().map(\.id) == [newer.sessionID, older.sessionID])
+        #expect(found.map(\.game.sessionID) == [newer.sessionID, older.sessionID])
+    }
 }

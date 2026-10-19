@@ -36,16 +36,25 @@ public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
 
 extension StatsEngine {
     /// Every spare attempt at `leave` in `games`, newest first: session date descending,
-    /// then session, then game index and frame descending. Uses the games the leaves table
-    /// uses, complete pinByPin ones, so a row's count equals its occurrence count. Matches
-    /// on the standing pins.
+    /// then session, then game index and frame descending. Sessions on the same date are
+    /// ordered as in `games`, a later one being newer: `GameRecord` has no session creation
+    /// time, so History's tie-break (newest created first) is up to the caller's order,
+    /// which `StatsRepository.leaveOccurrences` sets. Uses the games the leaves table uses,
+    /// complete pinByPin ones, so a row's count equals its occurrence count. Matches on the
+    /// standing pins.
     public static func leaveOccurrences(of leave: Leave, games: [GameRecord]) -> [LeaveOccurrence] {
-        games.filter { $0.isComplete && $0.entryMode == .pinByPin }
+        // A game without a session is its own group.
+        var sessionOrder: [UUID: Int] = [:]
+        for (offset, game) in games.enumerated() {
+            sessionOrder[game.sessionID ?? game.id] = sessionOrder[game.sessionID ?? game.id] ?? offset
+        }
+        func key(_ occurrence: LeaveOccurrence) -> (Date, Int, Int, Int) {
+            (occurrence.game.date, sessionOrder[occurrence.game.sessionID ?? occurrence.game.gameID]!,
+             occurrence.gameIndex, occurrence.frameIndex)
+        }
+        return games.filter { $0.isComplete && $0.entryMode == .pinByPin }
             .flatMap { game in occurrences(in: game).filter { $0.pins == leave.pins }.map(\.occurrence) }
-            .sorted {
-                ($1.game.date, $1.game.sessionID?.uuidString ?? "", $1.gameIndex, $1.frameIndex)
-                    < ($0.game.date, $0.game.sessionID?.uuidString ?? "", $0.gameIndex, $0.frameIndex)
-            }
+            .sorted { key($1) < key($0) }
     }
 
     /// The same spare attempts `RollTally` counts, those after a first-ball foul left out

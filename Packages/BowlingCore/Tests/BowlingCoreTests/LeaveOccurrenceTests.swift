@@ -84,4 +84,28 @@ import BowlingFixtures
         #expect(Set(found.map(\.id)).count == 6)
         #expect(found[1].id == LeaveOccurrence.ID(gameID: DemoGame.leagueNight1.id, frameIndex: 10))
     }
+
+    /// A complete pinByPin game whose frame 1 leaves the 10 and converts it ("10 /").
+    private func tenPinGame(session: SessionID, date: Date) -> GameRecord {
+        GameRecord(gameIndex: 1, entryMode: .pinByPin, finalScore: 10, isComplete: true, frames: [
+            FrameRecord(frameIndex: 1, rolls: [
+                RollRecord(rollIndex: 1, pinsDown: PinSet(pins: 1...9), pinCount: 9, pinsKnown: true),
+                RollRecord(rollIndex: 2, pinsDown: PinSet(pins: [10]), pinCount: 1, pinsKnown: true),
+            ]),
+        ], sessionID: session, sessionDate: date, eventType: .league)
+    }
+
+    // History orders sessions on the same date by newest created, which GameRecord does not
+    // carry; the repository passes games oldest first, so a later session in `games` is the
+    // newer one. The IDs are chosen so the session ID string order disagrees.
+    @Test func sameDateSessionsFollowTheirOrderInGames() {
+        let date = DemoFixture.referenceDate
+        let older = tenPinGame(session: UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000000")!, date: date)
+        let newer = tenPinGame(session: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!, date: date)
+        let leave = LeaveClassifier.classify(PinSet(pins: [10]))
+        #expect(StatsEngine.leaveOccurrences(of: leave, games: [older, newer]).map(\.game.gameID)
+                == [newer.id, older.id])
+        #expect(StatsEngine.leaveOccurrences(of: leave, games: [newer, older]).map(\.game.gameID)
+                == [older.id, newer.id])
+    }
 }
