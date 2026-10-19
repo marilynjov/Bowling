@@ -14,9 +14,10 @@ extension GameRepository {
     /// own device's frame but not each other. Rolls are then cleared from the first one that
     /// no longer fits, as `replaceRoll` does, so every device ends with the same valid game.
     ///
-    /// Also rescores every game whose cached `finalScore` or `isComplete` is stale, such as one
-    /// whose rows were imported before its cached values, and stamps `updatedAt` only on a
-    /// game that changed. Phase 2 calls it after every remote import.
+    /// Also rescores every countOnly or pinByPin game whose cached `finalScore` or
+    /// `isComplete` is stale, such as one whose rows were imported before its cached values,
+    /// and stamps `updatedAt` only on a game that changed. Phase 2 calls it after every
+    /// remote import.
     /// - Returns: The games that changed.
     func repairDuplicates() throws -> Set<GameID> {
         // TODO(Phase 2): read SwiftData persistent history to visit only the games an import
@@ -28,7 +29,11 @@ extension GameRepository {
                     try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
                     return true
                 }
-                let scored = Self.scored(game.record())
+                // A finalOnly score is typed, and an unknown mode's comes from a newer app that
+                // may not score from rolls, so this device must not overwrite either.
+                let record = game.record()
+                guard [.countOnly, .pinByPin].contains(record.entryMode) else { return false }
+                let scored = Self.scored(record)
                 guard (scored.finalScore, scored.isComplete) != (game.finalScore, game.isComplete) else { return false }
                 game.finalScore = scored.finalScore
                 game.isComplete = scored.isComplete

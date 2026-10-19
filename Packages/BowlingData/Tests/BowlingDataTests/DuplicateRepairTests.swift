@@ -278,6 +278,24 @@ import Testing
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 3)
     }
 
+    /// A typed score, or one a newer app version computed for a mode this one cannot read,
+    /// is never overwritten by rescoring the rows.
+    @Test(arguments: ["finalOnly", "aFutureMode"])
+    func scoreNotComputedFromRollsIsLeftAlone(entryMode: String) throws {
+        let game = try savedGame()
+        // The rows alone would score 7 + 2 = 9, not 250.
+        game.entryMode = entryMode
+        game.finalScore = 250
+        game.isComplete = true
+        try context.save()
+
+        #expect(try store.games.repairDuplicates().isEmpty)
+
+        #expect(game.finalScore == 250)
+        #expect(game.isComplete)
+        #expect(game.updatedAt == base)
+    }
+
     @Test func gameWithoutDuplicatesIsLeftAlone() throws {
         let game = try savedGame()
         let updatedAt = game.updatedAt
