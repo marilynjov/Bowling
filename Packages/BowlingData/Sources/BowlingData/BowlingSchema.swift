@@ -22,7 +22,7 @@ enum BowlingMigrationPlan: SchemaMigrationPlan {
 /// The app's data store: one container, its main context, and the repositories over it.
 @MainActor
 public final class BowlingStore {
-    public nonisolated static var schema: Schema { Schema(versionedSchema: BowlingSchemaV1.self) }
+    nonisolated static var schema: Schema { Schema(versionedSchema: BowlingSchemaV1.self) }
 
     let container: ModelContainer
     let context: ModelContext
@@ -47,7 +47,7 @@ public final class BowlingStore {
 
     /// Builds the container for user data. Sync stays off until phase 2 turns on CloudKit.
     /// - Parameter inMemory: Keeps the store in memory only, for tests and previews.
-    public nonisolated static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
+    nonisolated static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         let configuration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory,

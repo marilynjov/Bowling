@@ -57,12 +57,17 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     public var sessionID: SessionID?
     public var sessionDate: Date
     public var eventType: EventType
+    // 1b: session context for the filters and "By condition".
+    public var centerID: CenterID?
+    public var leagueID: LeagueID?
+    public var oilPatternID: OilPatternID?
 
     public init(
         id: GameID = GameID(), bowlerID: BowlerID? = nil, gameIndex: Int,
         entryMode: EntryMode, defaultBallID: BallID? = nil, finalScore: Int,
         isComplete: Bool, frames: [FrameRecord] = [],
-        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType
+        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType,
+        centerID: CenterID? = nil, leagueID: LeagueID? = nil, oilPatternID: OilPatternID? = nil
     ) {
         self.id = id
         self.bowlerID = bowlerID
@@ -75,6 +80,9 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
         self.sessionID = sessionID
         self.sessionDate = sessionDate
         self.eventType = eventType
+        self.centerID = centerID
+        self.leagueID = leagueID
+        self.oilPatternID = oilPatternID
     }
 }
 
