@@ -20,7 +20,7 @@ extension BallRepository {
     /// Logs an event with a snapshot of the games bowled up to `date` (session date on or
     /// before it, as `GameConversion` dates a game), so a back-dated event matches when it
     /// happened. `date` is a full timestamp, now by default. A non-empty grit becomes the
-    /// ball's current surface.
+    /// ball's current surface unless another event with a grit is dated later.
     /// - Throws: `.invalidMaintenance(.dateInFuture)` for a date after now, `.notFound` for
     ///   an unknown ball.
     public func logMaintenance(
@@ -29,13 +29,14 @@ extension BallRepository {
         guard date <= .now else { throw RepositoryError.invalidMaintenance(.dateInFuture) }
         return try context.write {
             let ball = try context.ball(ballID)
+            let isLatestGrit = (ball.maintenance ?? []).allSatisfy { $0.surfaceGritAfter.isEmpty || $0.date <= date }
             let event = MaintenanceEvent(date: date, kind: MaintenanceEvent.Kind(stored: kind.rawValue))
             event.surfaceGritAfter = surfaceGritAfter
             event.gamesOnBallAtTime = ball.gamesUsing.count { ($0.session?.date ?? $0.createdAt) <= date }
             event.notes = notes
             context.insert(event)
             event.ball = ball
-            if !surfaceGritAfter.isEmpty {
+            if !surfaceGritAfter.isEmpty && isLatestGrit {
                 ball.surfaceGrit = surfaceGritAfter
                 ball.updatedAt = .now
             }

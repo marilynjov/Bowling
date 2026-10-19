@@ -105,6 +105,14 @@ import Testing
         #expect(try store.context.ball(ballID).surfaceGrit == "3000 polished")
     }
 
+    @Test func aBackDatedEventKeepsTheLatestGrit() throws {
+        let lastMonth = Date.now.addingTimeInterval(-30 * 86_400)
+        _ = try balls.logMaintenance(.resurface, surfaceGritAfter: "2000 Abralon", notes: "", for: ballID)
+        _ = try balls.logMaintenance(.polish, date: lastMonth, surfaceGritAfter: "1500 polished", notes: "", for: ballID)
+        // The polish is 30 days older than the resurface, so the surface is still 2000.
+        #expect(try store.context.ball(ballID).surfaceGrit == "2000 Abralon")
+    }
+
     @Test func noIntervalIsNeverDue() throws {
         try insert(day: 1, defaultBall: ballID)
         let maintenance = try balls.maintenance(for: ballID)
