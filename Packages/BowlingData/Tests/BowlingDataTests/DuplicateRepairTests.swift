@@ -32,9 +32,13 @@ import Testing
         return game
     }
 
-    private func savedGame(_ frames: [FrameRecord]) throws -> Game {
+    private static func pins(_ rollIndex: Int, _ pins: PinSet) -> RollRecord {
+        RollRecord(rollIndex: rollIndex, pinsDown: pins, pinCount: pins.count, pinsKnown: true)
+    }
+
+    private func savedGame(_ frames: [FrameRecord], entryMode: EntryMode = .countOnly) throws -> Game {
         let metadata = SessionMetadata(date: base, eventType: .practice)
-        let session = try store.sessions.startSession(metadata, bowlers: [(owner.id, nil)], entryMode: .countOnly)
+        let session = try store.sessions.startSession(metadata, bowlers: [(owner.id, nil)], entryMode: entryMode)
         var record = try #require(try store.sessions.session(session).bowlers.first?.games.first)
         record.frames = frames
         _ = try store.games.save(record)
@@ -63,8 +67,12 @@ import Testing
     }
 
     @discardableResult
-    private func insertRoll(_ rollIndex: Int, pinCount: Int, updatedAt: Date, in frame: Frame, id: UUID = UUID()) -> Roll {
-        let roll = Roll(rollIndex: rollIndex, pinCount: pinCount)
+    private func insertRoll(
+        _ rollIndex: Int, pinCount: Int, pinsDown: PinSet? = nil, updatedAt: Date, in frame: Frame, id: UUID = UUID()
+    ) -> Roll {
+        let roll = Roll(
+            rollIndex: rollIndex, pinsDownMask: Int(pinsDown?.rawValue ?? 0), pinCount: pinCount, pinsKnown: pinsDown != nil
+        )
         roll.id = id
         roll.updatedAt = updatedAt
         context.insert(roll)
@@ -151,6 +159,29 @@ import Testing
         #expect(repaired.frames == [FrameRecord(frameIndex: 1, rolls: [Self.count(1, 8)])])
         #expect(Scorer.validate(repaired).isEmpty)
         // Frame 1 [8] is unfinished, so no frame has a running total yet.
+        #expect(repaired.finalScore == 0)
+        #expect(!repaired.isComplete)
+    }
+
+    @Test func pinByPinRepairWithOverlappingPinsClearsTheSecondRoll() throws {
+        let firstSeven: PinSet = [.pin1, .pin2, .pin3, .pin4, .pin5, .pin6, .pin7]
+        // Frame 1 [pins 1-7, pins 8 and 9], frame 2 [X]: 7 + 2 = 9, frame 2 waits for its bonus.
+        let game = try savedGame([
+            FrameRecord(frameIndex: 1, rolls: [Self.pins(1, firstSeven), Self.pins(2, [.pin8, .pin9])]),
+            FrameRecord(frameIndex: 2, rolls: [Self.pins(1, .all)]),
+        ], entryMode: .pinByPin)
+        #expect(game.finalScore == 9)
+        // Roll 2 of frame 1, a minute newer: pins 1 and 10, but roll 1 already knocked pin 1 down.
+        insertRoll(2, pinCount: 2, pinsDown: [.pin1, .pin10], updatedAt: base.addingTimeInterval(60), in: try frame(1, of: game))
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == [game.id])
+
+        // Cleared from frame 1 roll 2, the first roll that no longer fits; frame 2 goes with it.
+        let repaired = try store.games.game(game.id)
+        #expect(repaired.frames == [FrameRecord(frameIndex: 1, rolls: [Self.pins(1, firstSeven)])])
+        #expect(Scorer.validate(repaired).isEmpty)
+        // Frame 1 [7] is unfinished, so no frame has a running total yet.
         #expect(repaired.finalScore == 0)
         #expect(!repaired.isComplete)
     }
