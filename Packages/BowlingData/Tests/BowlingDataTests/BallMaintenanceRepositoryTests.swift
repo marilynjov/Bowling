@@ -99,6 +99,15 @@ import Testing
         #expect(try store.context.ball(ballID).surfaceGrit == "")
     }
 
+    @Test func theUnknownKindIsRefused() throws {
+        // .unknown only reads a kind from a newer app version; it is never written.
+        #expect(throws: RepositoryError.invalidMaintenance(.unknownKind)) {
+            try balls.logMaintenance(.unknown, date: Self.day(1), surfaceGritAfter: "2000 Abralon", notes: "", for: ballID)
+        }
+        #expect(try balls.maintenance(for: ballID).events.isEmpty)
+        #expect(try store.context.ball(ballID).surfaceGrit == "")
+    }
+
     @Test func emptyGritLeavesTheSurfaceAlone() throws {
         try store.context.ball(ballID).surfaceGrit = "3000 polished"
         _ = try balls.logMaintenance(.oilExtraction, date: Self.day(1), surfaceGritAfter: "", notes: "", for: ballID)

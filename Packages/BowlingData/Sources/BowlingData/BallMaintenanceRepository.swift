@@ -21,12 +21,13 @@ extension BallRepository {
     /// before it, as `GameConversion` dates a game), so a back-dated event matches when it
     /// happened. `date` is a full timestamp, now by default. A non-empty grit becomes the
     /// ball's current surface unless another event with a grit is dated later.
-    /// - Throws: `.invalidMaintenance(.dateInFuture)` for a date after now, `.notFound` for
-    ///   an unknown ball.
+    /// - Throws: `.invalidMaintenance(.dateInFuture)` for a date after now,
+    ///   `.invalidMaintenance(.unknownKind)` for `.unknown`, `.notFound` for an unknown ball.
     public func logMaintenance(
         _ kind: MaintenanceKind, date: Date = .now, surfaceGritAfter: String, notes: String, for ballID: BallID
     ) throws -> MaintenanceRecord {
         guard date <= .now else { throw RepositoryError.invalidMaintenance(.dateInFuture) }
+        guard kind != .unknown else { throw RepositoryError.invalidMaintenance(.unknownKind) }
         return try context.write {
             let ball = try context.ball(ballID)
             let isLatestGrit = (ball.maintenance ?? []).allSatisfy { $0.surfaceGritAfter.isEmpty || $0.date <= date }

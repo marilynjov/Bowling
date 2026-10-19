@@ -423,7 +423,8 @@ extension BallRepository {
     /// Snapshots the games with session date <= `date`, so a back-dated event matches
     /// when it happened; a non-empty grit becomes the ball's current surface (§3.2)
     /// unless another event with a grit is dated later.
-    /// Throws .invalidMaintenance(.dateInFuture) for a date after now, or .notFound.
+    /// Throws .invalidMaintenance(.dateInFuture) for a date after now,
+    /// .invalidMaintenance(.unknownKind) for .unknown, or .notFound.
     public func logMaintenance(_ kind: MaintenanceKind, date: Date = .now, surfaceGritAfter: String,
                                notes: String, for ball: BallID) throws -> MaintenanceRecord
 }
@@ -452,6 +453,8 @@ Rules:
 - `logMaintenance` refuses a date after now with `.invalidMaintenance(.dateInFuture)`:
   a future resurface would be the latest and hold games since resurface at 0. The app's
   `ErrorText` needs a message for it.
+- `logMaintenance(.unknown, ...)` throws `.invalidMaintenance(.unknownKind)`: `.unknown`
+  only reads a kind from a newer app version, so the picker leaves it out.
 
 ## 3. Repositories (BowlingData)
 
@@ -482,13 +485,13 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
-    case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future-dated events
+    case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future date, no .unknown kind
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
-public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture }
+public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None

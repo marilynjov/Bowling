@@ -14,6 +14,7 @@ import Testing
         (.invalidBall(.weightOutOfRange), "Ball weight must be 6 to 16 pounds."),
         (.invalidBowler(.emptyName), "Enter a name."),
         (.invalidMaintenance(.dateInFuture), "The maintenance date can't be in the future."),
+        (.invalidMaintenance(.unknownKind), "Choose a maintenance type."),
         (.notFinalOnly, "This game is scored from its rolls, so its score can't be typed."),
     ])
     func everyRepositoryErrorHasText(error: RepositoryError, text: String) {

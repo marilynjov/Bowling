@@ -28,6 +28,8 @@ public enum BallFieldError: Sendable, Hashable {
 public enum MaintenanceFieldError: Sendable, Hashable {
     /// A future resurface would be the latest and hold games since resurface at 0.
     case dateInFuture
+    /// `.unknown` reads a kind from a newer app version; the app never writes it.
+    case unknownKind
 }
 
 public enum BowlerFieldError: Sendable, Hashable {
