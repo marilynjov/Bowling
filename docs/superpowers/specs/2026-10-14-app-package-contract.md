@@ -826,7 +826,8 @@ starts.
   center, league, pattern IDs.
 - `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
   by-frame, what-if (§6).
-- Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
+- ~~Leave occurrences: date, session, frame number, ball on the spare attempt (§6).~~
+  Pinned below in "Leave occurrences (1b, #40)".
 - `BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
   `compareBalls(games:)` (§6 "Ball report").
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
