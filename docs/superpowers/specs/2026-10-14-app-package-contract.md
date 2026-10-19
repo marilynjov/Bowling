@@ -1087,8 +1087,8 @@ starts.
 
 - ~~`StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
   center, league, pattern IDs.~~ Pinned in sections 4.1 and 2.5 (#41).
-- `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
-  by-frame, what-if (§6).
+- ~~`StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
+  by-frame, what-if (§6).~~ Pinned in section 6.2 (#39).
 - Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
 - ~~`BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
   `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
@@ -1136,6 +1136,47 @@ reordered, so phase 3 can re-import by UUID. Photos are not exported.
 Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
 them as formulas; this is accepted for now and tracked in
 [#86](https://github.com/marilynjov/Bowling/issues/86).
+
+### 6.2 StatsReport 1b fields (1b, §6 "Definitions (1b)", #39)
+
+Added to `StatsReport` with default values, so its 1a initializer is unchanged;
+`StatsEngine.report(games:filter:)` always fills them.
+
+```swift
+extension StatsReport {   // stored properties on the struct
+    public var openFrames: Rate                    // frames with no strike or spare / frames (rollGames)
+    public var cleanGames: Rate                    // games with no open frame / rollGames
+    public var firstBallAverage: Mean              // pins / firstBalls; a foul counts 0 (rollGames)
+    public var headPin: Rate                       // pin 1 down / first balls that were not fouls (pinGames)
+    public var byFrame: [FrameStats]               // always 10 rows, frames 1...10 (rollGames)
+    public var whatIfSinglePins: WhatIfSinglePins  // pinGames
+}
+
+public struct FrameStats: Sendable, Hashable, Codable {
+    public var frameIndex: Int                     // 1...10
+    public var strikes: Rate                       // strikes on roll 1 / games
+    public var pins: Mean                          // first-rack pins per game: ball 1, plus ball 2
+                                                   // unless ball 1 was a strike; frame 10's fill
+                                                   // balls are left out, like a bonus
+}
+
+public struct WhatIfSinglePins: Sendable, Hashable, Codable {
+    public var actual: Mean                        // real average of the pinByPin games
+    public var allMade: Mean                       // same games, missed single pins made, rescored
+    public var rewritten: Int                      // missed single-pin leaves rewritten
+    public var difference: Double? { get }         // allMade - actual per game; nil with no games
+}
+```
+
+Rules:
+
+- A frame is open when none of its marks is a strike or a spare. Frame 10 gets a fill
+  ball only after one of them, so "X 10 -" is not open and "4 -" is.
+- The what-if rewrites the second ball of every missed single-pin spare attempt to knock
+  the pin down and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball
+  of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
+  are not rewritten.
+- `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
 
 ## 7. What the app may not do
 
