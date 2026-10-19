@@ -33,7 +33,7 @@ public final class GameRepository {
 
     /// Before frame 10 is finished the cached score is the last known running total, so
     /// History shows a partial game's progress instead of 0.
-    private static func scored(_ record: GameRecord) -> GameRecord {
+    static func scored(_ record: GameRecord) -> GameRecord {
         guard record.entryMode != .finalOnly else { return record }
         var scored = record
         scored.finalScore = Scorer.scorecard(for: record).frames.compactMap(\.runningTotal).last ?? 0

@@ -19,7 +19,7 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
 
 @MainActor
 public final class BowlerRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context

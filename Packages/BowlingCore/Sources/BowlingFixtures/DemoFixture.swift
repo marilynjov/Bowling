@@ -160,7 +160,7 @@ public enum DemoGame: Int, CaseIterable, Sendable {
 }
 
 /// A readable fixed UUID: the prefix names the kind, the suffix is the raw value.
-private func fixtureID(prefix: String, _ number: Int) -> UUID {
+func fixtureID(prefix: String, _ number: Int) -> UUID {
     let suffix = String(number, radix: 16, uppercase: true)
     let tail = String(repeating: "0", count: 12 - suffix.count) + suffix
     return UUID(uuidString: "\(prefix)000000-0000-0000-0000-\(tail)")!

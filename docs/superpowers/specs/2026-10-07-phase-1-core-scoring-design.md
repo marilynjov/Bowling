@@ -353,7 +353,9 @@ so the design handles them now:
   with the same `rollIndex` in one frame. After every remote import the repository keeps
   the row with the newest `updatedAt` per index (ties broken by smaller UUID string),
   deletes the others, and rescores the game. Repair runs before validation, so a synced
-  game is never left unsaveable.
+  game is never left unsaveable. If the kept rows do not form a valid game, rolls are
+  cleared from the first one that no longer fits, even when later frames were really
+  rolled, so every device ends with the same valid game.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 

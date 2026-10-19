@@ -5,24 +5,17 @@ import SwiftData
 /// The games Stats is computed from (spec §6 "Filters", "Default scope").
 @MainActor
 public final class StatsRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context
     }
 
     /// Applies the filter in the store and returns games for `StatsEngine`, of every
-    /// completion state, sorted by session date then game index. `thisSeason` is the last
-    /// nine months, since 1a has no league filter.
+    /// completion state, sorted by session date then game index. `thisSeason` uses the
+    /// filter league's `seasonStart` and `seasonEnd` when both are set, else nine months.
     public func games(matching filter: StatsFilter, now: Date, calendar: Calendar) -> [GameRecord] {
-        games(matching: filter, seasonLeague: nil, now: now, calendar: calendar)
-    }
-
-    /// - Parameter seasonLeague: The league whose `seasonStart` and `seasonEnd` `thisSeason`
-    ///   uses when both are set. It does not restrict games to that league; in 1b it becomes
-    ///   the filter's league.
-    public func games(matching filter: StatsFilter, seasonLeague: LeagueID?, now: Date, calendar: Calendar) -> [GameRecord] {
-        let season = seasonLeague.flatMap(leagueSeason)
+        let season = filter.leagueID.flatMap(leagueSeason)
         let interval = filter.dateInterval(now: now, calendar: calendar, leagueSeason: season)
         let descriptor = FetchDescriptor<Game>(predicate: Self.predicate(for: filter, in: interval))
         // Sorted after conversion: the key spans Game and Session, and the result is small.
@@ -54,10 +47,10 @@ public final class StatsRepository {
         return DateInterval(start: start, end: end)
     }
 
-    /// Bowler, date range, and event types, all in the store; 1a needs no in-memory pass.
-    /// Games without a session or bowler never match, having no date or owner. Event types
-    /// compare stored raw strings: a value this version does not know reads as `.unknown`,
-    /// so it matches when `.unknown` is selected, which "All games" always does.
+    /// Every field in the store, so no in-memory pass is needed. Games without a session
+    /// or bowler never match, having no date or owner. Event types compare stored raw
+    /// strings: a value this version does not know reads as `.unknown`, so it matches when
+    /// `.unknown` is selected, which "All games" always does.
     static func predicate(for filter: StatsFilter, in interval: DateInterval?) -> Predicate<Game> {
         let bowlerID = filter.bowlerID
         let start = interval?.start ?? .distantPast
@@ -65,7 +58,11 @@ public final class StatsRepository {
         let selected = filter.eventTypes.filter { $0 != .unknown }.map(\.rawValue)
         let known = BowlingCore.EventType.allCases.filter { $0 != .unknown }.map(\.rawValue)
         let includesUnknown = filter.eventTypes.contains(.unknown)
-        return #Predicate<Game> { game in
+        // #Predicate cannot test a captured optional for nil, so "any" travels as a Bool.
+        let anyCenter = filter.centerID == nil, centerID = filter.centerID ?? UUID()
+        let anyLeague = filter.leagueID == nil, leagueID = filter.leagueID ?? UUID()
+        let anyPattern = filter.oilPatternID == nil, patternID = filter.oilPatternID ?? UUID()
+        let session = #Predicate<Game> { game in
             game.bowler?.id == bowlerID
                 && game.session.flatMap { session in
                     session.date >= start && session.date < end
@@ -73,5 +70,23 @@ public final class StatsRepository {
                             || (includesUnknown && !known.contains(session.eventType)))
                 } == true
         }
+        // Split from `session` only so the compiler can type-check each in time.
+        let places = #Predicate<Game> { game in
+            game.session.flatMap { session in
+                (anyCenter || session.center?.id == centerID)
+                    && (anyLeague || session.league?.id == leagueID)
+                    && (anyPattern || session.oilPattern?.id == patternID)
+            } == true
+        }
+        let anyBall = filter.ballID == nil, ballID = filter.ballID ?? UUID()
+        let ball = #Predicate<Game> { game in
+            anyBall || game.defaultBall?.id == ballID
+                || game.frames.flatMap { frames in
+                    frames.contains { frame in
+                        frame.rolls.flatMap { rolls in rolls.contains { $0.ball?.id == ballID } } == true
+                    }
+                } == true
+        }
+        return #Predicate<Game> { session.evaluate($0) && places.evaluate($0) && ball.evaluate($0) }
     }
 }

@@ -140,6 +140,20 @@ public struct StatsReport: Sendable, Hashable, Codable {
     /// times; nil when none of them was missed.
     public var leftMostMadeLeast: LeaveRow?
 
+    // 1b (§6 "Definitions (1b)"). Defaulted rather than taken by `init`, so the 1a
+    // initializer stays as it is; `StatsEngine.report` always sets them.
+    /// Frames with neither a strike nor a spare over frames, over rollGames.
+    public var openFrames = Rate(hits: 0, attempts: 0)
+    /// Games with no open frame over rollGames.
+    public var cleanGames = Rate(hits: 0, attempts: 0)
+    /// Pins per first ball over `firstBalls`, a foul counting 0.
+    public var firstBallAverage = Mean(total: 0, count: 0)
+    /// First balls with pin 1 down over first balls that were not fouls, over pinGames.
+    public var headPin = Rate(hits: 0, attempts: 0)
+    /// Always ten rows, frames 1...10, over rollGames.
+    public var byFrame = FrameStats.none
+    public var whatIfSinglePins = WhatIfSinglePins.none
+
     public init(
         filter: StatsFilter, scoreGames: Int, rollGames: Int, pinGames: Int,
         average: Mean, averageLast10: Mean, averageLast30: Mean, highGame: HighGame?,

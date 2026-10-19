@@ -17,7 +17,7 @@ public struct BallSummary: Sendable, Hashable, Identifiable {
 public final class BallRepository {
     static let weightRange = 6...16
 
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context

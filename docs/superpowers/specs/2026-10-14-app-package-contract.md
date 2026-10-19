@@ -198,10 +198,11 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     public var sessionDate: Date                   // trend, date filters
     public var eventType: EventType                // competition default scope
 
-    // 1b, added when the 1b filters and ball report land (§6 Filters, By condition):
-    // public var centerID: CenterID?
-    // public var leagueID: LeagueID?
-    // public var oilPatternID: OilPatternID?
+    // 1b (#41, #38): the session's center, league, and pattern, for the filters and
+    // the ball report's "By condition" (§6).
+    public var centerID: CenterID?
+    public var leagueID: LeagueID?
+    public var oilPatternID: OilPatternID?
 
     /// Public because Swift's memberwise init is internal and other packages
     /// (BowlingData, fixtures, tests) must build games (#17, PR #52).
@@ -209,7 +210,8 @@ public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
         id: GameID = GameID(), bowlerID: BowlerID? = nil, gameIndex: Int,
         entryMode: EntryMode, defaultBallID: BallID? = nil, finalScore: Int,
         isComplete: Bool, frames: [FrameRecord] = [],
-        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType
+        sessionID: SessionID? = nil, sessionDate: Date, eventType: EventType,
+        centerID: CenterID? = nil, leagueID: LeagueID? = nil, oilPatternID: OilPatternID? = nil
     )
 }
 ```
@@ -336,7 +338,7 @@ public enum StatsEngine {
     /// store-backed version (section 3.7).
     public static func defaultEventTypes(games: [GameRecord], bowler: BowlerID,
                                          preferCompetition: Bool) -> Set<EventType>
-    // 1b: ballReport(for:games:) -> BallReport, compareBalls(games:) -> [BallComparisonRow]
+    // 1b: ballReport(for:games:maintenance:), compareBalls(_:games:), section 2.9
 }
 ```
 
@@ -345,6 +347,139 @@ public enum StatsEngine {
 repositories refuse invalid games. `outOfOrder` also covers an index out of range or
 skipped, rolls after an unfinished frame, and a roll after a spare or open in frames 1
 to 9.
+
+### 2.9 Maintenance and ball report (1b, §3.2 MaintenanceEvent, §6 "Ball report", #38, #42)
+
+**Contract change, both developers review.** The spec's `ballReport(for:games:)` and
+`compareBalls(games:)` gain one parameter each, because `[GameRecord]` cannot tell the
+engine a ball's maintenance log or which balls are retired.
+
+```swift
+public typealias MaintenanceEventID = UUID
+
+public enum MaintenanceKind: String, Sendable, Hashable, Codable, CaseIterable {
+    case resurface, polish, oilExtraction, plugAndRedrill, other, unknown
+}
+
+public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
+    public var id: MaintenanceEventID
+    public var date: Date                          // full timestamp, not a day
+    public var kind: MaintenanceKind
+    public var surfaceGritAfter: String
+    public var gamesOnBallAtTime: Int              // games with session date <= date (§3.2)
+    public var notes: String
+}
+
+/// §3.2 derived values, over every game the ball was used in (not the stats filter).
+public struct BallMaintenance: Sendable, Hashable {
+    public var gamesBowled: Int                    // default or any roll override, once per game
+    public var gamesSinceResurface: Int            // games strictly after the latest resurface
+    public var lastResurface: Date?                // nil: never resurfaced, counts since purchase
+    public var resurfaceIntervalGames: Int?
+    public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
+    public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
+    public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
+                resurfaceIntervalGames: Int?)
+}
+
+extension GameRecord {
+    public func uses(_ ball: BallID) -> Bool       // default ball or any roll override
+}
+
+public struct BallReport: Sendable, Hashable {
+    public var ballID: BallID
+    // Usage, over complete games in the filter that use the ball
+    public var gamesBowled: Int
+    public var firstBalls: Int
+    public var spareAttempts: Int                  // second roll thrown with the ball
+    public var firstUsed: Date?
+    public var lastUsed: Date?
+    public var maintenance: BallMaintenance
+    // As a strike ball, over first balls thrown with it
+    public var strikes: Rate
+    public var firstBallAverage: Mean              // a foul counts as 0
+    public var headPin: Rate                       // pinByPin, fouls excluded
+    public var averageAsMainBall: Mean             // games with it as the default ball
+    // As a spare ball, over spare attempts thrown with it
+    public var spares: Rate
+    public var singlePinConversion: Rate
+    public var splitConversion: Rate
+    public var leaves: [LeaveRow]                  // same order as StatsReport.leaves
+    // By condition
+    public var byOilPattern: [ConditionRow]
+    public var byCenter: [ConditionRow]
+    // Over time
+    public var overTime: [BallTrendPoint]          // one per session with a first ball, oldest first
+}
+
+public struct ConditionRow: Sendable, Hashable, Codable {
+    public var id: UUID?                           // pattern or center; nil = "Other"
+    public var strikes: Rate
+    public var firstBallAverage: Mean
+}
+
+public struct BallTrendPoint: Sendable, Hashable, Codable {
+    public var sessionID: SessionID?
+    public var date: Date
+    public var strikes: Rate
+}
+
+public struct BallComparisonRow: Sendable, Hashable, Codable, Identifiable {
+    public var ballID: BallID
+    public var id: BallID { get }                  // ballID, for Compare's Table
+    public var gamesBowled: Int
+    public var averageAsMainBall: Mean
+    public var strikes: Rate
+    public var firstBallAverage: Mean
+    public var spares: Rate
+}
+
+extension StatsEngine {
+    /// `games` already filtered; `maintenance` from `BallRepository.maintenance(for:)`.
+    public static func ballReport(for ball: BallID, games: [GameRecord],
+                                  maintenance: BallMaintenance) -> BallReport
+    /// One row per ball, in the order given; the app passes `activeBalls()` IDs.
+    public static func compareBalls(_ balls: [BallID], games: [GameRecord]) -> [BallComparisonRow]
+}
+
+extension BallRepository {
+    /// Throws .notFound.
+    public func maintenance(for ball: BallID) throws -> BallMaintenance
+    /// Snapshots the games with session date <= `date`, so a back-dated event matches
+    /// when it happened; a non-empty grit becomes the ball's current surface (§3.2)
+    /// unless another event with a grit is dated later.
+    /// Throws .invalidMaintenance(.dateInFuture) for a date after now,
+    /// .invalidMaintenance(.unknownKind) for .unknown, or .notFound.
+    public func logMaintenance(_ kind: MaintenanceKind, date: Date = .now, surfaceGritAfter: String,
+                               notes: String, for ball: BallID) throws -> MaintenanceRecord
+}
+```
+
+Rules:
+
+- Every roll counts for its override ball, else the game's default ball (§6). A spare
+  attempt belongs to the ball that threw the second roll, at the leave.
+- A pattern or center with fewer than 10 first balls with the ball, and games with no
+  pattern or center recorded, are summed into the "Other" row (`id == nil`), listed last
+  and only when it has first balls. Shown rows: most first balls first, ties by UUID.
+- The app reads names for `ConditionRow.id` from `SessionRepository.centers()` and
+  `oilPatterns()`.
+- The ball detail calls `stats.games(matching:)`, `balls.maintenance(for:)`, then
+  `StatsEngine.ballReport`. Compare calls `StatsEngine.compareBalls` with
+  `balls.activeBalls()` IDs.
+- The ball detail's recent games are the last ten of the same `stats.games(matching:)`
+  result filtered with `uses(_:)` (`suffix(10)`, since it is sorted oldest first), so
+  the list follows the filter. `BallReport` does not carry them.
+- `GameRecord.centerID`, `leagueID`, and `oilPatternID` (section 2.5) are filled by the
+  repository from the game's session.
+- A maintenance date is a full timestamp; `logMaintenance` defaults it to now. On the
+  day of a session, a resurface before the session's start time counts that session's
+  games as since the resurface; one after it does not.
+- `logMaintenance` refuses a date after now with `.invalidMaintenance(.dateInFuture)`:
+  a future resurface would be the latest and hold games since resurface at 0. The app's
+  `ErrorText` needs a message for it.
+- `logMaintenance(.unknown, ...)` throws `.invalidMaintenance(.unknownKind)`: `.unknown`
+  only reads a kind from a newer app version, so the picker leaves it out.
 
 ## 3. Repositories (BowlingData)
 
@@ -380,11 +515,13 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
+    case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future date, no .unknown kind
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
+public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None
@@ -604,7 +741,17 @@ Rules:
     /// §3.3: .cannotDeleteOwner, .bowlerHasGames(count:).
     public func deleteBowler(_ id: BowlerID) throws
 
-    // 1b: setStatsLayout(_:), setHomeLayout(_:), resetLayouts() (§7 Customize).
+    // 1b, §7 Customize (#46). Each throws .notFound without an owner and touches
+    // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave)
+    // and stores "" when the result equals the profile's preset (§4.3);
+    // a reset clears the stored layout, unknown IDs included.
+    public func setStatsLayout(_ cards: [StatsCardID]) throws
+    public func setHomeLayout(_ cards: [StatsCardID]) throws
+    /// "Reset to preset" on Stats or Home: clears that surface only.
+    public func resetStatsLayout() throws
+    public func resetHomeLayout() throws
+    /// Clears both, when the user accepts the new preset after a bowling style change.
+    public func resetLayouts() throws
 }
 ```
 
@@ -624,8 +771,10 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
     public func addBall(name: String, weightPounds: Int,
                         intendedRole: BallRole, brand: String) throws -> BallSummary
 
-    // 1b: full add/edit form, photo, retire, delete with affected-game count (§3.3),
-    // maintenance log, resurface due, ballReport, compare.
+    // 1b: maintenance(for:), logMaintenance(_:date:surfaceGritAfter:notes:for:),
+    // section 2.9.
+    // 1b, not yet pinned: full add/edit form, photo, retire, delete with affected-game
+    // count (§3.3).
 }
 ```
 
@@ -633,16 +782,12 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
 
 ```swift
 @MainActor public final class StatsRepository {
-    /// Applies the filter as a SwiftData predicate (1a needs no in-memory pass, §6) and
-    /// returns games of every completion state for StatsEngine, sorted by sessionDate,
-    /// then gameIndex. thisSeason is the last nine months. Games with no session or no
-    /// bowler never match.
+    /// Applies the filter as a SwiftData predicate (no in-memory pass, §6) and returns
+    /// games of every completion state for StatsEngine, sorted by sessionDate, then
+    /// gameIndex. 1b (#41): thisSeason uses `filter.leagueID`'s seasonStart and seasonEnd
+    /// when both are set and in order, otherwise the last nine months. Games with no
+    /// session or no bowler never match.
     public func games(matching filter: StatsFilter, now: Date, calendar: Calendar) -> [GameRecord]
-    /// seasonLeague: the league whose seasonStart and seasonEnd thisSeason uses when both
-    /// are set and in order. It does not restrict games to that league; in 1b it becomes
-    /// the filter's league.
-    public func games(matching filter: StatsFilter, seasonLeague: LeagueID?,
-                      now: Date, calendar: Calendar) -> [GameRecord]
     /// §6 "Default scope": EventType.competition when the bowler has at least one
     /// complete league or tournament game and `preferCompetition` is true; otherwise
     /// every event type, `.unknown` included. The app passes the owner's explicit `statsScope` as
@@ -657,7 +802,7 @@ stored as `Bowler.statsScope` (OQ-14).
 
 ## 4. Stats (1a)
 
-### 4.1 StatsFilter (§6 "Filters")
+### 4.1 StatsFilter (§6 "Filters"; 1b fields #41)
 
 ```swift
 public enum DatePreset: String, Sendable, Hashable, Codable, CaseIterable {
@@ -669,22 +814,30 @@ public struct StatsFilter: Sendable, Hashable, Codable {
     /// "All games" is every case, `.unknown` included; "Competition" is EventType.competition.
     public var eventTypes: Set<EventType>
     public var bowlerID: BowlerID                  // OQ-15
-    // 1b: customRange: ClosedRange<Date>?, ballID, oilPatternID, centerID, leagueID
 
-    public init(datePreset: DatePreset = .allTime,
-                eventTypes: Set<EventType> = Set(EventType.allCases),
-                bowlerID: BowlerID)
+    // 1b (#41). nil means any; all fields combine with AND.
+    public var customRange: ClosedRange<Date>?     // calendar days, end day included; replaces datePreset
+    public var ballID: BallID?                     // game's default ball OR any roll override (§6)
+    public var oilPatternID: OilPatternID?         // the session's pattern
+    public var centerID: CenterID?                 // the session's center
+    public var leagueID: LeagueID?                 // the session's league; also thisSeason's dates
 
-    /// Resolves the preset by calendar day in `calendar`'s time zone (§8). Half-open:
-    /// start <= date < end; nil = all time. In 1a there is no league filter, so
-    /// thisSeason is always the last 9 months (§6).
+    public init(
+        datePreset: DatePreset = .allTime, eventTypes: Set<EventType> = Set(EventType.allCases),
+        customRange: ClosedRange<Date>? = nil, bowlerID: BowlerID, ballID: BallID? = nil,
+        oilPatternID: OilPatternID? = nil, centerID: CenterID? = nil, leagueID: LeagueID? = nil
+    )
+
+    /// Resolves the dates by calendar day in `calendar`'s time zone (§8). Half-open:
+    /// start <= date < end; nil = all time. thisSeason is the last 9 months (§6).
     public func dateInterval(now: Date, calendar: Calendar) -> DateInterval?
-    /// leagueSeason: the league's seasonStart and seasonEnd, when both exist. thisSeason
-    /// then covers those calendar days, the end day included. Other presets ignore it.
+    /// leagueSeason: the seasonStart and seasonEnd of `leagueID`'s league, when both exist;
+    /// StatsRepository looks it up. thisSeason then covers those calendar days, the end
+    /// day included. Other presets and a custom range ignore it.
     public func dateInterval(now: Date, calendar: Calendar,
                              leagueSeason: DateInterval?) -> DateInterval?
-    /// The in-memory form of the filter: bowler, event type, and date. Incomplete games
-    /// match too; StatsEngine excludes them.
+    /// The in-memory form of the repository's predicate, for callers holding GameRecords.
+    /// Incomplete games match too; StatsEngine excludes them.
     public func matches(_ game: GameRecord, now: Date, calendar: Calendar,
                         leagueSeason: DateInterval? = nil) -> Bool
 }
@@ -692,6 +845,16 @@ public struct StatsFilter: Sendable, Hashable, Codable {
 
 `DatePreset` raw values are persisted with a saved filter, so the stable raw value rule
 (section 1, rule 7) applies to them.
+
+1b rules (#41):
+
+- A filter saved by 1a decodes with every 1b field nil.
+- `customRange` is stored as instants and resolved with the reader's calendar, so a saved
+  filter opened in another time zone can shift by a day. Accepted for now.
+- League filters match the session's league, whatever its event type; pair it with
+  `eventTypes` to also require league sessions.
+- The 1a-only `StatsRepository.games(matching:seasonLeague:now:calendar:)` overload is
+  removed: the league that gives thisSeason its dates is now `filter.leagueID`.
 
 ### 4.2 StatsReport (§6 "Definitions (1a)")
 
@@ -838,6 +1001,9 @@ public enum StatsPreset {
     /// the right preset (#54).
     public static func displayedStatsCards(layout: [String], profile: StatsProfile) -> [StatsCardID]
     public static func displayedHomeTiles(layout: [String], profile: StatsProfile) -> [StatsCardID]
+    /// 1b (#46): the raw layout to store after Customize. BowlerRepository calls it; the
+    /// app does not need to.
+    public static func layoutToSave(_ cards: [StatsCardID], replacing previous: [String]) -> [String]
 }
 ```
 
@@ -849,7 +1015,22 @@ Rules:
 - In 1a the league preset omits `openPct` until 1b ships (§7).
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
-- Saving a layout (1b) keeps unknown IDs (§7).
+- Saving a layout (1b) keeps unknown IDs (§7). "Unknown" means any stored ID this build
+  cannot show: not a `StatsCardID`, or a card whose `isAvailable` is false. Each one stays
+  right after the shown card it followed, or after the nearest earlier card still in the
+  layout, or first if none came before it (#46).
+- Display (1b, #46) lists each card once, first occurrence wins. A layout with no card
+  this build can show displays the preset, so Stats and Home are never blank. Saving an
+  empty list with no unknown IDs stores "", which is the preset: an empty save means
+  "use the preset", not "show nothing". The app disables Save while the list is empty,
+  so a user who wants the preset uses "Reset to preset".
+- Saving a layout identical to the owner's current preset for that surface (`statsCards`
+  for Stats, `homeTiles` for Home) stores "", not an explicit list, so the owner keeps
+  following the preset and gets cards added to it later. Any edit is stored as given.
+  BowlerRepository applies this rule (#46).
+- A surface is customized when its stored layout is not "". A layout holding only
+  unknown IDs from a newer device counts as customized on purpose: it displays the
+  preset here, but a save keeps those IDs, so the newer device's layout survives (#46).
 - `StatsCardID` has no `.unknown` case: layouts are stored as raw strings and unknown
   IDs are skipped on display, so no fallback case is needed.
 
@@ -932,17 +1113,19 @@ The app links `BowlingFixtures` for previews only (#65).
 Listed so nobody builds against a guess. Each gets its own contract PR before 1b work
 starts.
 
-- `StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
-  center, league, pattern IDs.
-- `StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
-  by-frame, what-if (§6).
-- Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
-- `BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
-  `compareBalls(games:)` (§6 "Ball report").
+- ~~`StatsFilter` custom range, ball, oil pattern, center, league (§6); `GameRecord`
+  center, league, pattern IDs.~~ Pinned in sections 4.1 and 2.5 (#41).
+- ~~`StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
+  by-frame, what-if (§6).~~ Pinned in section 6.2 (#39).
+- ~~Leave occurrences: date, session, frame number, ball on the spare attempt (§6).~~
+  Pinned in section 6.3 (#40).
+- ~~`BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
+  `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
   affected-game count, resurface due (§3.2, §7 Arsenal 1b).
-- Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
-  `displayedStatsCards` and `displayedHomeTiles` (section 4.3).
+- ~~Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
+  `displayedStatsCards` and `displayedHomeTiles` (section 4.3).~~ Pinned in sections 3.5
+  and 4.3 (#46).
 - Ball, center, league, pattern delete warnings (§3.3).
 - CSV export (§7 Settings 1b): pinned in section 6.1.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
@@ -983,6 +1166,87 @@ reordered, so phase 3 can re-import by UUID. Photos are not exported.
 Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
 them as formulas; this is accepted for now and tracked in
 [#86](https://github.com/marilynjov/Bowling/issues/86).
+
+### 6.2 StatsReport 1b fields (1b, §6 "Definitions (1b)", #39)
+
+Added to `StatsReport` with default values, so its 1a initializer is unchanged;
+`StatsEngine.report(games:filter:)` always fills them.
+
+```swift
+extension StatsReport {   // stored properties on the struct
+    public var openFrames: Rate                    // frames with no strike or spare / frames (rollGames)
+    public var cleanGames: Rate                    // games with no open frame / rollGames
+    public var firstBallAverage: Mean              // pins / firstBalls; a foul counts 0 (rollGames)
+    public var headPin: Rate                       // pin 1 down / first balls that were not fouls (pinGames)
+    public var byFrame: [FrameStats]               // always 10 rows, frames 1...10 (rollGames)
+    public var whatIfSinglePins: WhatIfSinglePins  // pinGames
+}
+
+public struct FrameStats: Sendable, Hashable, Codable {
+    public var frameIndex: Int                     // 1...10
+    public var strikes: Rate                       // strikes on roll 1 / games
+    public var pins: Mean                          // first-rack pins per game: ball 1, plus ball 2
+                                                   // unless ball 1 was a strike; frame 10's fill
+                                                   // balls are left out, like a bonus
+}
+
+public struct WhatIfSinglePins: Sendable, Hashable, Codable {
+    public var actual: Mean                        // real average of the pinByPin games
+    public var allMade: Mean                       // same games, missed single pins made, rescored
+    public var rewritten: Int                      // missed single-pin leaves rewritten
+    public var difference: Double? { get }         // allMade - actual per game; nil with no games
+}
+```
+
+Rules:
+
+- A frame is open when none of its marks is a strike or a spare. Frame 10 gets a fill
+  ball only after one of them, so "X 10 -" is not open and "4 -" is.
+- The what-if rewrites the second ball of every missed single-pin spare attempt to knock
+  the pin down and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball
+  of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
+  are not rewritten.
+- `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
+
+### 6.3 Leave occurrences (1b, §6 "Definitions (1b)", #40)
+
+Pinned by #40; needs review by both developers.
+
+```swift
+/// One spare attempt at a leave, addressed by game ID plus frame index (OQ-7).
+public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
+    public struct ID: Sendable, Hashable, Codable { public var gameID: GameID; public var frameIndex: Int }
+    public var id: ID { get }          // game ID plus frame index (OQ-7)
+    public var game: GameRef           // game ID, session ID, session date
+    public var gameIndex: Int
+    public var frameIndex: Int         // 1...10; a frame holds at most one spare attempt
+    public var ballID: BallID?         // spare roll's override, else the game's default ball
+    public var isConverted: Bool
+}
+
+extension StatsEngine {
+    /// Complete pinByPin games only, like the leaves table; matches on `leave.pins`.
+    /// Newest first: session date, session, game index, frame, all descending. Sessions
+    /// on the same date keep their order in `games`, a later one being newer.
+    public static func leaveOccurrences(of leave: Leave, games: [GameRecord]) -> [LeaveOccurrence]
+}
+
+extension StatsRepository {
+    /// Same games as games(matching:now:calendar:), then the engine, with
+    /// same-date sessions in History's order (date, then createdAt, newest first).
+    public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter,
+                                 now: Date, calendar: Calendar) -> [LeaveOccurrence]
+}
+```
+
+Rules:
+
+- The app passes the `LeaveRow.leave` it was tapped from and the same filter as the
+  report, so the list's count equals the row's count.
+- Occurrences after a first-ball foul do not exist (no leave, §5), and a frame 10 fill
+  ball is not a spare attempt, so its leave is never listed.
+- The app shows the session from `game.sessionID` and the ball name from `ballID` via
+  the existing read models; it does not re-sort the list.
 
 ## 7. What the app may not do
 
