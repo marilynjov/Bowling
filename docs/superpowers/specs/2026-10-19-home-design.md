@@ -27,7 +27,7 @@ Top to bottom:
 - Tapping it opens Scoring on the **resume target**: the first incomplete game in the
   session, taking bowlers in lineup order and each bowler's games by `gameIndex`
   (the order `SessionSummary.games` is already in).
-- Frame shown is the number of frames with at least one roll, plus one, capped at 10.
+- The frame is `Scorer.nextRoll(in:)`'s frame, shown once the game has at least one roll.
 
 ### 2. Start session and Quick score
 
@@ -54,12 +54,13 @@ Top to bottom:
   - The report is `StatsEngine.report` over `games(matching: StatsFilter(datePreset:
     .allTime, eventTypes:, bowlerID: owner.id))`.
 - **Average:** when the scope's event types are exactly `EventType.competition`, the
-  tile shows the competition average, and beneath it "All games 168" from a second
-  report over every event type. Otherwise it shows that report's average alone.
+  tile shows the competition average, and its sample line reads "24 games · All games
+  168", the second figure from a report over every event type. Otherwise it shows that
+  report's average and game count alone.
 - **High game:** the score, sample line "<n> games". **High series:** the 3-game series
   (`highSeries.first { $0.gameCount == 3 }`). **Strike %, Spare %:** the rate init, with
   its bar. **Fouls:** per game, from the `fouls` mean.
-- **No games:** each tile shows "–" and "0 games" (what `StatFormat` already does).
+- **No games:** each tile shows "–" and "No games yet" (what `StatFormat` already does).
 
 ### 4. Recent sessions
 
@@ -119,7 +120,7 @@ On the iPhone 18 Pro Max test simulator, against an in-memory store.
   - A saved scope of "All games" never shows the line.
   - A casual bowler with no saved scope uses all games.
   - Unknown and non-tile card IDs in a custom layout are skipped.
-  - With no games, every tile is "–" with "0 games".
+  - With no games, every tile is "–" with "No games yet".
   - High series uses the 3-game series.
 - **HomeDataTests:**
   - At most 3 recent rows, newest first.
