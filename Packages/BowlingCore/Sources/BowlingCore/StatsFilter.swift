@@ -12,7 +12,8 @@ public struct StatsFilter: Sendable, Hashable, Codable {
     public var datePreset: DatePreset
     /// "All games" is every case, `.unknown` included; "Competition" is `EventType.competition`.
     public var eventTypes: Set<EventType>
-    /// Calendar days, both ends included. Replaces `datePreset` when set.
+    /// Calendar days, both ends included. Replaces `datePreset` when set. Building a
+    /// `ClosedRange` with start > end traps, so the date pickers clamp start <= end.
     public var customRange: ClosedRange<Date>?
     public var bowlerID: BowlerID
     /// Matches a game whose default ball or any roll override is this ball.
