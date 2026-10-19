@@ -1089,7 +1089,8 @@ starts.
   center, league, pattern IDs.~~ Pinned in sections 4.1 and 2.5 (#41).
 - ~~`StatsReport` 1b fields: open frame %, clean game %, head pin rate, first-ball average,
   by-frame, what-if (§6).~~ Pinned in section 6.2 (#39).
-- Leave occurrences: date, session, frame number, ball on the spare attempt (§6).
+- ~~Leave occurrences: date, session, frame number, ball on the spare attempt (§6).~~
+  Pinned in section 6.3 (#40).
 - ~~`BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
   `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
 - Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
@@ -1177,6 +1178,46 @@ Rules:
   of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
   are not rewritten.
 - `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
+
+### 6.3 Leave occurrences (1b, §6 "Definitions (1b)", #40)
+
+Pinned by #40; needs review by both developers.
+
+```swift
+/// One spare attempt at a leave, addressed by game ID plus frame index (OQ-7).
+public struct LeaveOccurrence: Sendable, Hashable, Codable, Identifiable {
+    public struct ID: Sendable, Hashable, Codable { public var gameID: GameID; public var frameIndex: Int }
+    public var id: ID { get }          // game ID plus frame index (OQ-7)
+    public var game: GameRef           // game ID, session ID, session date
+    public var gameIndex: Int
+    public var frameIndex: Int         // 1...10; a frame holds at most one spare attempt
+    public var ballID: BallID?         // spare roll's override, else the game's default ball
+    public var isConverted: Bool
+}
+
+extension StatsEngine {
+    /// Complete pinByPin games only, like the leaves table; matches on `leave.pins`.
+    /// Newest first: session date, session, game index, frame, all descending. Sessions
+    /// on the same date keep their order in `games`, a later one being newer.
+    public static func leaveOccurrences(of leave: Leave, games: [GameRecord]) -> [LeaveOccurrence]
+}
+
+extension StatsRepository {
+    /// Same games as games(matching:now:calendar:), then the engine, with
+    /// same-date sessions in History's order (date, then createdAt, newest first).
+    public func leaveOccurrences(of leave: Leave, matching filter: StatsFilter,
+                                 now: Date, calendar: Calendar) -> [LeaveOccurrence]
+}
+```
+
+Rules:
+
+- The app passes the `LeaveRow.leave` it was tapped from and the same filter as the
+  report, so the list's count equals the row's count.
+- Occurrences after a first-ball foul do not exist (no leave, §5), and a frame 10 fill
+  ball is not a spare attempt, so its leave is never listed.
+- The app shows the session from `game.sessionID` and the ball name from `ballID` via
+  the existing read models; it does not re-sort the list.
 
 ## 7. What the app may not do
 
