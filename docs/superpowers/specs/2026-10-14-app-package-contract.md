@@ -636,6 +636,8 @@ public struct StatsFilter: Sendable, Hashable, Codable {
 1b rules (#41):
 
 - A filter saved by 1a decodes with every 1b field nil.
+- `customRange` is stored as instants and resolved with the reader's calendar, so a saved
+  filter opened in another time zone can shift by a day. Accepted for now.
 - League filters match the session's league, whatever its event type; pair it with
   `eventTypes` to also require league sessions.
 - The 1a-only `StatsRepository.games(matching:seasonLeague:now:calendar:)` overload is
