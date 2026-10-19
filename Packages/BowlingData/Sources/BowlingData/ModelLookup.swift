@@ -55,6 +55,6 @@ extension ModelContext {
     /// uses the one the merge will keep: the oldest, ties broken by the smaller UUID string.
     func owner() -> Bowler? {
         let owners = (try? fetch(FetchDescriptor<Bowler>(predicate: #Predicate { $0.isOwner }))) ?? []
-        return owners.min { ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString) }
+        return owners.min(by: Bowler.mergeOrder)
     }
 }

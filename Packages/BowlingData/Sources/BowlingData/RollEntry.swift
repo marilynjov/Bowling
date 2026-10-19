@@ -88,7 +88,7 @@ extension GameRepository {
         return RollEditOutcome(game: try save(record), clearedFrames: cleared)
     }
 
-    private static func frames(_ rolls: [(frameIndex: Int, roll: RollRecord)]) -> [FrameRecord] {
+    static func frames(_ rolls: [(frameIndex: Int, roll: RollRecord)]) -> [FrameRecord] {
         Dictionary(grouping: rolls, by: \.frameIndex)
             .map { FrameRecord(frameIndex: $0.key, rolls: $0.value.map(\.roll)) }
             .sorted { $0.frameIndex < $1.frameIndex }
