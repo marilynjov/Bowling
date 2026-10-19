@@ -7,7 +7,8 @@ extension GameRepository {
     /// Frame rows with one `frameIndex`, or two Roll rows with one `rollIndex` in a frame.
     /// Keeps the row with the newest `updatedAt` per index (a frame counts its rolls' too,
     /// since frames written before they were stamped on roll edits carry their creation
-    /// time), ties to the smaller UUID string, so every device keeps the same rows; deletes the others and rescores the game.
+    /// time), ties to the smaller UUID string, so every device keeps the same rows; deletes
+    /// the others and rescores the game.
     ///
     /// The kept rows can still form an invalid game, such as two rolls that each fit their
     /// own device's frame but not each other. Rolls are then cleared from the first one that
