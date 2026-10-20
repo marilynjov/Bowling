@@ -9,6 +9,8 @@ import Observation
     let store: BowlingStore
     /// The new-session form's remembered values.
     let sessionDefaults: SessionDefaultsStore
+    /// Scoring's on-device settings.
+    let scoringSettings: ScoringSettings
     private(set) var revision = 0
     /// The New session sheet is up, shown by the root.
     var isStartingSession = false
@@ -23,9 +25,14 @@ import Observation
     /// Shown by the root's shared alert.
     var error: (any Error)?
 
-    init(store: BowlingStore, sessionDefaults: SessionDefaultsStore = SessionDefaultsStore()) {
+    init(
+        store: BowlingStore,
+        sessionDefaults: SessionDefaultsStore = SessionDefaultsStore(),
+        scoringSettings: ScoringSettings = ScoringSettings()
+    ) {
         self.store = store
         self.sessionDefaults = sessionDefaults
+        self.scoringSettings = scoringSettings
     }
 
     /// Bumps `revision` even when `body` throws: the repository rolls back a failed write,
