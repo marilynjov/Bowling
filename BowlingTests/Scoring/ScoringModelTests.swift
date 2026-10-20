@@ -6,6 +6,7 @@ import Testing
 
 @Suite struct ScoringModelTests {
     let app: AppModel
+    let clock = TestClock()
     let sam: BowlerRecord
     let ballA: BallSummary
     let ballB: BallSummary
@@ -33,7 +34,7 @@ import Testing
     }
 
     func start(_ mode: EntryMode, ball: BallID? = nil) throws -> ScoringModel {
-        try ScoringModel(target: try target(mode, ball: ball), app: app)
+        try ScoringModel(target: try target(mode, ball: ball), app: app, now: clock.tick)
     }
 
     @Test func strikeAdvancesToFrame2() throws {
@@ -141,19 +142,59 @@ import Testing
     @Test func reopeningResumesAtTheNextRoll() throws {
         let model = try start(.countOnly)
         model.count(4)
-        let reopened = try ScoringModel(target: model.target, app: app)
+        let reopened = try ScoringModel(target: model.target, app: app, now: clock.tick)
         #expect(reopened.pad?.position.rollIndex == 2)
     }
 
     @Test func openingACompleteGameShowsComplete() throws {
         let model = try start(.pinByPin)
         for _ in 1...12 { model.strike() }
-        let reopened = try ScoringModel(target: model.target, app: app)
+        let reopened = try ScoringModel(target: model.target, app: app, now: clock.tick)
         #expect(reopened.isComplete)
         #expect(reopened.canUndo)
     }
 
     @Test func bowlerNameIsTheGamesBowler() throws {
         #expect(try start(.pinByPin).bowlerName == "Sam")
+    }
+
+    @Test func secondTapWithinTheLockoutIsIgnored() throws {
+        let model = try start(.pinByPin)
+        clock.isFrozen = true
+        model.strike()
+        model.strike()
+        #expect(model.game.frames.count == 1)
+        model.undo()
+        #expect(model.canUndo)
+        clock.isFrozen = false
+        model.strike()
+        #expect(model.game.frames.count == 2)
+    }
+
+    @Test func aMissingGameShowsItsErrorInTheCover() throws {
+        let gone = ScoringTarget(sessionID: SessionID(), gameID: GameID())
+        app.scoring = gone
+        #expect(ScoringModel.open(gone, app: app, now: clock.tick) == nil)
+        #expect(app.error as? RepositoryError == .notFound)
+        #expect(app.scoring == gone)
+    }
+
+    @Test func closingAMissingSessionRaisesNoSecondError() {
+        app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
+        app.closeScoring()
+        #expect(app.scoring == nil)
+        #expect(app.error == nil)
+    }
+}
+
+/// Moves a second on every read, so rolls in a test are never inside the tap lockout,
+/// unless frozen.
+final class TestClock {
+    private var current = Date(timeIntervalSinceReferenceDate: 0)
+    var isFrozen = false
+
+    func tick() -> Date {
+        if !isFrozen { current += 1 }
+        return current
     }
 }

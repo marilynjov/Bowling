@@ -1,5 +1,6 @@
 import BowlingCore
 import BowlingData
+import Foundation
 import Observation
 
 /// One open game on the Scoring screen. Records each roll through `app.write`, which
@@ -21,11 +22,18 @@ import Observation
     /// game's default even when it is nil.
     private var hasOverride = false
     private let app: AppModel
+    private let now: () -> Date
+    /// When the last roll or Undo was written, for the tap lockout.
+    private var lastWrite: Date?
+    /// A second tap this soon after a write is ignored, so a double tap can't record a
+    /// phantom roll on the next rack.
+    static let tapLockout: TimeInterval = 0.3
 
     /// - Throws: `.notFound` for a missing session or game.
-    init(target: ScoringTarget, app: AppModel) throws {
+    init(target: ScoringTarget, app: AppModel, now: @escaping () -> Date = Date.init) throws {
         self.target = target
         self.app = app
+        self.now = now
         let detail = try app.store.sessions.session(target.sessionID)
         guard let bowler = detail.bowlers.first(where: { $0.games.contains { $0.id == target.gameID } }) else {
             throw RepositoryError.notFound
@@ -37,6 +45,17 @@ import Observation
         scorecard = Scorer.scorecard(for: game)
         pad = Scorer.nextRoll(in: game).map {
             RollPad(position: $0, entryMode: game.entryMode, settings: app.scoringSettings)
+        }
+    }
+
+    /// The model for `target`, or nil with the error in `app.error`. Scoring stays open,
+    /// so its own alert shows the error.
+    static func open(_ target: ScoringTarget, app: AppModel, now: @escaping () -> Date = Date.init) -> ScoringModel? {
+        do {
+            return try ScoringModel(target: target, app: app, now: now)
+        } catch {
+            app.error = error
+            return nil
         }
     }
 
@@ -73,7 +92,7 @@ import Observation
 
     /// Reopens the last roll. Does nothing before the first roll.
     func undo() {
-        guard canUndo else { return }
+        guard canUndo, acceptsTap() else { return }
         update { _ = try $0.games.undoLastRoll(in: target.gameID) }
     }
 
@@ -110,10 +129,18 @@ import Observation
     }
 
     private func record(_ input: (RollPad) -> RollInput) {
-        guard let pad else { return }
+        guard let pad, acceptsTap() else { return }
         let input = input(pad)
         let ball = rollBallID
         update { _ = try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
+    }
+
+    /// False within `tapLockout` of the last roll or Undo.
+    private func acceptsTap() -> Bool {
+        let time = now()
+        if let lastWrite, time.timeIntervalSince(lastWrite) < Self.tapLockout { return false }
+        lastWrite = time
+        return true
     }
 
     /// Runs one write, then reloads from the store whether it worked or not.

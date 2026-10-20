@@ -6,6 +6,7 @@ import Testing
 
 @Suite struct ScoringModelEntryTests {
     let app: AppModel
+    let clock = TestClock()
     let sam: BowlerRecord
 
     init() throws {
@@ -26,7 +27,7 @@ import Testing
             let game = try #require(try store.sessions.session(session).bowlers.first?.games.first)
             return ScoringTarget(sessionID: session, gameID: game.id)
         }
-        return try ScoringModel(target: target, app: app)
+        return try ScoringModel(target: target, app: app, now: clock.tick)
     }
 
     @Test func modeChangesBeforeTheFirstRoll() throws {

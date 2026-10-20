@@ -8,12 +8,17 @@ struct ScoringScreen: View {
     @Environment(AppModel.self) private var app
     let target: ScoringTarget
     @State private var model: ScoringModel?
+    @State private var failed = false
 
     var body: some View {
         NavigationStack {
             Group {
                 if let model {
                     ScoringContent(model: model)
+                } else if failed {
+                    Text("This game couldn't be opened.")
+                        .foregroundStyle(Color.inkMuted)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     Color.canvas
                 }
@@ -36,13 +41,10 @@ struct ScoringScreen: View {
         .task(id: target) { load() }
     }
 
+    /// A failure stays in the cover, whose alert shows it, with Close to leave.
     private func load() {
-        do {
-            model = try ScoringModel(target: target, app: app)
-        } catch {
-            app.error = error
-            app.closeScoring()
-        }
+        model = ScoringModel.open(target, app: app)
+        failed = model == nil
     }
 }
 

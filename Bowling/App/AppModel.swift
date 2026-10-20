@@ -110,12 +110,14 @@ import Observation
         if savedQuickScore == saved { savedQuickScore = nil }
     }
 
-    /// Closes Scoring. A session left before any roll is deleted (spec §8).
+    /// Closes Scoring. A session left before any roll is deleted (spec §8); one that is
+    /// already gone needs nothing.
     func closeScoring() {
         guard let target = scoring else { return }
         scoring = nil
         do {
             try write { try $0.sessions.discardIfUnstarted(target.sessionID) }
+        } catch RepositoryError.notFound {
         } catch {
             self.error = error
         }
