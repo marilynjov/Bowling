@@ -56,6 +56,7 @@ import Testing
 
     @Test func secondQuickScoreReplacesTheUndo() throws {
         try app.quickScore(150)
+        app.isQuickScoring = true
         try app.quickScore(160)
         try app.undoQuickScore()
         let sessions = app.store.sessions.sessions()
@@ -68,4 +69,48 @@ import Testing
         app.resume(target)
         #expect(app.scoring == target)
     }
+
+    @Test func secondSaveAfterCloseDoesNothing() throws {
+        try app.quickScore(187)
+        try app.quickScore(187)
+        #expect(app.store.sessions.sessions().count == 1)
+    }
+
+    @Test func bannerGoesAfterTheDelay() async throws {
+        try app.quickScore(187)
+        let saved = try #require(app.savedQuickScore)
+        await app.dismissQuickScore(saved, after: .milliseconds(10))
+        #expect(app.savedQuickScore == nil)
+    }
+
+    @Test func cancelledTimerKeepsTheBanner() async throws {
+        try app.quickScore(187)
+        let saved = try #require(app.savedQuickScore)
+        let timer = Task { await app.dismissQuickScore(saved, after: .seconds(60)) }
+        timer.cancel()
+        await timer.value
+        #expect(app.savedQuickScore == saved)
+    }
+
+    @Test func noDelayKeepsTheBanner() async throws {
+        try app.quickScore(187)
+        let saved = try #require(app.savedQuickScore)
+        await app.dismissQuickScore(saved, after: nil)
+        #expect(app.savedQuickScore == saved)
+    }
+
+    @Test func oldTimerLeavesANewerBanner() async throws {
+        try app.quickScore(150)
+        let old = try #require(app.savedQuickScore)
+        app.isQuickScoring = true
+        try app.quickScore(160)
+        await app.dismissQuickScore(old, after: .milliseconds(10))
+        #expect(app.savedQuickScore?.score == 160)
+    }
+
+    @Test func voiceOverKeepsUndoUntilUsed() {
+        #expect(UndoBanner.dismissDelay(voiceOver: false) == .seconds(5))
+        #expect(UndoBanner.dismissDelay(voiceOver: true) == nil)
+    }
 }
+

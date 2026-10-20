@@ -84,7 +84,10 @@ Top to bottom:
 ### Undo banner
 
 - An overlay at the bottom of Home: "Saved 187" with an **Undo** button.
-- It goes away after 5 seconds, or when another quick score replaces it.
+- It goes away after 5 seconds, or when another quick score replaces it. Leaving Home
+  (another tab, Settings) pauses the timer; it starts again when Home is back.
+- With VoiceOver on, it is announced ("Saved 187. Undo available.") and stays until Undo
+  or the next quick score, since 5 seconds isn't enough to reach it.
 - **Undo** calls `deleteSession` on the saved session and hides the banner.
 
 ## Code (`Bowling/Features/Home/`)
@@ -103,8 +106,11 @@ Top to bottom:
 - `selectedTab: AppTab` (`home`, `history`, `stats`, `arsenal`), bound to the root
   `TabView`.
 - `resume(_ target: ScoringTarget)`: sets `scoring`.
-- `quickScore(_ score: Int) throws -> SessionID`: writes through `write {}`.
-- `undoQuickScore(_ id: SessionID) throws`: `deleteSession` through `write {}`.
+- `quickScore(_ score: Int) throws`: writes through `write {}`, closes the sheet, and keeps
+  `savedQuickScore` (session and score) for Undo. Does nothing once the sheet is closed, so
+  a second tap on Save can't save twice.
+- `undoQuickScore() throws`: `deleteSession` on `savedQuickScore` through `write {}`, once.
+- `dismissQuickScore(_:after:) async`: the banner's timer.
 - `isQuickScoring: Bool` for the sheet, and a new `ErrorPresenter`
   case `quickScore` (like `newSession`), so a failed save shows its alert over the sheet.
 

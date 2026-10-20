@@ -77,8 +77,10 @@ import Observation
 
     /// The sheet's Save: one complete casual game for the owner, dated `now`. Closes the
     /// sheet and offers Undo; a newer quick score replaces the older one's Undo.
+    /// Does nothing once the sheet is closed, so a second tap on Save can't save twice.
     /// - Throws: whatever `quickScore` throws; the sheet stays and nothing is offered.
     func quickScore(_ score: Int, now: Date = .now) throws {
+        guard isQuickScoring else { return }
         let id = try write { try $0.sessions.quickScore(finalScore: score, now: now) }
         isQuickScoring = false
         savedQuickScore = SavedQuickScore(sessionID: id, score: score)
@@ -90,6 +92,15 @@ import Observation
         guard let saved = savedQuickScore else { return }
         savedQuickScore = nil
         try write { try $0.sessions.deleteSession(saved.sessionID) }
+    }
+
+    /// The banner's timer: hides `saved` after `delay`, unless a newer quick score replaced
+    /// it. Nil (VoiceOver) keeps it until Undo or a newer score; cancellation (Home left the
+    /// screen) keeps it too, and the banner's task starts a fresh timer when Home is back.
+    func dismissQuickScore(_ saved: SavedQuickScore, after delay: Duration?) async {
+        guard let delay else { return }
+        do { try await Task.sleep(for: delay) } catch { return }
+        if savedQuickScore == saved { savedQuickScore = nil }
     }
 
     /// Closes Scoring. A session left before any roll is deleted (spec §8).
