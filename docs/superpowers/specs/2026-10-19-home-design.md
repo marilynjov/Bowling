@@ -60,7 +60,7 @@ Top to bottom:
 - **High game:** the score, sample line "<n> games". **High series:** the 3-game series
   (`highSeries.first { $0.gameCount == 3 }`). **Strike %, Spare %:** the rate init, with
   its bar. **Fouls:** per game, from the `fouls` mean.
-- **No games:** each tile shows "–" and "No games yet" (what `StatFormat` already does).
+- **No games:** each tile shows "–" and StatFormat's empty sample ("No games yet", or "No frames yet" and "No chances yet" for the rates).
 
 ### 4. Recent sessions
 
@@ -120,7 +120,7 @@ On the iPhone 18 Pro Max test simulator, against an in-memory store.
   - A saved scope of "All games" never shows the line.
   - A casual bowler with no saved scope uses all games.
   - Unknown and non-tile card IDs in a custom layout are skipped.
-  - With no games, every tile is "–" with "No games yet".
+  - With no games, every tile is "–" with its empty sample.
   - High series uses the 3-game series.
 - **HomeDataTests:**
   - At most 3 recent rows, newest first.
