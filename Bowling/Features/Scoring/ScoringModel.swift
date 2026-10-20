@@ -74,7 +74,7 @@ import Observation
     /// Reopens the last roll. Does nothing before the first roll.
     func undo() {
         guard canUndo else { return }
-        update { try $0.games.undoLastRoll(in: target.gameID) }
+        update { _ = try $0.games.undoLastRoll(in: target.gameID) }
     }
 
     /// Refused with `.entryModeLocked` once the game has a roll. Leaving final score
@@ -113,7 +113,7 @@ import Observation
         guard let pad else { return }
         let input = input(pad)
         let ball = rollBallID
-        update { try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
+        update { _ = try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
     }
 
     /// Runs one write, then reloads from the store whether it worked or not.
