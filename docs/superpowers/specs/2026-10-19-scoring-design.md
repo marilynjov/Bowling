@@ -84,7 +84,8 @@ A large prominent button (pin by pin only) that records the deck as marked and a
 When `Scorer.nextRoll` returns nil (the game is complete), the entry area, shortcuts, and
 Next are replaced by **"Game complete"** with the final score and **Done**, which closes
 Scoring. Undo stays available under it and reopens the last roll. A final-only game
-shows the same once its score is saved. #95 replaces Done with the game summary.
+shows the same once its score is saved, with **Change score** instead of Undo (it has no
+rolls to undo), which shows the score field again, prefilled. #95 replaces Done with the game summary.
 
 ### Saving
 
