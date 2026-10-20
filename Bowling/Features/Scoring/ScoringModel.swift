@@ -15,6 +15,8 @@ import Observation
     private(set) var bowlerName: String
     /// This roll's ball when one was picked; see `rollBallID`.
     private(set) var ballOverride: BallID?
+    /// Change score: the saved final score's field is shown again.
+    var isEditingFinalScore = false
     /// A ball (or No ball) was picked for this roll, so `ballOverride` replaces the
     /// game's default even when it is nil.
     private var hasOverride = false
@@ -48,6 +50,15 @@ import Observation
         game.frames.contains { !$0.rolls.isEmpty }
     }
 
+    /// The mode is fixed once the game has a roll; Clear rolls unlocks it.
+    var canChangeEntryMode: Bool { !canUndo }
+
+    /// A final-only game with its score saved: changing the mode discards the score, so
+    /// the menu asks first.
+    var discardsTypedScore: Bool {
+        game.entryMode == .finalOnly && game.isComplete
+    }
+
     /// The ball the next roll is recorded with: the picked one, else the game's default.
     var rollBallID: BallID? {
         hasOverride ? ballOverride : game.defaultBallID
@@ -64,6 +75,25 @@ import Observation
     func undo() {
         guard canUndo else { return }
         update { try $0.games.undoLastRoll(in: target.gameID) }
+    }
+
+    /// Refused with `.entryModeLocked` once the game has a roll. Leaving final score
+    /// resets the typed score.
+    func setEntryMode(_ mode: EntryMode) {
+        update { try $0.games.setEntryMode(mode, for: target.gameID) }
+    }
+
+    /// Removes every roll, which unlocks the entry mode.
+    func clearRolls() {
+        update { _ = try $0.games.clearRolls(in: target.gameID) }
+    }
+
+    /// Saves a typed score of 0 through 300 (the Quick score rule); other text is ignored.
+    func saveFinalScore(_ text: String) {
+        guard let score = QuickScoreEntry.score(text) else { return }
+        if update({ try $0.games.setFinalScore(score, for: target.gameID) }) {
+            isEditingFinalScore = false
+        }
     }
 
     /// The ball for this roll only; nil records it with no ball.
@@ -87,13 +117,17 @@ import Observation
     }
 
     /// Runs one write, then reloads from the store whether it worked or not.
-    private func update(_ body: (BowlingStore) throws -> Void) {
+    /// - Returns: Whether the write worked.
+    @discardableResult
+    private func update(_ body: (BowlingStore) throws -> Void) -> Bool {
+        defer { reload() }
         do {
             try app.write(body)
+            return true
         } catch {
             app.error = error
+            return false
         }
-        reload()
     }
 
     private func reload() {
