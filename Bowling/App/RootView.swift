@@ -10,19 +10,23 @@ struct RootView: View {
             if app.needsOnboarding {
                 OnboardingPlaceholder()
             } else {
-                TabView {
-                    Tab("Home", systemImage: "house") {
+                TabView(selection: $app.selectedTab) {
+                    Tab("Home", systemImage: "house", value: AppTab.home) {
                         NavigationStack { HomeScreen() }
                     }
-                    Tab("History", systemImage: "clock") {
+                    Tab("History", systemImage: "clock", value: AppTab.history) {
                         NavigationStack { HistoryScreen() }
                     }
-                    Tab("Stats", systemImage: "chart.bar") {
+                    Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                         NavigationStack { StatsScreen() }
                     }
-                    Tab("Arsenal", systemImage: "circle.circle") {
+                    Tab("Arsenal", systemImage: "circle.circle", value: AppTab.arsenal) {
                         NavigationStack { ArsenalScreen() }
                     }
+                }
+                .sheet(isPresented: $app.isQuickScoring) {
+                    QuickScoreSheet()
+                        .sharedErrorAlert(in: .quickScore)
                 }
             }
         }
