@@ -1,6 +1,6 @@
 import Foundation
 
-/// Scoring's two on-device settings, kept in UserDefaults and never synced. #13 adds their
+/// Scoring's three on-device settings, kept in UserDefaults and never synced. #13 adds their
 /// toggles.
 struct ScoringSettings {
     private let defaults: UserDefaults
@@ -19,5 +19,12 @@ struct ScoringSettings {
     var autoAdvanceOnSpare: Bool {
         get { defaults.bool(forKey: "scoring.autoAdvanceOnSpare") }
         nonmutating set { defaults.set(newValue, forKey: "scoring.autoAdvanceOnSpare") }
+    }
+
+    /// On a night with several bowlers, the turn moves after each frame. Each Scoring cover
+    /// starts its toggle from this.
+    var rotateBowlers: Bool {
+        get { defaults.object(forKey: "scoring.rotateBowlers") as? Bool ?? true }
+        nonmutating set { defaults.set(newValue, forKey: "scoring.rotateBowlers") }
     }
 }
