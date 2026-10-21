@@ -201,7 +201,8 @@ A session's series total is the sum of its games' final scores for one bowler.
 | Field | Type | Notes |
 |---|---|---|
 | session | Session? | |
-| bowler | Bowler? | |
+| bowler | Bowler? | Set only through `Game.assign(_:)`, which also sets bowlerID |
+| bowlerID | UUID? | Copy of bowler.id. Kept when the bowler is deleted (Nullify) or not imported yet, so phase 2 sync can tell those games from ones that never had a bowler (#89) |
 | gameIndex | Int | 1-based order within the session for this bowler |
 | lineupIndex | Int | Default 1. The bowler's position in the session lineup, set at Start and copied by Next game. Scoring rotates bowlers in this order |
 | entryMode | String raw: pinByPin, countOnly, finalOnly | Fixed once the first roll exists (section 8) |

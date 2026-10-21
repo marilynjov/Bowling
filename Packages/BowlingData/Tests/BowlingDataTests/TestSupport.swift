@@ -13,7 +13,7 @@ func insertGame(_ record: GameRecord, into context: ModelContext) throws -> Game
     context.insert(game)
     game.session = session
     if let bowlerID = record.bowlerID {
-        game.bowler = try fetchOrInsertBowler(bowlerID, into: context)
+        game.assign(try fetchOrInsertBowler(bowlerID, into: context))
     }
     for ballID in Set(record.frames.flatMap(\.rolls).compactMap(\.ballID) + [record.defaultBallID].compactMap(\.self)) {
         _ = try fetchOrInsertBall(ballID, into: context)

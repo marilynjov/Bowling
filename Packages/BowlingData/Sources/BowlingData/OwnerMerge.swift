@@ -47,7 +47,7 @@ extension BowlingStore {
                     }
                 }
                 if game.bowler !== kept {
-                    game.bowler = kept
+                    game.assign(kept)
                     game.updatedAt = .now
                 }
             }

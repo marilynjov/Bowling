@@ -34,7 +34,7 @@ import Testing
         let game = Game(gameIndex: gameIndex)
         context.insert(game)
         game.session = session
-        game.bowler = bowler
+        game.assign(bowler)
         game.lineupIndex = lineupIndex
         return game
     }
@@ -284,6 +284,18 @@ import Testing
         #expect([b2, b4].map(\.lineupIndex) == [3, 3])
     }
 
+    @Test func movedGamesTakeTheKeptOwnersBowlerID() throws {
+        insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let moved = insertGame(for: newer, in: insertSession(daysAfterT0: 1), gameIndex: 1)
+        try context.save()
+        #expect(moved.bowlerID == Self.idB)
+
+        try store.mergeOwners()
+
+        #expect(moved.bowlerID == Self.idA)
+    }
+
     // MARK: Games without a bowler
 
     /// Phase 2 sync can deliver a game whose bowler was deleted on another device.
@@ -300,6 +312,7 @@ import Testing
         try store.mergeOwners()
 
         #expect(orphan.bowler === older)
+        #expect(orphan.bowlerID == Self.idA)
         #expect(orphan.gameIndex == 1)
         #expect(orphan.updatedAt > Self.t0)
     }

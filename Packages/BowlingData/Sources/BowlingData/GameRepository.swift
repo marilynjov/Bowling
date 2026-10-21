@@ -72,7 +72,7 @@ public final class GameRepository {
                 game.entryMode = latest.entryMode
                 game.lineupIndex = latest.lineupIndex
                 game.session = session
-                game.bowler = group.bowler
+                game.assign(group.bowler)
                 game.defaultBall = latest.defaultBall
                 return game.id
             }

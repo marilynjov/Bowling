@@ -108,7 +108,7 @@ import Testing
                 "date", "eventType", "center", "league", "oilPattern", "lanes", "notes", "games",
             ]),
             "Game": common.union([
-                "session", "bowler", "gameIndex", "lineupIndex", "entryMode", "defaultBall", "finalScore",
+                "session", "bowler", "bowlerID", "gameIndex", "lineupIndex", "entryMode", "defaultBall", "finalScore",
                 "isComplete", "frames", "photo", "scanConfidence", "invitationStatus", "scoredByName",
             ]),
             "Frame": common.union(["game", "frameIndex", "rolls", "rotationSlot"]),

@@ -49,7 +49,7 @@ public final class SessionRepository {
                 game.lineupIndex = position + 1
                 if entryMode != .unknown { game.entryMode = entryMode.rawValue }
                 game.session = session
-                game.bowler = player.bowler
+                game.assign(player.bowler)
                 game.defaultBall = player.ball
             }
             return session.id
@@ -71,7 +71,7 @@ public final class SessionRepository {
             let game = Game(gameIndex: 1, entryMode: .finalOnly)
             context.insert(game)
             game.session = session
-            game.bowler = owner
+            game.assign(owner)
             game.finalScore = finalScore
             game.isComplete = true
             return session.id
