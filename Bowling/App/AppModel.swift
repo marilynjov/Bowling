@@ -24,6 +24,8 @@ import Observation
     var scoring: ScoringTarget?
     /// Shown by the root's shared alert.
     var error: (any Error)?
+    /// The game summary sheet is up over Scoring, so its alert shows errors.
+    var isShowingGameSummary = false
 
     init(
         store: BowlingStore,
@@ -46,7 +48,7 @@ import Observation
     /// iOS can't present an alert from a view that is already presenting the Scoring cover.
     func showsError(in presenter: ErrorPresenter) -> Bool {
         guard error != nil else { return false }
-        let topmost: ErrorPresenter = scoring != nil ? .scoring
+        let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
             : isQuickScoring ? .quickScore
             : .root
@@ -115,6 +117,7 @@ import Observation
     func closeScoring() {
         guard let target = scoring else { return }
         scoring = nil
+        isShowingGameSummary = false
         do {
             try write { try $0.sessions.discardIfUnstarted(target.sessionID) }
         } catch RepositoryError.notFound {
@@ -132,7 +135,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, scoring
+    case root, newSession, quickScore, scoring, gameSummary
 }
 
 /// The root's tabs.
