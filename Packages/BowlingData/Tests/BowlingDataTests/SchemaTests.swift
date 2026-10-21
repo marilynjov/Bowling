@@ -158,6 +158,19 @@ import Testing
         #expect(imageData.options.contains(.externalStorage))
     }
 
+    /// Personal fields encrypted in CloudKit. Encryption cannot be added to a field after the
+    /// schema is promoted, so encrypting another field must be a deliberate change here.
+    private static let encrypted: Set<String> = ["Bowler.email", "BowlingCenter.latitude", "BowlingCenter.longitude"]
+
+    @Test func onlyPersonalFieldsAreEncrypted() {
+        for entity in BowlingStore.schema.entities {
+            for attribute in entity.attributes {
+                let name = "\(entity.name).\(attribute.name)"
+                #expect(attribute.options.contains(.allowsCloudEncryption) == Self.encrypted.contains(name), "\(name)")
+            }
+        }
+    }
+
     @Test func savedModelsGetDistinctIDsAndTimestamps() throws {
         let container = try BowlingStore.makeContainer(inMemory: true)
         let context = ModelContext(container)

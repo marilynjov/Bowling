@@ -151,6 +151,10 @@ These come from the roadmap and must hold before phase 2 promotes the CloudKit s
   Unknown raw values decode to an `unknown` or default case instead of failing, so an
   older app version that receives a case added later keeps working. Raw strings also
   make SwiftData predicates simple.
+- **Encryption**: personal fields use `@Attribute(.allowsCloudEncryption)`:
+  `Bowler.email` and `BowlingCenter.latitude`/`longitude`. CloudKit only accepts
+  encryption when a field is first created, so a new personal field is marked before it
+  ships. Notes stay unencrypted.
 - **Binary data**: never on a frequently synced entity. Photos live in `GamePhoto` and
   `BallPhoto`, with `@Attribute(.externalStorage)`, downscaled on save.
 - **Reference data**: bundled libraries (phase 8) live in a separate, non-synced
@@ -174,7 +178,7 @@ below but exist on every entity.
 | name | String | |
 | isOwner | Bool | One owner per user. Enforced in the repository, with a merge rule after sync (section 3.4) |
 | handedness | String raw: right, left, unknown | Default unknown |
-| email | String? | Reserved for phase 7 game invitations. Not shown in phase 1 |
+| email | String? | Reserved for phase 7 game invitations. Not shown in phase 1. `@Attribute(.allowsCloudEncryption)` |
 | statsProfile | String raw: casual, league, competitive, unknown | Owner only. Set at first launch, changeable in Settings. Default unknown, treated as casual |
 | statsLayout | String | Owner only. Ordered card IDs for Stats, comma-separated. Empty means use the profile's preset (section 7) |
 | homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
@@ -299,7 +303,8 @@ Derived values, computed by the repository:
 
 Each has `name` and `notes`, and an inverse `sessions: [Session]?`.
 
-- **BowlingCenter** adds optional `city`, `latitude`, `longitude` (phase 8 map), and
+- **BowlingCenter** adds optional `city`, `latitude`, `longitude` (phase 8 map; the
+  coordinates are encrypted in CloudKit), and
   `leagues: [League]?` as the inverse of League.center.
 - **League** adds `center: BowlingCenter?`, `seasonLabel: String`, `seasonStart: Date?`,
   `seasonEnd: Date?`, and `gamesPerSession: Int` default 3.
