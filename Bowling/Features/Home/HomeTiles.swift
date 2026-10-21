@@ -44,6 +44,8 @@ enum HomeTiles {
             return HomeTile(card: card, title: String(localized: "High game"),
                             value: report.highGame.map { "\($0.score)" } ?? "–", sample: games)
         case .highSeries:
+            // TODO: once #91's `LeagueRecord.gamesPerSession` lands, use the league's length
+            // for a league bowler instead of a fixed 3-game series.
             let series = report.highSeries.first { $0.gameCount == 3 }
             return HomeTile(card: card, title: String(localized: "High series"),
                             value: series.map { "\($0.total)" } ?? "–", sample: games)

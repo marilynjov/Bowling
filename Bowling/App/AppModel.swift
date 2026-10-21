@@ -87,11 +87,13 @@ import Observation
     }
 
     /// The banner's Undo: deletes the last quick score's session. Does nothing once it has
-    /// been undone or the banner has gone.
+    /// been undone or the banner has gone, or when the session was already deleted elsewhere.
     func undoQuickScore() throws {
         guard let saved = savedQuickScore else { return }
         savedQuickScore = nil
-        try write { try $0.sessions.deleteSession(saved.sessionID) }
+        do {
+            try write { try $0.sessions.deleteSession(saved.sessionID) }
+        } catch RepositoryError.notFound {}
     }
 
     /// The banner's timer: hides `saved` after `delay`, unless a newer quick score replaced
