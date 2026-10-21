@@ -19,8 +19,10 @@ Rules checked for every entity:
 - **Common**: `id`, `createdAt`, `updatedAt`, `remoteID` present.
 - **Names**: names we will not want to rename later.
 
-Result for the whole schema: it already follows every rule. No model changes are needed.
-The fixes below are tests that lock the rules in and a spec wording fix.
+Result for the whole schema: it already follows every rule. The review added tests that
+lock the rules in and fixed the spec wording. After Santiago decided the open questions,
+it also added `Game.bowlerID`, CloudKit encryption on three personal fields, and repair of
+duplicate games (see "Decisions").
 
 ## Bowler
 
@@ -34,6 +36,7 @@ The fixes below are tests that lock the rules in and a spec wording fix.
 | Types | Pass | String, Bool |
 | Common | Pass | |
 | Names | Pass | `statsLayout`/`homeLayout` as comma-separated card IDs are a stable format; new card IDs only add |
+| Encryption | Fix | `email` is a third party's address; now `.allowsCloudEncryption` (decision 3) |
 
 ## Session
 
@@ -60,6 +63,7 @@ The fixes below are tests that lock the rules in and a spec wording fix.
 | Types | Pass | |
 | Common | Pass | |
 | Names | Pass | Phase 4 (`scanConfidence`, `photo`) and phase 7 (`invitationStatus`, `scoredByName`) fields reserved |
+| Sync | Fix | Added `bowlerID: UUID?` so a game keeps its bowler's identity when the bowler is deleted or not imported yet (decision 2) |
 
 ## Frame
 
@@ -138,19 +142,20 @@ The fixes below are tests that lock the rules in and a spec wording fix.
 | Types | Pass | |
 | Common | Pass | |
 | Names | Pass | `patternKey` links to the phase 8 bundled library by string key, never by relationship |
+| Encryption | Fix | `BowlingCenter.latitude`/`longitude` now `.allowsCloudEncryption` (decision 3) |
 
 ## Issue #89 (orphan games)
 
-No schema change is required for the fixes #89 proposes: "only claim orphans that stay
-orphaned after the import" and "leave them unassigned" both work on the current fields.
-One option does touch the schema, so it is listed as question 2 below.
+`Game.bowlerID` now records which bowler an orphan game belonged to (decision 2). The
+rule in `mergeOwners()` is unchanged: it still claims every game with no bowler. Choosing
+the new rule is still open in #89 (see "Still open").
 
 ## Later phases
 
 Fields phases 3 to 8 need that are not reserved yet. All are pure additions, which stay
 allowed after promotion, so none has to land before phase 2:
 
-- Phase 3: a source-app tag on `Game` for imported games (question 4).
+- Phase 3: a source-app tag on `Game` for imported games (deferred, decision 4).
 - Phase 5: Baker frames owned by different bowlers, likely `Frame.bowler` with an inverse
   on `Bowler`; league handicap, roster, and schedule as new entities.
 - Phase 6: per-frame practice questions as new entities.
@@ -169,31 +174,38 @@ allowed after promotion, so none has to land before phase 2:
 2. Spec 3.1 lists `Game.lineupIndex` as a sort key and states that the side without the
    inverse keeps SwiftData's default Nullify; spec 3.2 says `Session.games` sorts by
    `lineupIndex`, then `gameIndex`. The code already did both.
+3. `Game.bowlerID: UUID?`, written only through `Game.assign(_:)` (`Game.bowler` is
+   `private(set)`). Set by `startSession`, `quickScore`, next game, owner merge, and the
+   demo fixtures. It survives the bowler's Nullify delete. Tests in `GameBowlerIDTests`,
+   `OwnerMergeTests`, and `DeleteRuleTests`.
+4. `@Attribute(.allowsCloudEncryption)` on `Bowler.email`, `BowlingCenter.latitude`, and
+   `BowlingCenter.longitude`. `SchemaTests.onlyPersonalFieldsAreEncrypted` locks the exact
+   set. Spec 3.1 and 3.2 record it.
+5. `repairDuplicates()` removes duplicate games before the frame and roll repair (spec
+   3.4 "Duplicate games"). Tests in `DuplicateGameRepairTests` cover each tiebreak,
+   matching by `bowlerID`, idempotence, and two devices reaching the same game.
 
-## Questions for Santiago
+## Decisions (Santiago, 2026-10-21)
 
-1. **Versioned schema after promotion.** `BowlingSchemaV1` lists the top-level model
-   classes, and `lineupIndex` was added to V1 in place (the code still handles "games
-   stored before `lineupIndex` existed"). Once a migration plan is in use, changing V1's
-   models in place can leave existing stores at a version hash the plan does not know.
-   Before release, decide the pattern for V2: nested model copies per version with a
-   lightweight stage, or no migration plan until a custom stage is needed. Worth testing
-   on a device that still has an old store.
-2. **Denormalized bowler ID on Game (#89).** A `Game.bowlerID: UUID?` copy of
-   `bowler.id` would let `mergeOwners()` tell "bowler not imported yet" or "bowler deleted
-   on another device" from a true orphan, without timing heuristics. Cheap now; added
-   after release, games synced before it would lack the value. Add it, or solve #89
-   without schema changes?
-3. **CloudKit encryption for personal fields.** `@Attribute(.allowsCloudEncryption)` can
-   only be set when a field is first created in CloudKit, not added later. Candidates:
-   `Bowler.email` (a third party's address, phase 7), `BowlingCenter.latitude`/
-   `longitude`, and free-text `notes`. Encrypted fields cannot be queried server side,
-   which this app never does. Encrypt any of these before promotion?
-4. **Import source tag.** Phase 3 tags each imported game with its source app. Add a
-   `Game.importSource: String?` now, or wait for phase 3 (it is a pure addition either
-   way)?
-5. **Duplicate games after offline sync.** Spec 3.4 repairs duplicate frames and rolls,
-   but "Next game" on two offline devices can create two games with the same bowler and
-   `gameIndex` in one session. Both may hold real rolls, so they cannot simply be merged.
-   Not a schema change, but should spec 3.4 cover it (for example, renumber by
-   `createdAt`) before phase 2?
+1. **Versioned schema after promotion.** Keep `BowlingSchemaV1` as is until phase 2.
+   `lineupIndex`, `bowlerID`, and the encryption options were changed in V1 in place,
+   which is fine before release. Phase 2 decides the pattern for later versions and
+   tests opening an old store. No code change.
+2. **`Game.bowlerID` for #89.** Added now (fix 3).
+3. **CloudKit encryption.** `Bowler.email` and the center coordinates are encrypted
+   (fix 4). `notes` stays unencrypted.
+4. **Import source tag.** Deferred to phase 3, where it is a pure addition.
+5. **Duplicate games after offline sync.** Decided: same session, same bowler
+   (`bowlerID` where set), same `gameIndex` means duplicates. Keep the one with more
+   recorded rolls, then the newer `updatedAt`, then the smaller UUID string; delete the
+   others with their frames; never merge rolls across games (fix 5).
+
+## Still open
+
+- **#89 orphan rule.** `mergeOwners()` still gives every game with no bowler to the kept
+  owner. With `bowlerID` in place, one option is to claim only orphans whose `bowlerID`
+  is nil or belongs to an owner, and leave a friend's games unassigned. #89 still needs
+  the check of how NSPersistentCloudKitContainer batches related records on import
+  before the rule is chosen.
+- Games created before `bowlerID` existed have it nil. Phase 1 has not shipped, so only
+  development stores have such games.
