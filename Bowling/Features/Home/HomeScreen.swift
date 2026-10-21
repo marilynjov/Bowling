@@ -10,7 +10,7 @@ struct HomeScreen: View {
         VStack(spacing: 24) {
             Text(ownerName)
                 .font(.title)
-            Button("Start", action: start)
+            Button("Start") { app.isStartingSession = true }
                 .buttonStyle(.borderedProminent)
         }
         .navigationTitle("Home")
@@ -23,14 +23,6 @@ struct HomeScreen: View {
         }
         .task(id: app.revision) {
             ownerName = app.store.bowlers.owner()?.name ?? ""
-        }
-    }
-
-    private func start() {
-        do {
-            try app.startPracticeSession()
-        } catch {
-            app.error = error
         }
     }
 }

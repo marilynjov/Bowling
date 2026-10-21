@@ -75,4 +75,15 @@ import Testing
         #expect(!app.showsError(in: .root))
         #expect(app.showsError(in: .scoring))
     }
+
+    @Test func newSessionSheetShowsTheAlertWhileUp() {
+        app.error = Boom()
+        app.isStartingSession = true
+        #expect(app.showsError(in: .newSession))
+        #expect(!app.showsError(in: .root))
+        #expect(!app.showsError(in: .scoring))
+        app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
+        #expect(app.showsError(in: .scoring))
+        #expect(!app.showsError(in: .newSession))
+    }
 }
