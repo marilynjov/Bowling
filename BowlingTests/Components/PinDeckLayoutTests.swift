@@ -5,7 +5,10 @@ import Testing
 @Suite struct PinDeckLayoutTests {
     let layout = PinDeckLayout(width: 288)   // a 320 pt phone minus 16 pt margins
 
-    @Test func pinsAreAtLeast48PointsOnTheSmallestPhone() { #expect(layout.pinDiameter >= 48) }
+    @Test func pinsAreAtLeast48PointsAtTheMinimumWidth() {
+        #expect(PinDeckLayout(width: PinDeckLayout.minimumWidth).pinDiameter >= 48)
+        #expect(PinDeckLayout(width: PinDeckLayout.minimumWidth - 1).pinDiameter < 48)
+    }
     @Test func triangleOrder() {
         #expect(layout.center(of: 7).y == layout.center(of: 10).y)
         #expect(layout.center(of: 7).x < layout.center(of: 8).x)
