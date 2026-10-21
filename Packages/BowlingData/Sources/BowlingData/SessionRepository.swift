@@ -109,6 +109,22 @@ public final class SessionRepository {
         Self.byName((try? context.fetch(FetchDescriptor<League>())) ?? [], \.id, \.name)
     }
 
+    /// The same order as `leagues()`.
+    public func leagueRecords() -> [LeagueRecord] {
+        Self.records((try? context.fetch(FetchDescriptor<League>())) ?? [])
+    }
+
+    /// The leagues at `centerID`, by name. Leagues with no center are never included.
+    public func leagueRecords(centerID: CenterID) -> [LeagueRecord] {
+        let descriptor = FetchDescriptor<League>(predicate: #Predicate { $0.center?.id == centerID })
+        return Self.records((try? context.fetch(descriptor)) ?? [])
+    }
+
+    /// - Throws: `.notFound` when the league does not exist.
+    public func league(_ id: LeagueID) throws -> LeagueRecord {
+        try context.league(id).record()
+    }
+
     public func oilPatterns() -> [NamedRef] {
         Self.byName((try? context.fetch(FetchDescriptor<OilPattern>())) ?? [], \.id, \.name)
     }
@@ -137,6 +153,12 @@ public final class SessionRepository {
             context.insert(pattern)
             return pattern.id
         }
+    }
+
+    private static func records(_ leagues: [League]) -> [LeagueRecord] {
+        leagues
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map { $0.record() }
     }
 
     private static func byName<T>(_ models: [T], _ id: KeyPath<T, UUID>, _ name: KeyPath<T, String>) -> [NamedRef] {
@@ -212,5 +234,14 @@ extension Session {
             )
         }
         return SessionDetail(id: id, metadata: metadata, bowlers: bowlers)
+    }
+}
+
+extension League {
+    func record() -> LeagueRecord {
+        LeagueRecord(
+            id: id, name: name, centerID: center?.id, seasonLabel: seasonLabel,
+            seasonStart: seasonStart, seasonEnd: seasonEnd, gamesPerSession: gamesPerSession
+        )
     }
 }
