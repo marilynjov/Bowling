@@ -140,11 +140,13 @@ These come from the roadmap and must hold before phase 2 promotes the CloudKit s
 - **Identity**: `id: UUID` generated on device. No unique constraints.
 - **Defaults**: every attribute has a default value or is optional.
 - **Relationships**: all optional, every one with an explicit inverse declared on one
-  side with `@Relationship(inverse:)`, every one with a declared delete rule of Nullify
-  or Cascade. Never Deny; refusals happen in repositories (section 3.3).
+  side with `@Relationship(inverse:)`, every one with a delete rule of Nullify or
+  Cascade. The side that declares the inverse states its rule; the other side keeps
+  SwiftData's default, Nullify. Never Deny; refusals happen in repositories (section 3.3).
 - **Ordering**: CloudKit does not preserve relationship order. Order lives in
-  `Game.gameIndex`, `Frame.frameIndex`, and `Roll.rollIndex`. Every fetch and every
-  conversion to BowlingCore sorts by these fields; nothing relies on array order.
+  `Game.lineupIndex` (bowlers within a session), `Game.gameIndex`, `Frame.frameIndex`,
+  and `Roll.rollIndex`. Every fetch and every conversion to BowlingCore sorts by these
+  fields; nothing relies on array order.
 - **Enums**: stored as a raw `String` attribute with a computed Swift enum property.
   Unknown raw values decode to an `unknown` or default case instead of failing, so an
   older app version that receives a case added later keeps working. Raw strings also
@@ -190,7 +192,7 @@ below but exist on every entity.
 | oilPattern | OilPattern? | Inverse of OilPattern.sessions |
 | lanes | String | Free text, for example "17-18" |
 | notes | String | |
-| games | [Game]? | Inverse of Game.session. Sorted by Game.gameIndex |
+| games | [Game]? | Inverse of Game.session. Sorted by Game.lineupIndex, then Game.gameIndex |
 
 A session's series total is the sum of its games' final scores for one bowler.
 
