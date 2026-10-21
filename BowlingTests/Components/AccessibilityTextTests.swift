@@ -31,4 +31,12 @@ import Testing
         #expect(AccessibilityText.statTile(title: "Strike %", value: "41%", sample: "216 frames") == "Strike %, 41%, 216 frames")
         #expect(AccessibilityText.statTile(title: "Average", value: "–", sample: nil) == "Average, –")
     }
+    @Test func bowlerChipReadsTheTurn() {
+        #expect(AccessibilityText.bowlerChip(name: "Alex", score: 64, isCurrent: true, isFinished: false) == "Alex, 64, current turn")
+        #expect(AccessibilityText.bowlerChip(name: "Sam", score: 87, isCurrent: false, isFinished: false) == "Sam, 87")
+        #expect(AccessibilityText.bowlerChip(name: "Sam", score: 201, isCurrent: false, isFinished: true) == "Sam, 201, finished")
+    }
+    @Test func turnAnnouncement() {
+        #expect(AccessibilityText.turn("Alex") == "Alex's turn")
+    }
 }

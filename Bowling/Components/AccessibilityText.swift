@@ -37,6 +37,18 @@ enum AccessibilityText {
         return String(localized: "Leave \(pins), \(kindWord(for: leave))")
     }
 
+    /// A bowler strip chip: "Alex, 64, current turn" / "Sam, 87" / "Sam, 201, finished".
+    static func bowlerChip(name: String, score: Int, isCurrent: Bool, isFinished: Bool) -> String {
+        if isCurrent { return String(localized: "\(name), \(score), current turn") }
+        if isFinished { return String(localized: "\(name), \(score), finished") }
+        return "\(name), \(score)"
+    }
+
+    /// Announced when the turn moves to another bowler.
+    static func turn(_ name: String) -> String {
+        String(localized: "\(name)'s turn")
+    }
+
     static func statTile(title: String, value: String, sample: String?) -> String {
         ([title, value] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
