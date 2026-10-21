@@ -16,7 +16,7 @@ enum StatFormat {
         return (Double(whole) / 100).formatted(.percent.precision(.fractionLength(0)).locale(locale))
     }
 
-    /// Up to one decimal, with no trailing ".0": "186", "186.5" (or "186,5" in en_CO).
+    /// Up to one decimal, with no trailing ".0": "186", "186.5" (or "186,5" in es_CO).
     static func average(_ mean: Mean, locale: Locale = .current) -> String {
         guard let value = mean.value else { return "–" }
         return value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))

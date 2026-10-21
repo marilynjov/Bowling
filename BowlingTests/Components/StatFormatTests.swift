@@ -20,7 +20,9 @@ import Testing
         #expect(StatFormat.average(Mean(total: 0, count: 0), locale: us) == "–")
     }
     @Test func followsTheLocale() {
-        #expect(StatFormat.average(Mean(total: 373, count: 2), locale: Locale(identifier: "es_CO")) == "186,5")
+        let colombia = Locale(identifier: "es_CO")
+        #expect(StatFormat.average(Mean(total: 373, count: 2), locale: colombia) == "186,5")
+        #expect(StatFormat.percent(Rate(hits: 89, attempts: 216), locale: colombia) == "41%")
     }
     @Test func samples() {
         #expect(StatFormat.sample(1, .games) == "1 game")

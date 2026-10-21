@@ -4,7 +4,7 @@ import SwiftUI
 /// The ten-pin triangle for marking a roll (spec §7, Scoring). Tap toggles a pin; dragging
 /// sets every pin the finger crosses to the first pin's new state (`PinDeckDrag`). Pins not
 /// in `available` are down from an earlier roll: dimmed and untouchable. The deck fills
-/// its width; on a phone that keeps pins at 48 pt or more.
+/// its width, but never less than `PinDeckLayout.minimumWidth`, so pins stay 48 pt or more.
 ///
 /// Tap standing and tap fallen use the same deck: the caller starts `standing` empty or
 /// equal to `available`.
@@ -36,6 +36,7 @@ struct PinDeckView: View {
             .gesture(drag(in: layout))
         }
         .aspectRatio(1 / Self.heightRatio, contentMode: .fit)
+        .frame(minWidth: PinDeckLayout.minimumWidth)
         .sensoryFeedback(.selection, trigger: standing)
         .onChange(of: available) { drag = nil }
         .accessibilityElement(children: .contain)

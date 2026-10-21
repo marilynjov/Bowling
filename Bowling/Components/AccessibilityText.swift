@@ -37,8 +37,10 @@ enum AccessibilityText {
         return String(localized: "Leave \(pins), \(kindWord(for: leave))")
     }
 
+    /// A tile with no data shows "–", which VoiceOver would read as "en dash".
     static func statTile(title: String, value: String, sample: String?) -> String {
-        ([title, value] + [sample].compactMap { $0 }).joined(separator: ", ")
+        let spoken = value == "–" ? String(localized: "no data") : value
+        return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
 
     private static func word(for mark: Mark) -> String {
