@@ -307,3 +307,158 @@ import Testing
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 3)
     }
 }
+
+/// §3.4 "Duplicate games": "Next game" on two offline devices syncs back two games for one
+/// bowler with one `gameIndex` in a session.
+@MainActor @Suite struct DuplicateGameRepairTests {
+    let store: BowlingStore
+    var context: ModelContext { store.context }
+    let session: Session
+    let bowler: Bowler
+    let base = DemoFixture.referenceDate
+
+    static let smallID = UUID(uuidString: "AAAAAAAA-0000-0000-0000-000000000001")!
+    static let largeID = UUID(uuidString: "BBBBBBBB-0000-0000-0000-000000000002")!
+
+    init() throws {
+        store = try BowlingStore(inMemory: true)
+        session = Session(date: DemoFixture.referenceDate)
+        bowler = Bowler(name: "Sam", isOwner: true)
+        store.context.insert(session)
+        store.context.insert(bowler)
+    }
+
+    /// A countOnly game with `frames` frames of [3, 4], so two recorded rolls per frame.
+    @discardableResult
+    private func insertGame(
+        _ id: UUID, frames: Int, updatedAt: Date, gameIndex: Int = 1,
+        in session: Session? = nil, bowler: Bowler? = nil, bowlerID: UUID? = nil, context: ModelContext? = nil
+    ) -> Game {
+        let context = context ?? self.context
+        let game = Game(gameIndex: gameIndex, entryMode: .countOnly)
+        game.id = id
+        context.insert(game)
+        game.session = session ?? self.session
+        game.assign(bowler ?? self.bowler)
+        if let bowlerID {
+            game.assign(nil)
+            game.bowlerID = bowlerID
+        }
+        for frameIndex in 1...frames {
+            let frame = Frame(frameIndex: frameIndex)
+            context.insert(frame)
+            frame.game = game
+            for (offset, pins) in [3, 4].enumerated() {
+                let roll = Roll(rollIndex: offset + 1, pinCount: pins)
+                context.insert(roll)
+                roll.frame = frame
+            }
+        }
+        game.updatedAt = updatedAt
+        return game
+    }
+
+    private func gameIDs() throws -> Set<UUID> {
+        Set(try context.fetch(FetchDescriptor<Game>()).map(\.id))
+    }
+
+    @Test func keepsTheGameWithMoreRolls() throws {
+        // The loser is newer and has the smaller ID: roll count decides first.
+        insertGame(Self.smallID, frames: 1, updatedAt: base.addingTimeInterval(60))
+        insertGame(Self.largeID, frames: 2, updatedAt: base)
+        try context.save()
+
+        _ = try store.games.repairDuplicates()
+
+        #expect(try gameIDs() == [Self.largeID])
+        // The loser's frame and rolls cascade; rolls are never merged into the kept game.
+        #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 2)
+        #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
+    }
+
+    @Test func equalRollsKeepTheNewerGame() throws {
+        insertGame(Self.smallID, frames: 2, updatedAt: base)
+        insertGame(Self.largeID, frames: 2, updatedAt: base.addingTimeInterval(60))
+        try context.save()
+
+        _ = try store.games.repairDuplicates()
+
+        #expect(try gameIDs() == [Self.largeID])
+    }
+
+    @Test func equalRollsAndTimesKeepTheSmallerID() throws {
+        insertGame(Self.largeID, frames: 2, updatedAt: base)
+        insertGame(Self.smallID, frames: 2, updatedAt: base)
+        try context.save()
+
+        _ = try store.games.repairDuplicates()
+
+        #expect(try gameIDs() == [Self.smallID])
+    }
+
+    @Test func secondRepairChangesNothing() throws {
+        insertGame(Self.smallID, frames: 1, updatedAt: base)
+        insertGame(Self.largeID, frames: 2, updatedAt: base)
+        try context.save()
+        _ = try store.games.repairDuplicates()
+        let kept = try context.game(Self.largeID)
+        let updatedAt = kept.updatedAt
+
+        #expect(try store.games.repairDuplicates().isEmpty)
+
+        #expect(try gameIDs() == [Self.largeID])
+        #expect(kept.updatedAt == updatedAt)
+    }
+
+    /// Both devices run the repair on the same synced rows, received in either order.
+    @Test func everyDeviceKeepsTheSameGame() throws {
+        var survivors: Set<UUID> = []
+        for order in [[Self.smallID, Self.largeID], [Self.largeID, Self.smallID]] {
+            let device = try BowlingStore(inMemory: true)
+            let session = Session(date: base)
+            let bowler = Bowler(name: "Sam", isOwner: true)
+            device.context.insert(session)
+            device.context.insert(bowler)
+            for id in order {
+                insertGame(id, frames: 2, updatedAt: base, in: session, bowler: bowler, context: device.context)
+            }
+            try device.context.save()
+
+            _ = try device.games.repairDuplicates()
+
+            survivors.formUnion(try device.context.fetch(FetchDescriptor<Game>()).map(\.id))
+        }
+        #expect(survivors == [Self.smallID])
+    }
+
+    /// A game whose bowler was deleted elsewhere, or is not imported yet, still matches by
+    /// `bowlerID`.
+    @Test func bowlerIDMatchesAGameWithoutItsBowler() throws {
+        insertGame(Self.smallID, frames: 1, updatedAt: base)
+        insertGame(Self.largeID, frames: 2, updatedAt: base, bowlerID: bowler.id)
+        try context.save()
+
+        _ = try store.games.repairDuplicates()
+
+        #expect(try gameIDs() == [Self.largeID])
+    }
+
+    @Test func differentSlotsAndUnknownBowlersAreKept() throws {
+        let other = Bowler(name: "Alex")
+        let otherSession = Session(date: base)
+        context.insert(other)
+        context.insert(otherSession)
+        insertGame(UUID(), frames: 1, updatedAt: base)
+        insertGame(UUID(), frames: 1, updatedAt: base, gameIndex: 2)
+        insertGame(UUID(), frames: 1, updatedAt: base, bowler: other)
+        insertGame(UUID(), frames: 1, updatedAt: base, in: otherSession)
+        // Two games with no bowler at all: nothing says they are the same bowler's.
+        insertGame(UUID(), frames: 1, updatedAt: base).assign(nil)
+        insertGame(UUID(), frames: 1, updatedAt: base).assign(nil)
+        try context.save()
+
+        _ = try store.games.repairDuplicates()
+
+        #expect(try context.fetchCount(FetchDescriptor<Game>()) == 6)
+    }
+}

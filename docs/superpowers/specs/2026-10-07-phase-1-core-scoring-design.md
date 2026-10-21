@@ -364,6 +364,14 @@ so the design handles them now:
   game is never left unsaveable. If the kept rows do not form a valid game, rolls are
   cleared from the first one that no longer fits, even when later frames were really
   rolled, so every device ends with the same valid game.
+- **Duplicate games.** If "Next game" runs on two devices while offline, sync can deliver
+  two games in one session for the same bowler with the same `gameIndex`. The bowler is
+  `Game.bowlerID` where set, otherwise `bowler.id`; games with neither are never treated
+  as duplicates. After every remote import, before the frame and roll repair, the
+  repository keeps the game with the most recorded rolls (distinct frame and roll
+  positions), then the newest `updatedAt`, then the smaller UUID string, and deletes the
+  others with their frames and rolls. Rolls are never merged across games. The rule is
+  deterministic and a second run changes nothing, so every device reaches the same games.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 
