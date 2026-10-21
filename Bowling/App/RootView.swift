@@ -8,7 +8,7 @@ struct RootView: View {
         @Bindable var app = app
         Group {
             if app.needsOnboarding {
-                OnboardingPlaceholder()
+                OnboardingFlow()
             } else {
                 TabView {
                     Tab("Home", systemImage: "house") {
