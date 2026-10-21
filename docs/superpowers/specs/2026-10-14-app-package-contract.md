@@ -1000,6 +1000,9 @@ public enum StatsPreset {
     public static func homeTiles(for profile: StatsProfile) -> [StatsCardID]
     /// casual -> false ("All games"); league, competitive -> true ("Competition") (§6).
     public static func prefersCompetition(_ profile: StatsProfile) -> Bool
+    /// The saved scope (BowlerRecord.statsScope) wins: .competition -> true, .all ->
+    /// false; nil or .unknown -> prefersCompetition(profile). For Home and Stats.
+    public static func prefersCompetition(scope: StatsScope?, profile: StatsProfile) -> Bool
     /// 1b, §7 "Layout rules": [] -> that surface's preset; unknown IDs skipped for
     /// display. Separate functions for Stats and Home, so an empty layout falls back to
     /// the right preset (#54).
