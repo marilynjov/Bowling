@@ -113,15 +113,20 @@ public final class SessionRepository {
         Self.byName((try? context.fetch(FetchDescriptor<OilPattern>())) ?? [], \.id, \.name)
     }
 
+    /// Names are trimmed of surrounding whitespace, as bowler names are.
+    /// - Throws: `.invalidPlace(.emptyName)` for a blank name.
     public func createCenter(name: String) throws -> CenterID {
-        try context.write {
+        let name = try Self.validName(name)
+        return try context.write {
             let center = BowlingCenter(name: name)
             context.insert(center)
             return center.id
         }
     }
 
+    /// - Throws: `.invalidPlace(.emptyName)` for a blank name, `.notFound` for a missing center.
     public func createLeague(name: String, centerID: CenterID?) throws -> LeagueID {
+        let name = try Self.validName(name)
         let center = try centerID.map(context.center)
         return try context.write {
             let league = League(name: name)
@@ -131,12 +136,20 @@ public final class SessionRepository {
         }
     }
 
+    /// - Throws: `.invalidPlace(.emptyName)` for a blank name.
     public func createOilPattern(name: String) throws -> OilPatternID {
-        try context.write {
+        let name = try Self.validName(name)
+        return try context.write {
             let pattern = OilPattern(name: name)
             context.insert(pattern)
             return pattern.id
         }
+    }
+
+    private static func validName(_ name: String) throws -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw RepositoryError.invalidPlace(.emptyName) }
+        return trimmed
     }
 
     private static func byName<T>(_ models: [T], _ id: KeyPath<T, UUID>, _ name: KeyPath<T, String>) -> [NamedRef] {

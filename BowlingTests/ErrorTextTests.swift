@@ -15,6 +15,7 @@ import Testing
         (.invalidBowler(.emptyName), "Enter a name."),
         (.invalidMaintenance(.dateInFuture), "The maintenance date can't be in the future."),
         (.invalidMaintenance(.unknownKind), "Choose a maintenance type."),
+        (.invalidPlace(.emptyName), "Enter a name."),
         (.notFinalOnly, "This game is scored from its rolls, so its score can't be typed."),
     ])
     func everyRepositoryErrorHasText(error: RepositoryError, text: String) {

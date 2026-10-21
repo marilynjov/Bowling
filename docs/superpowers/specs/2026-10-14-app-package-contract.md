@@ -516,12 +516,14 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
     case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future date, no .unknown kind
+    case invalidPlace(PlaceFieldError)        // a center, league, or oil pattern name is required
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
+public enum PlaceFieldError: Sendable, Hashable { case emptyName }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None
@@ -634,7 +636,9 @@ the others are built by the repositories only.
     public func discardIfUnstarted(_ id: SessionID) throws
 
     // Pickers with inline create (§7 New session). Sorted by name (localized standard
-    // compare). createLeague throws .notFound for a missing center.
+    // compare). Names are trimmed of surrounding whitespace and newlines, like bowler
+    // names; a blank name throws .invalidPlace(.emptyName). createLeague throws .notFound
+    // for a missing center.
     public func centers() -> [NamedRef]
     public func leagues() -> [NamedRef]
     public func oilPatterns() -> [NamedRef]
