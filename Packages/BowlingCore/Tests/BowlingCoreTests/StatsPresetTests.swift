@@ -50,6 +50,19 @@ import BowlingCore
     }
 
     @Test(arguments: StatsProfile.allCases)
+    func savedScopeWinsOverTheProfile(profile: StatsProfile) {
+        #expect(StatsPreset.prefersCompetition(scope: .competition, profile: profile))
+        #expect(!StatsPreset.prefersCompetition(scope: .all, profile: profile))
+    }
+
+    @Test(arguments: StatsProfile.allCases)
+    func noSavedScopeFollowsTheProfile(profile: StatsProfile) {
+        let byProfile = StatsPreset.prefersCompetition(profile)
+        #expect(StatsPreset.prefersCompetition(scope: nil, profile: profile) == byProfile)
+        #expect(StatsPreset.prefersCompetition(scope: .unknown, profile: profile) == byProfile)
+    }
+
+    @Test(arguments: StatsProfile.allCases)
     func presetsOnlyContainAvailableCardsWithoutDuplicates(profile: StatsProfile) {
         for cards in [StatsPreset.statsCards(for: profile), StatsPreset.homeTiles(for: profile)] {
             #expect(!cards.isEmpty)

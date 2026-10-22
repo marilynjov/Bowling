@@ -516,12 +516,14 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
     case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future date, no .unknown kind
+    case invalidPlace(PlaceFieldError)        // a center, league, or oil pattern name is required
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
 public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
+public enum PlaceFieldError: Sendable, Hashable { case emptyName }
 ```
 
 All repository methods are `@MainActor`, synchronous, and save before returning. None
@@ -647,7 +649,9 @@ the others are built by the repositories only.
     public func discardIfUnstarted(_ id: SessionID) throws
 
     // Pickers with inline create (§7 New session). Sorted by name (localized standard
-    // compare). createLeague throws .notFound for a missing center.
+    // compare). Names are trimmed of surrounding whitespace and newlines, like bowler
+    // names; a blank name throws .invalidPlace(.emptyName). createLeague throws .notFound
+    // for a missing center.
     public func centers() -> [NamedRef]
     public func leagues() -> [NamedRef]
     public func oilPatterns() -> [NamedRef]
@@ -1016,6 +1020,9 @@ public enum StatsPreset {
     public static func homeTiles(for profile: StatsProfile) -> [StatsCardID]
     /// casual -> false ("All games"); league, competitive -> true ("Competition") (§6).
     public static func prefersCompetition(_ profile: StatsProfile) -> Bool
+    /// The saved scope (BowlerRecord.statsScope) wins: .competition -> true, .all ->
+    /// false; nil or .unknown -> prefersCompetition(profile). For Home and Stats.
+    public static func prefersCompetition(scope: StatsScope?, profile: StatsProfile) -> Bool
     /// 1b, §7 "Layout rules": [] -> that surface's preset; unknown IDs skipped for
     /// display. Separate functions for Stats and Home, so an empty layout falls back to
     /// the right preset (#54).

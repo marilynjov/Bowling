@@ -15,6 +15,8 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case invalidBall(BallFieldError)
     case invalidBowler(BowlerFieldError)
     case invalidMaintenance(MaintenanceFieldError)
+    /// A center, league, or oil pattern.
+    case invalidPlace(PlaceFieldError)
     /// Only a finalOnly game has a typed score; the others are scored from their rolls.
     case notFinalOnly
 }
@@ -33,6 +35,12 @@ public enum MaintenanceFieldError: Sendable, Hashable {
 }
 
 public enum BowlerFieldError: Sendable, Hashable {
+    /// Blank after trimming whitespace and newlines.
+    case emptyName
+}
+
+/// For centers, leagues, and oil patterns.
+public enum PlaceFieldError: Sendable, Hashable {
     /// Blank after trimming whitespace and newlines.
     case emptyName
 }
