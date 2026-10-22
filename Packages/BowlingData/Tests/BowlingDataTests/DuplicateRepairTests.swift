@@ -344,8 +344,12 @@ import Testing
         game.session = session ?? self.session
         game.assign(bowler ?? self.bowler)
         if let bowlerID {
-            game.assign(nil)
-            game.bowlerID = bowlerID
+            // The bowler's row is gone but the game keeps its ID, as after a Nullify delete.
+            let gone = Bowler(name: "Gone")
+            gone.id = bowlerID
+            context.insert(gone)
+            game.assign(gone)
+            context.delete(gone)
         }
         game.recordedRollCount = frames * 2
         game.finalScore = frames * 7

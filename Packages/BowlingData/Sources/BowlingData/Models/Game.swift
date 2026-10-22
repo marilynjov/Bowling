@@ -13,7 +13,7 @@ final class Game {
     private(set) var bowler: Bowler?
     /// Copy of `bowler.id`. Survives the bowler being deleted, or not imported yet, so sync
     /// can tell those games from ones that never had a bowler (#89).
-    var bowlerID: UUID?
+    private(set) var bowlerID: UUID?
     /// 1-based order within the session for this bowler.
     var gameIndex: Int = 1
     /// 1-based position of the bowler in the session's lineup, the order Scoring rotates
