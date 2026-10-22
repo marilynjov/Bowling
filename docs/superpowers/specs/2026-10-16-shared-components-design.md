@@ -67,8 +67,9 @@ PinDeckView(available: PinSet, standing: Binding<PinSet>)
 
 **Size**
 - The deck fills the width it is given.
-- Pin diameter comes from that width and is never below 48 pt (spec §7). At 320 pt
-  wide the triangle still fits with 48 pt pins.
+- Pin diameter comes from that width and is never below 48 pt (spec §7). The deck is at
+  least `PinDeckLayout.minimumWidth` (247 pt) wide, so a narrower container (next to
+  buttons, iPad split view) can't shrink the pins; a 320 pt phone has room for it.
 - Pin numbers use `Font.pinNumber` and grow with Dynamic Type up to the size the circle
   holds. The circle size doesn't depend on the text size, and VoiceOver carries the
   rest.
@@ -154,8 +155,8 @@ LeaveDiagramView(leave: Leave, size: LeaveDiagramView.Size = .regular)  // .smal
 ```
 
 **Look**
-- A small deck that can't be tapped. Standing pins are filled Ink, and down pins are
-  outlined PinOutline.
+- A small deck that can't be tapped. Standing pins are filled PinStanding, the same as
+  the pin deck, and down pins are outlined PinOutline.
 - The caption below is `leave.name`, for example "3-6-10", in `.figure`.
 - `.small` is for table rows and `.regular` is for cards and detail screens.
 
@@ -189,7 +190,7 @@ Swift Testing, test first, one suite per helper in `BowlingTests/Components/`:
 | `FrameTextTests` | Every `Mark` case. Spares after counts ("9 /"), a foul then a count ("F 7"), and the 10th-frame shapes X X X, 9 / X, and 8 1. |
 | `AccessibilityTextTests` | Pin labels. The deck summary, including "No pins standing" and "All 10 pins standing". Frame labels, including foul and a blank total. Leave labels for each `LeaveKind` and for washouts. |
 | `PinMarkingTests` | A tap toggles one pin. A drag sets every passed pin to the first pin's new state. Unavailable pins never change. A pin passed twice doesn't flip back. |
-| `PinDeckLayoutTests` | Centers follow the triangle. Hit testing finds each pin and returns nil in the gaps. At 320 pt wide, pins are at least 48 pt. |
+| `PinDeckLayoutTests` | Centers follow the triangle. Hit testing finds each pin and returns nil in the gaps. At `minimumWidth`, pins are at least 48 pt, and 1 pt narrower they would be under. |
 | `StatFormatTests` | Rate and Mean formatting, the no-data case, and singular and plural sample text. |
 
 The views get no unit tests. They are checked in previews.

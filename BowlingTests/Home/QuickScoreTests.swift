@@ -46,6 +46,14 @@ import Testing
         #expect(app.savedQuickScore == nil)
     }
 
+    @Test func undoAfterTheSessionIsGoneIsQuiet() throws {
+        try app.quickScore(187)
+        let saved = try #require(app.savedQuickScore)
+        try app.write { try $0.sessions.deleteSession(saved.sessionID) }
+        #expect(throws: Never.self) { try app.undoQuickScore() }
+        #expect(app.savedQuickScore == nil)
+    }
+
     @Test func undoTwiceDeletesOnce() throws {
         let earlier = try app.write { try $0.sessions.quickScore(finalScore: 150, now: .now.addingTimeInterval(-86_400)) }
         try app.quickScore(187)

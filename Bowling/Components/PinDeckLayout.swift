@@ -2,9 +2,12 @@ import CoreGraphics
 
 /// Where each pin sits in the triangle for a given width, from the back row (7-10) at the
 /// top to the head pin at the bottom. Shared by `PinDeckView` and `LeaveDiagramView`, so
-/// it enforces no minimum size; the deck's 48 pt floor comes from the phone's width.
+/// it enforces no minimum size itself; `PinDeckView` is never narrower than `minimumWidth`.
 struct PinDeckLayout {
     static let rows: [[Int]] = [[7, 8, 9, 10], [4, 5, 6], [2, 3], [1]]
+
+    /// The narrowest deck whose pins are still 48 pt (spec §7): 4 × 48 / 0.78, rounded up.
+    static let minimumWidth: CGFloat = (4 * 48 / 0.78).rounded(.up)
 
     let width: CGFloat
     /// Center to center, along a row and between rows' diagonals.

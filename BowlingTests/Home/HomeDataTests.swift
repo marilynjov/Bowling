@@ -120,6 +120,13 @@ import Testing
         #expect(detail.bowlers[0].bowler.id == ana.id)
     }
 
+    @Test func resumeSkipsAFinishedFirstGame() throws {
+        let detail = try unfinished([], bowlers: [ana.id, sam.id])
+        for _ in 0..<12 { _ = try store.games.recordRoll(.count(10), ballID: nil, in: detail.bowlers[0].games[0].id) }
+        let resume = try #require(HomeData.load(from: store).resume)
+        #expect(resume.target == ScoringTarget(sessionID: detail.id, gameID: detail.bowlers[1].games[0].id))
+    }
+
     @Test func resumeProgress() throws {
         try unfinished([7, 2, 10])
         #expect(HomeData.load(from: store).resume?.progress == "Game 1 · frame 3")

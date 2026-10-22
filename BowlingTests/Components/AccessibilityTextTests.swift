@@ -29,6 +29,6 @@ import Testing
     }
     @Test func statTile() {
         #expect(AccessibilityText.statTile(title: "Strike %", value: "41%", sample: "216 frames") == "Strike %, 41%, 216 frames")
-        #expect(AccessibilityText.statTile(title: "Average", value: "–", sample: nil) == "Average, –")
+        #expect(AccessibilityText.statTile(title: "Average", value: "–", sample: nil) == "Average, no data")
     }
 }
