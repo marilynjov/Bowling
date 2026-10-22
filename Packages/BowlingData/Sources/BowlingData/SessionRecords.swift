@@ -60,3 +60,17 @@ public struct NamedRef: Sendable, Hashable, Identifiable {
     public var id: UUID
     public var name: String
 }
+
+/// A league with what the app needs beyond the picker: the center for filtering the
+/// New session picker, the season chip, and the high series length.
+public struct LeagueRecord: Sendable, Hashable, Identifiable {
+    public var id: LeagueID
+    public var name: String
+    public var centerID: CenterID?
+    /// Free text such as "2026-27", empty when not set.
+    public var seasonLabel: String
+    /// Either date can be missing; the season is only usable when both are set.
+    public var seasonStart: Date?
+    public var seasonEnd: Date?
+    public var gamesPerSession: Int
+}

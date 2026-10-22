@@ -592,6 +592,19 @@ public struct NamedRef: Sendable, Hashable, Identifiable {         // center, le
     public var name: String
 }
 
+// 1b (#91): league details for the Stats season chip ("This season (15 Aug - 11 Feb)"),
+// the high series default (§6, length = gamesPerSession when a league filter is set),
+// and filtering the New session league picker by center.
+public struct LeagueRecord: Sendable, Hashable, Identifiable {
+    public var id: LeagueID
+    public var name: String
+    public var centerID: CenterID?                 // League.center
+    public var seasonLabel: String                 // free text, "" when not set
+    public var seasonStart: Date?                  // either date may be nil; the season is
+    public var seasonEnd: Date?                    // usable only when both are set
+    public var gamesPerSession: Int                // default 3
+}
+
 public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal list, ball picker (§7)
     public var id: BallID
     public var name: String
@@ -645,6 +658,13 @@ the others are built by the repositories only.
     public func createCenter(name: String) throws -> CenterID
     public func createLeague(name: String, centerID: CenterID?) throws -> LeagueID
     public func createOilPattern(name: String) throws -> OilPatternID
+
+    // 1b (#91). Same order as leagues(). leagueRecords(centerID:) returns only that
+    // center's leagues, never those with no center; an unknown center gives [].
+    // league(_:) throws .notFound.
+    public func leagueRecords() -> [LeagueRecord]
+    public func leagueRecords(centerID: CenterID) -> [LeagueRecord]
+    public func league(_ id: LeagueID) throws -> LeagueRecord
 }
 ```
 
