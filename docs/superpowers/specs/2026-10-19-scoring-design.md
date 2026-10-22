@@ -64,8 +64,8 @@ A row under the entry area (two rows at accessibility sizes):
 - **Foul:** a foul delivery.
 - **Undo:** `undoLastRoll`, disabled before the first roll.
 - **Ball chip:** shows the roll's ball, the game's default ball, or "No ball".
-  - Tapping it opens a menu of `activeBalls()` plus "No ball" to pick the ball for this
-    roll only. After the roll it goes back to the default.
+  - Tapping it opens a menu of `activeBalls()` to pick the ball for this roll only, plus
+    "No ball" when the game has no default ball. After the roll it goes back to the default.
   - It doesn't appear in final-only games.
 
 Strike, Spare, Miss, Foul, and each count button record the roll and advance at once.
@@ -132,7 +132,10 @@ synced). #13 Settings adds their toggles.
 - **Actions:** `next()`, `strike()`, `spare()`, `miss()`, `foul()`, `count(_:)`,
   `undo()`, `setEntryMode(_:)`, `clearRolls()`, `saveFinalScore(_:)`,
   `pickBall(_:)`.
-- **Ball:** a roll's ball is `ballOverride ?? game.defaultBallID`.
+- **Ball:** the chip shows `ballOverride ?? game.defaultBallID`, but a roll stores only an
+  override: its `ballID` is the picked ball when it differs from the game's default, and
+  nil means the default ball (contract §3.2). "No ball" is offered only on a game without
+  a default ball.
 - **After each write:** the model reloads the game, rebuilds the pad, and clears
   `ballOverride`.
 - **Errors** go to `app.error` and show in the Scoring cover's alert.

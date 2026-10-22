@@ -85,8 +85,8 @@ import Observation
         game.entryMode == .finalOnly && game.isComplete
     }
 
-    /// The ball the next roll is recorded with: the picked one, else the edited roll's, else
-    /// the game's default.
+    /// The ball the next roll is thrown with, for the chip: the picked one, else the edited
+    /// roll's, else the game's default.
     var rollBallID: BallID? {
         if hasOverride { return ballOverride }
         if let roll = edit?.roll(in: game) { return roll.ballID ?? game.defaultBallID }
@@ -125,6 +125,16 @@ import Observation
         hasOverride = false
         pad = makePad()
     }
+
+    /// What the roll stores: a ball only when it differs from the game's default, since a
+    /// roll's `ballID` is an override and nil means the default ball (contract §3.2).
+    private var recordedBallID: BallID? {
+        rollBallID == game.defaultBallID ? nil : rollBallID
+    }
+
+    /// "No ball" can only be stored on a game without a default ball, because a roll's nil
+    /// ball means the default.
+    var offersNoBall: Bool { game.defaultBallID == nil }
 
     func next() { record { $0.nextInput } }
     func strike() { record { $0.strikeInput } }
@@ -175,7 +185,7 @@ import Observation
     private func record(_ input: (RollPad) -> RollInput) {
         guard let pad, acceptsTap() else { return }
         let input = input(pad)
-        let ball = rollBallID
+        let ball = recordedBallID
         guard let edit else {
             update(.roll) { _ = try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
             return
@@ -222,7 +232,11 @@ import Observation
     }
 
     private func reload() {
-        if let fresh = try? app.store.games.game(target.gameID) { game = fresh }
+        do {
+            game = try app.store.games.game(target.gameID)
+        } catch {
+            app.error = error
+        }
         scorecard = Scorer.scorecard(for: game)
         ballOverride = nil
         hasOverride = false

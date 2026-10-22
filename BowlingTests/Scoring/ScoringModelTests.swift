@@ -127,16 +127,26 @@ import Testing
         #expect(model.ballOverride == nil)
         model.count(2)
         #expect(model.game.frames[0].rolls[0].ballID == ballB.id)
-        #expect(model.game.frames[0].rolls[1].ballID == ballA.id)
+        // nil is the game's default ball (contract §3.2), so an unpicked roll stores nil.
+        #expect(model.game.frames[0].rolls[1].ballID == nil)
     }
 
-    @Test func pickedNoBallGoesWithoutABall() throws {
+    @Test func pickingTheDefaultBallStoresNoOverride() throws {
         let model = try start(.countOnly, ball: ballA.id)
-        model.pickBall(nil)
-        #expect(model.rollBallID == nil)
+        model.pickBall(ballA.id)
         model.count(3)
         #expect(model.game.frames[0].rolls[0].ballID == nil)
-        #expect(model.rollBallID == ballA.id)
+    }
+
+    @Test func noBallIsOfferedOnlyWithoutADefault() throws {
+        #expect(try start(.countOnly, ball: ballA.id).offersNoBall == false)
+        let model = try start(.countOnly)
+        #expect(model.offersNoBall)
+        model.pickBall(ballB.id)
+        #expect(model.rollBallID == ballB.id)
+        model.pickBall(nil)
+        model.count(3)
+        #expect(model.game.frames[0].rolls[0].ballID == nil)
     }
 
     @Test func reopeningResumesAtTheNextRoll() throws {
