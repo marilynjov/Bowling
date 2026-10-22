@@ -12,6 +12,12 @@ import Observation
     private(set) var revision = 0
     /// The New session sheet is up, shown by the root.
     var isStartingSession = false
+    /// The Quick score sheet is up, shown by the root.
+    var isQuickScoring = false
+    /// The last quick score, which Home's banner can undo; nil hides the banner.
+    var savedQuickScore: SavedQuickScore?
+    /// The root's tab.
+    var selectedTab: AppTab = .home
     /// The open Scoring session, shown by the root's full-screen cover.
     var scoring: ScoringTarget?
     /// Shown by the root's shared alert.
@@ -33,7 +39,10 @@ import Observation
     /// iOS can't present an alert from a view that is already presenting the Scoring cover.
     func showsError(in presenter: ErrorPresenter) -> Bool {
         guard error != nil else { return false }
-        let topmost: ErrorPresenter = scoring != nil ? .scoring : isStartingSession ? .newSession : .root
+        let topmost: ErrorPresenter = scoring != nil ? .scoring
+            : isStartingSession ? .newSession
+            : isQuickScoring ? .quickScore
+            : .root
         return presenter == topmost
     }
 
@@ -61,6 +70,41 @@ import Observation
         scoring = target
     }
 
+    /// Home's Resume: opens Scoring on the unfinished game.
+    func resume(_ target: ScoringTarget) {
+        scoring = target
+    }
+
+    /// The sheet's Save: one complete casual game for the owner, dated `now`. Closes the
+    /// sheet and offers Undo; a newer quick score replaces the older one's Undo.
+    /// Does nothing once the sheet is closed, so a second tap on Save can't save twice.
+    /// - Throws: whatever `quickScore` throws; the sheet stays and nothing is offered.
+    func quickScore(_ score: Int, now: Date = .now) throws {
+        guard isQuickScoring else { return }
+        let id = try write { try $0.sessions.quickScore(finalScore: score, now: now) }
+        isQuickScoring = false
+        savedQuickScore = SavedQuickScore(sessionID: id, score: score)
+    }
+
+    /// The banner's Undo: deletes the last quick score's session. Does nothing once it has
+    /// been undone or the banner has gone, or when the session was already deleted elsewhere.
+    func undoQuickScore() throws {
+        guard let saved = savedQuickScore else { return }
+        savedQuickScore = nil
+        do {
+            try write { try $0.sessions.deleteSession(saved.sessionID) }
+        } catch RepositoryError.notFound {}
+    }
+
+    /// The banner's timer: hides `saved` after `delay`, unless a newer quick score replaced
+    /// it. Nil (VoiceOver) keeps it until Undo or a newer score; cancellation (Home left the
+    /// screen) keeps it too, and the banner's task starts a fresh timer when Home is back.
+    func dismissQuickScore(_ saved: SavedQuickScore, after delay: Duration?) async {
+        guard let delay else { return }
+        do { try await Task.sleep(for: delay) } catch { return }
+        if savedQuickScore == saved { savedQuickScore = nil }
+    }
+
     /// Closes Scoring. A session left before any roll is deleted (spec §8).
     func closeScoring() {
         guard let target = scoring else { return }
@@ -81,7 +125,18 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, scoring
+    case root, newSession, quickScore, scoring
+}
+
+/// The root's tabs.
+enum AppTab: Hashable {
+    case home, history, stats, arsenal
+}
+
+/// A quick score Home can still undo.
+struct SavedQuickScore: Hashable {
+    var sessionID: SessionID
+    var score: Int
 }
 
 /// The game Scoring opens, in its session.

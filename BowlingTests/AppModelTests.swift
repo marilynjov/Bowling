@@ -86,4 +86,14 @@ import Testing
         #expect(app.showsError(in: .scoring))
         #expect(!app.showsError(in: .newSession))
     }
+
+    @Test func quickScoreSheetShowsTheAlertWhileUp() {
+        app.error = Boom()
+        app.isQuickScoring = true
+        #expect(app.showsError(in: .quickScore))
+        #expect(!app.showsError(in: .root))
+        app.isStartingSession = true
+        #expect(app.showsError(in: .newSession))
+        #expect(!app.showsError(in: .quickScore))
+    }
 }

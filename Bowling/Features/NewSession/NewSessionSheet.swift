@@ -42,10 +42,9 @@ struct NewSessionSheet: View {
             Section {
                 DatePicker("Date", selection: draft.date)
                 Picker("Event", selection: eventType(draft)) {
-                    Text("Practice").tag(EventType.practice)
-                    Text("League").tag(EventType.league)
-                    Text("Tournament").tag(EventType.tournament)
-                    Text("Casual").tag(EventType.casual)
+                    ForEach([EventType.practice, .league, .tournament, .casual], id: \.self) { type in
+                        Text(type.title).tag(type)
+                    }
                 }
                 .pickerStyle(.segmented)
             }
