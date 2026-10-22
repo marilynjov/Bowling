@@ -185,6 +185,20 @@ allowed after promotion, so none has to land before phase 2:
    3.4 "Duplicate games"). Tests in `DuplicateGameRepairTests` cover each tiebreak,
    matching by `bowlerID`, idempotence, and two devices reaching the same game.
 
+### After marilynjov's review of PR #99
+
+6. Duplicate games rank by `Game.recordedRollCount` (new attribute, written by
+   `Game.apply(_:in:)` on every roll write), then `updatedAt`, then UUID: Game-row fields
+   only, since CloudKit can deliver a Game row before its frames. A game holding fewer
+   rolls than its count is not rescored while it imports. A frame that arrives after its
+   game was deleted stays unlinked; no repair deletes it (spec 3.4).
+7. `mergeOwners()` skips orphan games whose `bowlerID` is set and is not an owner's.
+8. Spec 3.4 states the repair order (`repairDuplicates` before `mergeOwners`) and that
+   survivors are chosen per bowler.
+9. `Game.bowlerID` is `private(set)`; only `assign(_:)` writes it.
+10. `repairDuplicates()` returns `DuplicateRepairResult` with the deleted game IDs; the
+    contract notes that phase 2's change signal must carry them.
+
 ## Decisions (Santiago, 2026-10-21)
 
 1. **Versioned schema after promotion.** Keep `BowlingSchemaV1` as is until phase 2.
@@ -196,16 +210,19 @@ allowed after promotion, so none has to land before phase 2:
    (fix 4). `notes` stays unencrypted.
 4. **Import source tag.** Deferred to phase 3, where it is a pure addition.
 5. **Duplicate games after offline sync.** Decided: same session, same bowler
-   (`bowlerID` where set), same `gameIndex` means duplicates. Keep the one with more
-   recorded rolls, then the newer `updatedAt`, then the smaller UUID string; delete the
-   others with their frames; never merge rolls across games (fix 5).
+   (`bowlerID` where set), same `gameIndex` means duplicates. Keep the one with the higher
+   `recordedRollCount`, then the newer `updatedAt`, then the smaller UUID string; delete
+   the others with their frames; never merge rolls across games (fixes 5 and 6).
 
 ## Still open
 
-- **#89 orphan rule.** `mergeOwners()` still gives every game with no bowler to the kept
-  owner. With `bowlerID` in place, one option is to claim only orphans whose `bowlerID`
-  is nil or belongs to an owner, and leave a friend's games unassigned. #89 still needs
+- **#89 orphan rule.** `mergeOwners()` now leaves alone orphans whose `bowlerID` names
+  another bowler (fix 7), but still claims orphans with no `bowlerID`. #89 still needs
   the check of how NSPersistentCloudKitContainer batches related records on import
-  before the rule is chosen.
+  before the rest of the rule is chosen.
+- **Unlinked frames.** Frames that arrive for a deleted game stay with `game == nil`.
+  Phase 2 can clean them up once persistent history shows an import has finished.
+- **Single repair entry point.** Neither repair has a caller yet. Phase 2 adds the one
+  entry point that runs them in the spec 3.4 order.
 - Games created before `bowlerID` existed have it nil. Phase 1 has not shipped, so only
   development stores have such games.
