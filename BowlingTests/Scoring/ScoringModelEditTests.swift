@@ -117,6 +117,15 @@ import Testing
         #expect(model.rollBallID == ballB.id)
     }
 
+    @Test func editingADefaultBallRollStoresNoOverride() throws {
+        let model = try start(.pinByPin, ball: ballA.id)
+        model.strike()
+        model.beginEdit(frame: 1)
+        #expect(model.rollBallID == ballA.id)
+        model.strike()
+        #expect(model.game.frames[0].rolls[0].ballID == nil)
+    }
+
     @Test func aRefusedReplaceKeepsTheEdit() throws {
         let model = try start(.countOnly)
         model.count(7)

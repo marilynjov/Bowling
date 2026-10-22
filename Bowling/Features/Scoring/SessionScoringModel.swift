@@ -77,8 +77,10 @@ import Observation
     }
 
     /// The summary's Next game: every bowler's next game, then the rule picks who starts.
-    /// On failure the error shows and the sheet stays.
+    /// On failure the error shows and the sheet stays. Only from the summary, so a second
+    /// tap can't start another round.
     func nextGame() {
+        guard isShowingSummary, allFinished else { return }
         do {
             _ = try app.write { try $0.games.startNextGame(in: sessionID) }
             let next = gameIndex + 1

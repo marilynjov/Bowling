@@ -127,6 +127,15 @@ import Testing
         #expect(!app.isShowingGameSummary)
     }
 
+    @Test func nextGameTwiceMakesOneGame() throws {
+        let model = try finishedTypedNight()
+        model.nextGame()
+        model.nextGame()
+        #expect(model.gameIndex == 2)
+        let detail = try app.store.sessions.session(model.sessionID)
+        #expect(detail.bowlers.map(\.games.count) == [2, 2])
+    }
+
     @Test func openingACompleteGameShowsNoSummary() throws {
         let target = try target(.finalOnly)
         try app.write { store in

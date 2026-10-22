@@ -53,7 +53,10 @@ struct ScoringSessionView: View {
 
     var body: some View {
         NavigationStack {
+            // A new identity per game, so the typed score field doesn't carry over to the
+            // next bowler.
             ScoringContent(session: session, model: session.current)
+                .id(session.current.target.gameID)
                 .background(Color.canvas)
                 .navigationTitle(session.title)
                 .navigationBarTitleDisplayMode(.inline)

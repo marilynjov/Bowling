@@ -11,8 +11,11 @@ struct FrameEditBar: View {
                 .font(.headline)
                 .foregroundStyle(Color.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button("Cancel", action: model.cancelEdit)
-                .frame(minWidth: 48, minHeight: 48)
+            Button(action: model.cancelEdit) {
+                Text("Cancel")
+                    .frame(minWidth: 48, minHeight: 48)
+                    .contentShape(Rectangle())
+            }
         }
         .padding(.horizontal, 12)
         .background(Color.surface, in: RoundedRectangle(cornerRadius: 12))
