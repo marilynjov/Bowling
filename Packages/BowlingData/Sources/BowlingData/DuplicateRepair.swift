@@ -14,17 +14,29 @@ extension GameRepository {
     /// own device's frame but not each other. Rolls are then cleared from the first one that
     /// no longer fits, as `replaceRoll` does, so every device ends with the same valid game.
     ///
+    /// First, "Next game" on two offline devices can sync back two games for one bowler with
+    /// one `gameIndex` in a session. The bowler is `bowlerID` where set, else `bowler.id`;
+    /// games with neither are never treated as duplicates. Keeps the game with the highest
+    /// `recordedRollCount`, then the newest `updatedAt`, then the smaller UUID string, and
+    /// deletes the others with their frames. Rolls are never merged across games. Only Game
+    /// row fields decide, since a copy's Frame and Roll rows may not have arrived yet.
+    ///
     /// Also rescores every countOnly or pinByPin game whose cached `finalScore` or
     /// `isComplete` is stale, such as one whose rows were imported before its cached values,
-    /// and stamps `updatedAt` only on a game that changed. Phase 2 calls it after every
-    /// remote import.
-    /// - Returns: The games that changed.
-    func repairDuplicates() throws -> Set<GameID> {
+    /// and stamps `updatedAt` only on a game that changed. A game holding fewer rolls than its
+    /// `recordedRollCount` is still importing and is left alone, so a partial copy never
+    /// overwrites the score other devices hold. Phase 2 calls it after every remote import,
+    /// before `BowlingStore.mergeOwners()` (§3.4 "Repair order").
+    /// - Returns: The games that changed and the duplicate games deleted. Phase 2 needs the
+    ///   deleted IDs so a screen showing one of them, such as Scoring, can leave it.
+    func repairDuplicates() throws -> DuplicateRepairResult {
         // TODO(Phase 2): read SwiftData persistent history to visit only the games an import
         // touched; every game is fetched for now.
         let games = try context.fetch(FetchDescriptor<Game>())
         return try context.write {
-            try Set(games.filter { game in
+            var deleted: Set<GameID> = []
+            let kept = Self.removingDuplicateGames(games, deleted: &deleted, in: context)
+            let changed = try kept.filter { game in
                 if game.removeDuplicateRows(in: context) {
                     try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
                     return true
@@ -32,14 +44,39 @@ extension GameRepository {
                 // A finalOnly score is typed, and an unknown mode's comes from a newer app that
                 // may not score from rolls, so this device must not overwrite either.
                 let record = game.record()
-                guard [.countOnly, .pinByPin].contains(record.entryMode) else { return false }
+                guard [.countOnly, .pinByPin].contains(record.entryMode),
+                      game.rollsPresent >= game.recordedRollCount else { return false }
                 let scored = Self.scored(record)
                 guard (scored.finalScore, scored.isComplete) != (game.finalScore, game.isComplete) else { return false }
                 game.finalScore = scored.finalScore
                 game.isComplete = scored.isComplete
                 game.updatedAt = .now
                 return true
-            }.map(\.id))
+            }
+            return DuplicateRepairResult(changed: Set(changed.map(\.id)), deleted: deleted)
+        }
+    }
+
+    /// Deletes every duplicate game but the one to keep, and returns the rest.
+    private static func removingDuplicateGames(
+        _ games: [Game], deleted: inout Set<GameID>, in context: ModelContext
+    ) -> [Game] {
+        let groups = Dictionary(grouping: games) { game in
+            GameSlot(session: game.session?.id, bowler: game.bowlerID ?? game.bowler?.id, gameIndex: game.gameIndex)
+        }
+        return groups.flatMap { slot, group -> [Game] in
+            guard slot.session != nil, slot.bowler != nil else { return group }
+            let sorted = group.sorted {
+                ($0.recordedRollCount, $0.updatedAt, $1.id.uuidString)
+                    > ($1.recordedRollCount, $1.updatedAt, $0.id.uuidString)
+            }
+            for loser in sorted.dropFirst() {
+                // Detached first: until the save, a deleted game is still in `Session.games`.
+                loser.session = nil
+                deleted.insert(loser.id)
+                context.delete(loser)
+            }
+            return [sorted[0]]
         }
     }
 
@@ -60,7 +97,27 @@ extension GameRepository {
     }
 }
 
+struct DuplicateRepairResult: Equatable {
+    /// Games kept and rescored or stamped.
+    var changed: Set<GameID> = []
+    /// Duplicate games deleted with their frames and rolls.
+    var deleted: Set<GameID> = []
+
+    var isEmpty: Bool { changed.isEmpty && deleted.isEmpty }
+}
+
+private struct GameSlot: Hashable {
+    let session: UUID?
+    let bowler: UUID?
+    let gameIndex: Int
+}
+
 extension Game {
+    /// Distinct frame and roll positions on this device, so duplicate rows count once.
+    fileprivate var rollsPresent: Int {
+        Set((frames ?? []).flatMap { frame in (frame.rolls ?? []).map { [frame.frameIndex, $0.rollIndex] } }).count
+    }
+
     /// - Returns: Whether any row was deleted.
     fileprivate func removeDuplicateRows(in context: ModelContext) -> Bool {
         var removed = false

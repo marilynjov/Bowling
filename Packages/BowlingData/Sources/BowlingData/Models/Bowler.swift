@@ -11,6 +11,9 @@ final class Bowler {
     var name: String = ""
     var isOwner: Bool = false
     var handedness: String = Handedness.unknown.rawValue
+    /// A third party's address for phase 7 invitations. Encrypted in CloudKit, which can
+    /// only be chosen when the field is first created.
+    @Attribute(.allowsCloudEncryption)
     var email: String?
     var statsProfile: String = StatsProfile.unknown.rawValue
     /// Comma-separated stats card IDs. Empty means the profile's preset.

@@ -140,15 +140,21 @@ These come from the roadmap and must hold before phase 2 promotes the CloudKit s
 - **Identity**: `id: UUID` generated on device. No unique constraints.
 - **Defaults**: every attribute has a default value or is optional.
 - **Relationships**: all optional, every one with an explicit inverse declared on one
-  side with `@Relationship(inverse:)`, every one with a declared delete rule of Nullify
-  or Cascade. Never Deny; refusals happen in repositories (section 3.3).
+  side with `@Relationship(inverse:)`, every one with a delete rule of Nullify or
+  Cascade. The side that declares the inverse states its rule; the other side keeps
+  SwiftData's default, Nullify. Never Deny; refusals happen in repositories (section 3.3).
 - **Ordering**: CloudKit does not preserve relationship order. Order lives in
-  `Game.gameIndex`, `Frame.frameIndex`, and `Roll.rollIndex`. Every fetch and every
-  conversion to BowlingCore sorts by these fields; nothing relies on array order.
+  `Game.lineupIndex` (bowlers within a session), `Game.gameIndex`, `Frame.frameIndex`,
+  and `Roll.rollIndex`. Every fetch and every conversion to BowlingCore sorts by these
+  fields; nothing relies on array order.
 - **Enums**: stored as a raw `String` attribute with a computed Swift enum property.
   Unknown raw values decode to an `unknown` or default case instead of failing, so an
   older app version that receives a case added later keeps working. Raw strings also
   make SwiftData predicates simple.
+- **Encryption**: personal fields use `@Attribute(.allowsCloudEncryption)`:
+  `Bowler.email` and `BowlingCenter.latitude`/`longitude`. CloudKit only accepts
+  encryption when a field is first created, so a new personal field is marked before it
+  ships. Notes stay unencrypted.
 - **Binary data**: never on a frequently synced entity. Photos live in `GamePhoto` and
   `BallPhoto`, with `@Attribute(.externalStorage)`, downscaled on save.
 - **Reference data**: bundled libraries (phase 8) live in a separate, non-synced
@@ -172,7 +178,7 @@ below but exist on every entity.
 | name | String | |
 | isOwner | Bool | One owner per user. Enforced in the repository, with a merge rule after sync (section 3.4) |
 | handedness | String raw: right, left, unknown | Default unknown |
-| email | String? | Reserved for phase 7 game invitations. Not shown in phase 1 |
+| email | String? | Reserved for phase 7 game invitations. Not shown in phase 1. `@Attribute(.allowsCloudEncryption)` |
 | statsProfile | String raw: casual, league, competitive, unknown | Owner only. Set at first launch, changeable in Settings. Default unknown, treated as casual |
 | statsLayout | String | Owner only. Ordered card IDs for Stats, comma-separated. Empty means use the profile's preset (section 7) |
 | homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
@@ -190,7 +196,7 @@ below but exist on every entity.
 | oilPattern | OilPattern? | Inverse of OilPattern.sessions |
 | lanes | String | Free text, for example "17-18" |
 | notes | String | |
-| games | [Game]? | Inverse of Game.session. Sorted by Game.gameIndex |
+| games | [Game]? | Inverse of Game.session. Sorted by Game.lineupIndex, then Game.gameIndex |
 
 A session's series total is the sum of its games' final scores for one bowler.
 
@@ -199,13 +205,15 @@ A session's series total is the sum of its games' final scores for one bowler.
 | Field | Type | Notes |
 |---|---|---|
 | session | Session? | |
-| bowler | Bowler? | |
+| bowler | Bowler? | Set only through `Game.assign(_:)`, which also sets bowlerID |
+| bowlerID | UUID? | Copy of bowler.id. Kept when the bowler is deleted (Nullify) or not imported yet, so phase 2 sync can tell those games from ones that never had a bowler (#89) |
 | gameIndex | Int | 1-based order within the session for this bowler |
 | lineupIndex | Int | Default 1. The bowler's position in the session lineup, set at Start and copied by Next game. Scoring rotates bowlers in this order |
 | entryMode | String raw: pinByPin, countOnly, finalOnly | Fixed once the first roll exists (section 8) |
 | defaultBall | Ball? | Inverse of Ball.gamesAsDefault |
 | finalScore | Int | Cached. Computed by the Scorer for pinByPin and countOnly; typed by the user for finalOnly |
 | isComplete | Bool | True when all ten frames are finished or when finalOnly |
+| recordedRollCount | Int | Default 0. Rolls the game holds, written with them. On the Game row so sync can rank a copy whose rolls have not arrived (section 3.4) |
 | frames | [Frame]? | Inverse of Frame.game. Zero frames when finalOnly |
 | photo | GamePhoto? | Inverse of GamePhoto.game. Reserved for phase 4 |
 | scanConfidence | Double? | Reserved for phase 4 |
@@ -296,7 +304,8 @@ Derived values, computed by the repository:
 
 Each has `name` and `notes`, and an inverse `sessions: [Session]?`.
 
-- **BowlingCenter** adds optional `city`, `latitude`, `longitude` (phase 8 map), and
+- **BowlingCenter** adds optional `city`, `latitude`, `longitude` (phase 8 map; the
+  coordinates are encrypted in CloudKit), and
   `leagues: [League]?` as the inverse of League.center.
 - **League** adds `center: BowlingCenter?`, `seasonLabel: String`, `seasonStart: Date?`,
   `seasonEnd: Date?`, and `gamesPerSession: Int` default 3.
@@ -356,6 +365,26 @@ so the design handles them now:
   game is never left unsaveable. If the kept rows do not form a valid game, rolls are
   cleared from the first one that no longer fits, even when later frames were really
   rolled, so every device ends with the same valid game.
+- **Duplicate games.** If "Next game" runs on two devices while offline, sync can deliver
+  two games in one session for the same bowler with the same `gameIndex`. The bowler is
+  `Game.bowlerID` where set, otherwise `bowler.id`; games with neither are never treated
+  as duplicates. After every remote import, before the frame and roll repair, the
+  repository keeps the game with the highest `recordedRollCount`, then the newest
+  `updatedAt`, then the smaller UUID string, and deletes the others with their frames and
+  rolls. Only fields on the Game row decide, because CloudKit can deliver a Game row
+  before its Frame and Roll rows. Rolls are never merged across games. The survivor is
+  chosen per bowler, so one session can end up with bowler 1's game 2 from one device
+  and bowler 2's game 2 from the other. A second run
+  changes nothing, and every device reaches the same result once it holds the same Game
+  rows. A game holding fewer rolls than its `recordedRollCount` is still importing and is
+  not rescored. A frame that arrives after its game was deleted stays unlinked
+  (`game == nil`); no repair deletes it, because a frame waiting for its Game row looks
+  the same.
+- **Repair order.** After every remote import, run `repairDuplicates` (duplicate games,
+  then duplicate frames and rolls) before `mergeOwners`. The merge renumbers clashing
+  `gameIndex` values when it moves a second owner's games, so if it ran first, duplicate
+  games would no longer share an index and would never be found. Phase 2 adds the single
+  entry point that runs both in this order.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 

@@ -81,7 +81,7 @@ import BowlingFixtures
         orphan.isComplete = true
         orphan.finalScore = 200
         context.insert(orphan)
-        orphan.bowler = try context.bowler(DemoBowler.owner.id)
+        orphan.assign(try context.bowler(DemoBowler.owner.id))
         let noBowler = Game(gameIndex: 9, entryMode: .finalOnly)
         context.insert(noBowler)
         noBowler.session = try context.fetch(FetchDescriptor<Session>()).first

@@ -535,7 +535,10 @@ finalOnly or complete game.
 
 No `@Query` in 1a: screens read these value types. Screens re-fetch after their own
 writes. Phase 2 adds a change signal on `BowlingStore` for changes that arrive through
-sync.
+sync. That signal must carry the game IDs the post-import repair deleted (internal
+`repairDuplicates()` already returns them in `DuplicateRepairResult.deleted`): a screen
+holding one of those IDs, such as Scoring, gets `.notFound` on its next read and has to
+leave it.
 
 
 ```swift

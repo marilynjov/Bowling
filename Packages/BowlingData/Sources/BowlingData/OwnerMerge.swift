@@ -7,14 +7,19 @@ extension BowlingStore {
     /// Keeps the oldest owner (ties broken by the smaller UUID string), moves every game of
     /// the others to it, copies the non-empty fields it lacks, and deletes the others.
     /// Deterministic, so every device reaches the same store, and a second run changes
-    /// nothing. Phase 2 calls it after every remote import.
+    /// nothing. Phase 2 calls it after every remote import, after `repairDuplicates()`:
+    /// this merge renumbers clashing `gameIndex` values, which would hide duplicate games.
     ///
     /// Games with no bowler also go to the kept owner: sync can deliver a game whose
-    /// bowler another device deleted.
+    /// bowler another device deleted. A game whose `bowlerID` names someone other than an
+    /// owner is skipped: its bowler may not be imported yet, and claiming it would put a
+    /// friend's games in the owner's stats. The rest of the orphan rule is #89.
     func mergeOwners() throws {
         let owners = try context.fetch(FetchDescriptor<Bowler>(predicate: #Predicate { $0.isOwner }))
             .sorted(by: Bowler.mergeOrder)
+        let ownerIDs = Set(owners.map(\.id))
         let orphans = try context.fetch(FetchDescriptor<Game>(predicate: #Predicate { $0.bowler == nil }))
+            .filter { $0.bowlerID.map(ownerIDs.contains) ?? true }
         guard let kept = owners.first, owners.count > 1 || !orphans.isEmpty else { return }
         try context.write {
             moveGames(owners.map { $0.games ?? [] } + [orphans], to: kept)
@@ -47,7 +52,7 @@ extension BowlingStore {
                     }
                 }
                 if game.bowler !== kept {
-                    game.bowler = kept
+                    game.assign(kept)
                     game.updatedAt = .now
                 }
             }

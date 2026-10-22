@@ -183,7 +183,7 @@ import Testing
         for index in 1...2 {
             let game = Game(gameIndex: index)
             store.context.insert(game)
-            game.bowler = model
+            game.assign(model)
         }
         try store.context.save()
 

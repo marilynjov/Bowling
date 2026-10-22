@@ -34,7 +34,7 @@ import Testing
         let game = Game(gameIndex: gameIndex)
         context.insert(game)
         game.session = session
-        game.bowler = bowler
+        game.assign(bowler)
         game.lineupIndex = lineupIndex
         return game
     }
@@ -284,6 +284,18 @@ import Testing
         #expect([b2, b4].map(\.lineupIndex) == [3, 3])
     }
 
+    @Test func movedGamesTakeTheKeptOwnersBowlerID() throws {
+        insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let newer = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let moved = insertGame(for: newer, in: insertSession(daysAfterT0: 1), gameIndex: 1)
+        try context.save()
+        #expect(moved.bowlerID == Self.idB)
+
+        try store.mergeOwners()
+
+        #expect(moved.bowlerID == Self.idA)
+    }
+
     // MARK: Games without a bowler
 
     /// Phase 2 sync can deliver a game whose bowler was deleted on another device.
@@ -300,8 +312,34 @@ import Testing
         try store.mergeOwners()
 
         #expect(orphan.bowler === older)
+        #expect(orphan.bowlerID == Self.idA)
         #expect(orphan.gameIndex == 1)
         #expect(orphan.updatedAt > Self.t0)
+    }
+
+    /// A friend's game can arrive before the friend's Bowler row (#89). Its `bowlerID`
+    /// names a bowler who is not an owner, so the merge leaves it alone.
+    @Test func gamesOfAnotherBowlerWaitingForTheirBowlerStayUnassigned() throws {
+        let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let friend = Bowler(name: "Alex")
+        friend.id = Self.idC
+        context.insert(friend)
+        let session = insertSession(daysAfterT0: 1)
+        let friendsGame = insertGame(for: friend, in: session, gameIndex: 1)
+        let ownersOrphan = insertGame(for: owner, in: session, gameIndex: 2)
+        try context.save()
+        // As delivered before the friend's row: no bowler, but the ID is still there.
+        context.delete(friend)
+        ownersOrphan.assign(nil)
+        try context.save()
+        #expect(friendsGame.bowler == nil && friendsGame.bowlerID == Self.idC)
+
+        try store.mergeOwners()
+
+        #expect(friendsGame.bowler == nil)
+        #expect(friendsGame.bowlerID == Self.idC)
+        #expect(ownersOrphan.bowler === owner)
     }
 
     @Test func gamesWithoutABowlerMoveToTheOnlyOwner() throws {
