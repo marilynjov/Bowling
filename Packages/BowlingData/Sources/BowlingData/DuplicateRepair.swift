@@ -27,13 +27,16 @@ extension GameRepository {
     /// `recordedRollCount` is still importing and is left alone, so a partial copy never
     /// overwrites the score other devices hold. Phase 2 calls it after every remote import,
     /// before `BowlingStore.mergeOwners()` (§3.4 "Repair order").
-    /// - Returns: The games that changed. Deleted duplicate games are not listed.
-    func repairDuplicates() throws -> Set<GameID> {
+    /// - Returns: The games that changed and the duplicate games deleted. Phase 2 needs the
+    ///   deleted IDs so a screen showing one of them, such as Scoring, can leave it.
+    func repairDuplicates() throws -> DuplicateRepairResult {
         // TODO(Phase 2): read SwiftData persistent history to visit only the games an import
         // touched; every game is fetched for now.
         let games = try context.fetch(FetchDescriptor<Game>())
         return try context.write {
-            try Set(Self.removingDuplicateGames(games, in: context).filter { game in
+            var deleted: Set<GameID> = []
+            let kept = Self.removingDuplicateGames(games, deleted: &deleted, in: context)
+            let changed = try kept.filter { game in
                 if game.removeDuplicateRows(in: context) {
                     try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
                     return true
@@ -49,12 +52,15 @@ extension GameRepository {
                 game.isComplete = scored.isComplete
                 game.updatedAt = .now
                 return true
-            }.map(\.id))
+            }
+            return DuplicateRepairResult(changed: Set(changed.map(\.id)), deleted: deleted)
         }
     }
 
     /// Deletes every duplicate game but the one to keep, and returns the rest.
-    private static func removingDuplicateGames(_ games: [Game], in context: ModelContext) -> [Game] {
+    private static func removingDuplicateGames(
+        _ games: [Game], deleted: inout Set<GameID>, in context: ModelContext
+    ) -> [Game] {
         let groups = Dictionary(grouping: games) { game in
             GameSlot(session: game.session?.id, bowler: game.bowlerID ?? game.bowler?.id, gameIndex: game.gameIndex)
         }
@@ -67,6 +73,7 @@ extension GameRepository {
             for loser in sorted.dropFirst() {
                 // Detached first: until the save, a deleted game is still in `Session.games`.
                 loser.session = nil
+                deleted.insert(loser.id)
                 context.delete(loser)
             }
             return [sorted[0]]
@@ -88,6 +95,15 @@ extension GameRepository {
         cleared.frames = frames(kept)
         return cleared
     }
+}
+
+struct DuplicateRepairResult: Equatable {
+    /// Games kept and rescored or stamped.
+    var changed: Set<GameID> = []
+    /// Duplicate games deleted with their frames and rolls.
+    var deleted: Set<GameID> = []
+
+    var isEmpty: Bool { changed.isEmpty && deleted.isEmpty }
 }
 
 private struct GameSlot: Hashable {

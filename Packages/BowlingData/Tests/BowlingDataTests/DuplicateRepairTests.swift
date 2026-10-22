@@ -96,7 +96,7 @@ import Testing
         #expect(Scorer.validate(game.record()).contains(.duplicateIndex(frameIndex: 2, rollIndex: nil)))
         #expect(Scorer.validate(game.record()).contains(.duplicateIndex(frameIndex: 1, rollIndex: 2)))
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         let repaired = try store.games.game(game.id)
         #expect(repaired.frames == [
@@ -120,7 +120,7 @@ import Testing
         let game = try savedGame()
         insertFrame(2, pins: [6, 3], updatedAt: base.addingTimeInterval(60), in: game)
         try context.save()
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
         let repaired = try store.games.game(game.id)
         let updatedAt = game.updatedAt
 
@@ -143,7 +143,7 @@ import Testing
         insertFrame(2, pins: [0, 0], updatedAt: base.addingTimeInterval(60), in: game)
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         #expect(try frame(2, of: game).id == olderFrame.id)
         // Frame 1: 7 + 2 = 9. Frame 2: 9 + 6 + 3 = 18.
@@ -170,7 +170,7 @@ import Testing
         insertRoll(1, pinCount: 8, updatedAt: base.addingTimeInterval(60), in: try frame(1, of: game))
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         // Cleared from frame 1 roll 2, the first roll that no longer fits; frame 2 goes with it.
         let repaired = try store.games.game(game.id)
@@ -193,7 +193,7 @@ import Testing
         insertRoll(2, pinCount: 2, pinsDown: [.pin1, .pin10], updatedAt: base.addingTimeInterval(60), in: try frame(1, of: game))
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         // Cleared from frame 1 roll 2, the first roll that no longer fits; frame 2 goes with it.
         let repaired = try store.games.game(game.id)
@@ -216,7 +216,7 @@ import Testing
         insertRoll(2, pinCount: 2, updatedAt: base.addingTimeInterval(60), in: try frame(10, of: game))
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         let repaired = try store.games.game(game.id)
         #expect(repaired.frames == opens + [FrameRecord(frameIndex: 10, rolls: [Self.count(1, 7), Self.count(2, 2)])])
@@ -236,7 +236,7 @@ import Testing
         insertFrame(10, pins: [10], updatedAt: base.addingTimeInterval(60), in: game)
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         let repaired = try store.games.game(game.id)
         #expect(!repaired.isComplete)
@@ -255,7 +255,7 @@ import Testing
         try context.save()
         #expect(smaller.id.uuidString < original.id.uuidString)
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         let repaired = try store.games.game(game.id)
         #expect(repaired.frames.first?.rolls == [Self.count(1, 8), Self.count(2, 2)])
@@ -271,7 +271,7 @@ import Testing
         game.updatedAt = base
         try context.save()
 
-        #expect(try store.games.repairDuplicates() == [game.id])
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
 
         // Frame 1: 7 + 2 = 9; frame 2 waits for its bonus.
         #expect(try store.games.game(game.id).finalScore == 9)
@@ -377,7 +377,7 @@ import Testing
         insertGame(Self.largeID, frames: 2, updatedAt: base)
         try context.save()
 
-        _ = try store.games.repairDuplicates()
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(deleted: [Self.smallID]))
 
         #expect(try gameIDs() == [Self.largeID])
         // The loser's frame and rolls cascade; rolls are never merged into the kept game.
@@ -393,7 +393,7 @@ import Testing
         let kept = insertGame(Self.largeID, frames: 5, updatedAt: base, framesArrived: false)
         try context.save()
 
-        #expect(try store.games.repairDuplicates().isEmpty)
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(deleted: [Self.smallID]))
 
         #expect(try gameIDs() == [Self.largeID])
         #expect(kept.finalScore == 35)
