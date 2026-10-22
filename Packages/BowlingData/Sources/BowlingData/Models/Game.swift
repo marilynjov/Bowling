@@ -24,6 +24,9 @@ final class Game {
     /// Cached. Scorer output for pinByPin and countOnly, typed by the user for finalOnly.
     var finalScore: Int = 0
     var isComplete: Bool = false
+    /// Rolls this game holds, written with them by `apply(_:in:)`. Kept on the Game row so
+    /// sync code can rank and check a game before its Frame and Roll rows have arrived.
+    var recordedRollCount: Int = 0
 
     /// Unordered; sort by `Frame.frameIndex`. Empty for finalOnly games.
     @Relationship(deleteRule: .cascade, inverse: \Frame.game)

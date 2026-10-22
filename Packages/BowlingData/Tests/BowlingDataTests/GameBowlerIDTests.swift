@@ -72,6 +72,7 @@ import Testing
         #expect(!all.isEmpty)
         for game in all {
             #expect(game.bowlerID == game.bowler?.id)
+            #expect(game.recordedRollCount == (game.frames ?? []).reduce(0) { $0 + ($1.rolls?.count ?? 0) })
         }
     }
 }

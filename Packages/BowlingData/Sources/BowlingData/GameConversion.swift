@@ -41,6 +41,7 @@ extension Game {
         defaultBall = newDefaultBall
         finalScore = record.finalScore
         isComplete = record.isComplete
+        recordedRollCount = record.frames.reduce(0) { $0 + $1.rolls.count }
 
         var existing = Dictionary(grouping: frames ?? [], by: \.frameIndex)
         for frameRecord in record.frames {

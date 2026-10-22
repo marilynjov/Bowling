@@ -213,6 +213,7 @@ A session's series total is the sum of its games' final scores for one bowler.
 | defaultBall | Ball? | Inverse of Ball.gamesAsDefault |
 | finalScore | Int | Cached. Computed by the Scorer for pinByPin and countOnly; typed by the user for finalOnly |
 | isComplete | Bool | True when all ten frames are finished or when finalOnly |
+| recordedRollCount | Int | Default 0. Rolls the game holds, written with them. On the Game row so sync can rank a copy whose rolls have not arrived (section 3.4) |
 | frames | [Frame]? | Inverse of Frame.game. Zero frames when finalOnly |
 | photo | GamePhoto? | Inverse of GamePhoto.game. Reserved for phase 4 |
 | scanConfidence | Double? | Reserved for phase 4 |
@@ -368,10 +369,15 @@ so the design handles them now:
   two games in one session for the same bowler with the same `gameIndex`. The bowler is
   `Game.bowlerID` where set, otherwise `bowler.id`; games with neither are never treated
   as duplicates. After every remote import, before the frame and roll repair, the
-  repository keeps the game with the most recorded rolls (distinct frame and roll
-  positions), then the newest `updatedAt`, then the smaller UUID string, and deletes the
-  others with their frames and rolls. Rolls are never merged across games. The rule is
-  deterministic and a second run changes nothing, so every device reaches the same games.
+  repository keeps the game with the highest `recordedRollCount`, then the newest
+  `updatedAt`, then the smaller UUID string, and deletes the others with their frames and
+  rolls. Only fields on the Game row decide, because CloudKit can deliver a Game row
+  before its Frame and Roll rows. Rolls are never merged across games. A second run
+  changes nothing, and every device reaches the same result once it holds the same Game
+  rows. A game holding fewer rolls than its `recordedRollCount` is still importing and is
+  not rescored. A frame that arrives after its game was deleted stays unlinked
+  (`game == nil`); no repair deletes it, because a frame waiting for its Game row looks
+  the same.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 

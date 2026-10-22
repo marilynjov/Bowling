@@ -111,6 +111,7 @@ import Testing
         #expect(!repaired.isComplete)
         #expect(game.updatedAt > base)
         // 2 frames x 2 rolls survive; the losing frames' rolls go with them.
+        #expect(game.recordedRollCount == 4)
         #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 2)
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
     }
@@ -328,10 +329,12 @@ import Testing
         store.context.insert(bowler)
     }
 
-    /// A countOnly game with `frames` frames of [3, 4], so two recorded rolls per frame.
+    /// A synced countOnly game with `frames` frames of [3, 4], so two recorded rolls per
+    /// frame. With `framesArrived` false only the Game row is here, as when CloudKit delivers
+    /// it before its Frame and Roll rows.
     @discardableResult
     private func insertGame(
-        _ id: UUID, frames: Int, updatedAt: Date, gameIndex: Int = 1,
+        _ id: UUID, frames: Int, updatedAt: Date, gameIndex: Int = 1, framesArrived: Bool = true,
         in session: Session? = nil, bowler: Bowler? = nil, bowlerID: UUID? = nil, context: ModelContext? = nil
     ) -> Game {
         let context = context ?? self.context
@@ -344,7 +347,9 @@ import Testing
             game.assign(nil)
             game.bowlerID = bowlerID
         }
-        for frameIndex in 1...frames {
+        game.recordedRollCount = frames * 2
+        game.finalScore = frames * 7
+        for frameIndex in 1...frames where framesArrived {
             let frame = Frame(frameIndex: frameIndex)
             context.insert(frame)
             frame.game = game
@@ -374,6 +379,69 @@ import Testing
         // The loser's frame and rolls cascade; rolls are never merged into the kept game.
         #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 2)
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
+    }
+
+    /// Device A holds its own copy with 3 frames and only the Game row of device B's 5-frame
+    /// copy. The stored count still ranks B's copy first, and the partial copy is not
+    /// rescored to 0 while its rows are on the way.
+    @Test func aCopyWithoutItsFramesStillWinsByItsRowCount() throws {
+        insertGame(Self.smallID, frames: 3, updatedAt: base.addingTimeInterval(60))
+        let kept = insertGame(Self.largeID, frames: 5, updatedAt: base, framesArrived: false)
+        try context.save()
+
+        #expect(try store.games.repairDuplicates().isEmpty)
+
+        #expect(try gameIDs() == [Self.largeID])
+        #expect(kept.finalScore == 35)
+        #expect(kept.updatedAt == base)
+        // The deleted copy's 3 frames cascade.
+        #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 0)
+    }
+
+    /// Device A lacks device B's Frame rows, device B holds everything: both keep B's copy.
+    @Test func devicesMissingDifferentRowsKeepTheSameGame() throws {
+        var survivors: Set<UUID> = []
+        for bFramesArrived in [false, true] {
+            let device = try BowlingStore(inMemory: true)
+            let session = Session(date: base)
+            let bowler = Bowler(name: "Sam", isOwner: true)
+            device.context.insert(session)
+            device.context.insert(bowler)
+            insertGame(Self.smallID, frames: 3, updatedAt: base.addingTimeInterval(60),
+                       in: session, bowler: bowler, context: device.context)
+            insertGame(Self.largeID, frames: 5, updatedAt: base, framesArrived: bFramesArrived,
+                       in: session, bowler: bowler, context: device.context)
+            try device.context.save()
+
+            _ = try device.games.repairDuplicates()
+
+            survivors.formUnion(try device.context.fetch(FetchDescriptor<Game>()).map(\.id))
+        }
+        #expect(survivors == [Self.largeID])
+    }
+
+    /// The deleted copy's frames that were here cascade (see above). One that arrives after
+    /// the delete has no game to link to and stays with `game == nil`: no repair deletes it,
+    /// since a frame waiting for its Game row looks the same, and nothing but CSV export
+    /// reads frames without their game.
+    @Test func aFrameArrivingForADeletedGameIsLeftOutOfEveryGame() throws {
+        insertGame(Self.smallID, frames: 1, updatedAt: base)
+        let kept = insertGame(Self.largeID, frames: 2, updatedAt: base)
+        try context.save()
+        _ = try store.games.repairDuplicates()
+        let late = Frame(frameIndex: 2)
+        context.insert(late)
+        let roll = Roll(rollIndex: 1, pinCount: 9)
+        context.insert(roll)
+        roll.frame = late
+        try context.save()
+
+        #expect(try store.games.repairDuplicates().isEmpty)
+
+        #expect(late.game == nil)
+        #expect(try context.fetchCount(FetchDescriptor<Frame>()) == 3)
+        #expect(try store.games.game(Self.largeID).frames.map { $0.rolls.map(\.pinCount) } == [[3, 4], [3, 4]])
+        #expect(kept.finalScore == 14)
     }
 
     @Test func equalRollsKeepTheNewerGame() throws {

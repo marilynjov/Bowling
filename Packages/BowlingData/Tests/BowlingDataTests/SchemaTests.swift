@@ -109,7 +109,7 @@ import Testing
             ]),
             "Game": common.union([
                 "session", "bowler", "bowlerID", "gameIndex", "lineupIndex", "entryMode", "defaultBall", "finalScore",
-                "isComplete", "frames", "photo", "scanConfidence", "invitationStatus", "scoredByName",
+                "isComplete", "recordedRollCount", "frames", "photo", "scanConfidence", "invitationStatus", "scoredByName",
             ]),
             "Frame": common.union(["game", "frameIndex", "rolls", "rotationSlot"]),
             "Roll": common.union(["frame", "rollIndex", "pinsDownMask", "pinCount", "pinsKnown", "isFoul", "ball"]),
