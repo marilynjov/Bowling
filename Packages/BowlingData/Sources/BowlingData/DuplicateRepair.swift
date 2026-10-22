@@ -25,8 +25,8 @@ extension GameRepository {
     /// `isComplete` is stale, such as one whose rows were imported before its cached values,
     /// and stamps `updatedAt` only on a game that changed. A game holding fewer rolls than its
     /// `recordedRollCount` is still importing and is left alone, so a partial copy never
-    /// overwrites the score other devices hold. Phase 2 calls it after every
-    /// remote import.
+    /// overwrites the score other devices hold. Phase 2 calls it after every remote import,
+    /// before `BowlingStore.mergeOwners()` (§3.4 "Repair order").
     /// - Returns: The games that changed. Deleted duplicate games are not listed.
     func repairDuplicates() throws -> Set<GameID> {
         // TODO(Phase 2): read SwiftData persistent history to visit only the games an import

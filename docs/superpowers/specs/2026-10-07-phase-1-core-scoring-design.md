@@ -378,6 +378,11 @@ so the design handles them now:
   not rescored. A frame that arrives after its game was deleted stays unlinked
   (`game == nil`); no repair deletes it, because a frame waiting for its Game row looks
   the same.
+- **Repair order.** After every remote import, run `repairDuplicates` (duplicate games,
+  then duplicate frames and rolls) before `mergeOwners`. The merge renumbers clashing
+  `gameIndex` values when it moves a second owner's games, so if it ran first, duplicate
+  games would no longer share an index and would never be found. Phase 2 adds the single
+  entry point that runs both in this order.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 

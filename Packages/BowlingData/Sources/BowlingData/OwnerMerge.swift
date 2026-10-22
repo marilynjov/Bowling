@@ -7,7 +7,8 @@ extension BowlingStore {
     /// Keeps the oldest owner (ties broken by the smaller UUID string), moves every game of
     /// the others to it, copies the non-empty fields it lacks, and deletes the others.
     /// Deterministic, so every device reaches the same store, and a second run changes
-    /// nothing. Phase 2 calls it after every remote import.
+    /// nothing. Phase 2 calls it after every remote import, after `repairDuplicates()`:
+    /// this merge renumbers clashing `gameIndex` values, which would hide duplicate games.
     ///
     /// Games with no bowler also go to the kept owner: sync can deliver a game whose
     /// bowler another device deleted. A game whose `bowlerID` names someone other than an
