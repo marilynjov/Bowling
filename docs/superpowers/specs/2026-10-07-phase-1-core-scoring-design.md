@@ -372,7 +372,9 @@ so the design handles them now:
   repository keeps the game with the highest `recordedRollCount`, then the newest
   `updatedAt`, then the smaller UUID string, and deletes the others with their frames and
   rolls. Only fields on the Game row decide, because CloudKit can deliver a Game row
-  before its Frame and Roll rows. Rolls are never merged across games. A second run
+  before its Frame and Roll rows. Rolls are never merged across games. The survivor is
+  chosen per bowler, so one session can end up with bowler 1's game 2 from one device
+  and bowler 2's game 2 from the other. A second run
   changes nothing, and every device reaches the same result once it holds the same Game
   rows. A game holding fewer rolls than its `recordedRollCount` is still importing and is
   not rescored. A frame that arrives after its game was deleted stays unlinked
