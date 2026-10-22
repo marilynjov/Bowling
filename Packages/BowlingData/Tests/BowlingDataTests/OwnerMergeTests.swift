@@ -317,6 +317,31 @@ import Testing
         #expect(orphan.updatedAt > Self.t0)
     }
 
+    /// A friend's game can arrive before the friend's Bowler row (#89). Its `bowlerID`
+    /// names a bowler who is not an owner, so the merge leaves it alone.
+    @Test func gamesOfAnotherBowlerWaitingForTheirBowlerStayUnassigned() throws {
+        let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        let friend = Bowler(name: "Alex")
+        friend.id = Self.idC
+        context.insert(friend)
+        let session = insertSession(daysAfterT0: 1)
+        let friendsGame = insertGame(for: friend, in: session, gameIndex: 1)
+        let ownersOrphan = insertGame(for: owner, in: session, gameIndex: 2)
+        try context.save()
+        // As delivered before the friend's row: no bowler, but the ID is still there.
+        context.delete(friend)
+        ownersOrphan.assign(nil)
+        try context.save()
+        #expect(friendsGame.bowler == nil && friendsGame.bowlerID == Self.idC)
+
+        try store.mergeOwners()
+
+        #expect(friendsGame.bowler == nil)
+        #expect(friendsGame.bowlerID == Self.idC)
+        #expect(ownersOrphan.bowler === owner)
+    }
+
     @Test func gamesWithoutABowlerMoveToTheOnlyOwner() throws {
         let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         let orphan = Game(gameIndex: 1)
