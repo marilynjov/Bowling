@@ -16,6 +16,10 @@ enum ErrorText {
             count == 1
                 ? String(localized: "This bowler has 1 game. Delete it first.")
                 : String(localized: "This bowler has \(count) games. Delete them first.")
+        case let .ballHasGames(count):
+            count == 1
+                ? String(localized: "This ball was used in 1 game. Retire it instead.")
+                : String(localized: "This ball was used in \(count) games. Retire it instead.")
         case .cannotDeleteOwner:
             String(localized: "You can't delete your own profile.")
         case .ownerAlreadyExists:

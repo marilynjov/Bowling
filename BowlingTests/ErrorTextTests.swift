@@ -29,6 +29,11 @@ import Testing
         #expect(ErrorText.message(for: RepositoryError.bowlerHasGames(count: 3)) == "This bowler has 3 games. Delete them first.")
     }
 
+    @Test func ballHasGamesPluralizes() {
+        #expect(ErrorText.message(for: RepositoryError.ballHasGames(count: 1)) == "This ball was used in 1 game. Retire it instead.")
+        #expect(ErrorText.message(for: RepositoryError.ballHasGames(count: 4)) == "This ball was used in 4 games. Retire it instead.")
+    }
+
     @Test func otherErrorsUseTheirDescription() {
         struct Boom: LocalizedError {
             var errorDescription: String? { "Disk full" }

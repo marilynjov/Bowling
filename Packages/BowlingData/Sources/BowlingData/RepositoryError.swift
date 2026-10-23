@@ -9,6 +9,9 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case entryModeLocked
     /// The user can delete the games first.
     case bowlerHasGames(count: Int)
+    /// A game uses the ball as its default or on a roll override. Deleting it would credit
+    /// override rolls to the game's default ball, so the user can retire it instead.
+    case ballHasGames(count: Int)
     case cannotDeleteOwner
     /// One owner per user; a second device's owner is merged after sync instead.
     case ownerAlreadyExists

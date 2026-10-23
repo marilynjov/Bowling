@@ -53,6 +53,17 @@ public final class BallRepository {
         }
     }
 
+    /// Also deletes the ball's photo and maintenance log. A roll's nil ball means the game's
+    /// default ball, so deleting a ball still on a roll would move that roll to the default.
+    /// - Throws: `.ballHasGames(count:)` when any game uses the ball as its default or on a
+    ///   roll override, so the user can retire it instead; `.notFound` for an unknown ball.
+    public func deleteBall(_ ballID: BallID) throws {
+        let ball = try context.ball(ballID)
+        let gameCount = ball.gamesBowled
+        guard gameCount == 0 else { throw RepositoryError.ballHasGames(count: gameCount) }
+        try context.write { context.delete(ball) }
+    }
+
     /// The 1a Arsenal form: name, weight, intended role, and brand.
     /// - Throws: `.invalidBall(.emptyName)` or `.invalidBall(.weightOutOfRange)`.
     public func addBall(name: String, weightPounds: Int, intendedRole: BallRole, brand: String) throws -> BallSummary {
