@@ -32,11 +32,24 @@ import BowlingCore
         #expect(StatsPreset.displayedHomeTiles(layout: layout, profile: .casual) == [.average, .strikePct])
     }
 
-    // whatIfSinglePins is a 1b card this build cannot render yet, so it is skipped like
-    // an unknown ID.
-    @Test func unavailableCardsAreSkipped() throws {
-        try #require(!StatsCardID.whatIfSinglePins.isAvailable)
-        #expect(StatsPreset.displayedStatsCards(layout: ["whatIfSinglePins", "fouls"], profile: .casual) == [.fouls])
+    // Before 1b a layout synced from a newer device could hold 1b cards, which were
+    // skipped and kept. Now they show in the place they were saved.
+    @Test func aLayoutSavedBefore1bShowsIts1bCards() {
+        let layout = ["whatIfSinglePins", "fouls", "openPct", "byFrameStrike"]
+        #expect(StatsPreset.displayedStatsCards(layout: layout, profile: .casual)
+            == [.whatIfSinglePins, .fouls, .openPct, .byFrameStrike])
+        #expect(StatsPreset.displayedHomeTiles(layout: layout, profile: .casual)
+            == [.whatIfSinglePins, .fouls, .openPct, .byFrameStrike])
+    }
+
+    // An empty layout follows the preset, so a league bowler who never customized gets
+    // openPct now that 1b has shipped, and a competitive one gets every 1b card.
+    @Test func anEmptyLayoutGainsThe1bCardsOfItsPreset() {
+        #expect(StatsPreset.displayedStatsCards(layout: [], profile: .league).last == .openPct)
+        let competitive = StatsPreset.displayedStatsCards(layout: [], profile: .competitive)
+        #expect(Set(competitive).isSuperset(of: [
+            .openPct, .cleanGamePct, .firstBallAverage, .headPinRate, .byFrameStrike, .byFrameAverage, .whatIfSinglePins,
+        ]))
     }
 
     // A screen lists each card once; the first occurrence keeps its place.
@@ -83,19 +96,12 @@ import BowlingCore
             == ["average", "futureA", "sparePct"])
     }
 
-    // A card this build cannot show is preserved like an unknown ID.
-    @Test func unavailableCardsAreKeptOnSave() throws {
-        try #require(!StatsCardID.whatIfSinglePins.isAvailable)
-        #expect(StatsPreset.layoutToSave([.fouls], replacing: ["whatIfSinglePins", "fouls"]) == ["whatIfSinglePins", "fouls"])
-    }
-
-    // Passing an unavailable card does not write it a second time: whatIfSinglePins is
-    // kept once from previous (leading, before fouls), and the passed copy is dropped,
-    // so the result is whatIfSinglePins, fouls.
-    @Test func unavailableCardsPassedInAreNotWrittenTwice() throws {
-        try #require(!StatsCardID.whatIfSinglePins.isAvailable)
-        #expect(StatsPreset.layoutToSave([.fouls, .whatIfSinglePins], replacing: ["whatIfSinglePins", "fouls"])
-            == ["whatIfSinglePins", "fouls"])
+    // A 1b card saved before 1b is now a shown card: Customize can move or remove it,
+    // and it is written once, where the user put it.
+    @Test func a1bCardSavedBefore1bIsEditedLikeAnyCard() {
+        let previous = ["whatIfSinglePins", "fouls"]
+        #expect(StatsPreset.layoutToSave([.fouls, .whatIfSinglePins], replacing: previous) == ["fouls", "whatIfSinglePins"])
+        #expect(StatsPreset.layoutToSave([.fouls], replacing: previous) == ["fouls"])
     }
 
     @Test func savedCardsAreWrittenOnce() {
@@ -106,7 +112,7 @@ import BowlingCore
     @Test func unchangedLayoutRoundTrips() {
         let previous = ["futureA", "sparePct", "futureB", "average", "whatIfSinglePins"]
         let shown = StatsPreset.displayedStatsCards(layout: previous, profile: .casual)
-        #expect(shown == [.sparePct, .average])
+        #expect(shown == [.sparePct, .average, .whatIfSinglePins])
         #expect(StatsPreset.layoutToSave(shown, replacing: previous) == previous)
     }
 }

@@ -31,16 +31,9 @@ public enum StatsCardID: String, Sendable, Hashable, Codable, CaseIterable {
         }
     }
 
-    /// False for 1b cards until 1b ships; presets leave out unavailable cards.
-    public var isAvailable: Bool {
-        switch self {
-        case .openPct, .cleanGamePct, .firstBallAverage, .headPinRate,
-             .byFrameStrike, .byFrameAverage, .whatIfSinglePins:
-            false
-        default:
-            true
-        }
-    }
+    /// False for a card whose sub-phase has not shipped; presets and layouts leave it out.
+    /// Every Phase 1 card is available since 1b: StatsReport fills each one's numbers.
+    public var isAvailable: Bool { true }
 }
 
 public enum StatsCardGroup: String, Sendable, Hashable, Codable, CaseIterable {
