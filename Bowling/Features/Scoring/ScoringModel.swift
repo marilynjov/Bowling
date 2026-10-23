@@ -28,6 +28,13 @@ import Observation
     /// A second tap this soon after a write is ignored, so a double tap can't record a
     /// phantom roll on the next rack.
     static let tapLockout: TimeInterval = 0.3
+    /// The finished roll being replaced; the pad is that roll's rack while it is set.
+    private(set) var edit: FrameEdit?
+    /// The frames the last replace dropped, other than the edited one, to enter again.
+    private(set) var clearedFrames: [Int] = []
+    /// Called after each write that worked, so the session model can rotate and show the
+    /// summary.
+    @ObservationIgnored var onWrite: ((ScoringWrite) -> Void)?
 
     /// - Throws: `.notFound` for a missing session or game.
     init(target: ScoringTarget, app: AppModel, now: @escaping () -> Date = Date.init) throws {
@@ -78,10 +85,45 @@ import Observation
         game.entryMode == .finalOnly && game.isComplete
     }
 
-    /// The ball the next roll is thrown with, for the chip: the picked one, else the game's
-    /// default.
+    /// The ball the next roll is thrown with, for the chip: the picked one, else the edited
+    /// roll's, else the game's default.
     var rollBallID: BallID? {
-        hasOverride ? ballOverride : game.defaultBallID
+        if hasOverride { return ballOverride }
+        if let roll = edit?.roll(in: game) { return roll.ballID ?? game.defaultBallID }
+        return game.defaultBallID
+    }
+
+    /// The edited roll's count, for the count pad's highlight; nil for a foul or when not
+    /// editing.
+    var editedCount: Int? {
+        guard let roll = edit?.roll(in: game), !roll.isFoul else { return nil }
+        return roll.pinCount
+    }
+
+    /// The strip's chip: the last running total, or the typed score; 0 before either.
+    var currentScore: Int {
+        if game.entryMode == .finalOnly { return game.isComplete ? game.finalScore : 0 }
+        return scorecard.frames.last { $0.runningTotal != nil }?.runningTotal ?? 0
+    }
+
+    /// Starts replacing `frame`'s first ball. Ignored for final score or a frame with no
+    /// rolls.
+    func beginEdit(frame: Int) {
+        let edit = FrameEdit(frameIndex: frame, rollIndex: 1)
+        guard game.entryMode != .finalOnly, edit.roll(in: game) != nil else { return }
+        self.edit = edit
+        clearedFrames = []
+        ballOverride = nil
+        hasOverride = false
+        pad = makePad()
+    }
+
+    /// Ends the edit; balls already replaced stay replaced.
+    func cancelEdit() {
+        edit = nil
+        ballOverride = nil
+        hasOverride = false
+        pad = makePad()
     }
 
     /// What the roll stores: a ball only when it differs from the game's default, since a
@@ -103,25 +145,25 @@ import Observation
 
     /// Reopens the last roll. Does nothing before the first roll.
     func undo() {
-        guard canUndo, acceptsTap() else { return }
-        update { _ = try $0.games.undoLastRoll(in: target.gameID) }
+        guard edit == nil, canUndo, acceptsTap() else { return }
+        update(.other) { _ = try $0.games.undoLastRoll(in: target.gameID) }
     }
 
     /// Refused with `.entryModeLocked` once the game has a roll. Leaving final score
     /// resets the typed score.
     func setEntryMode(_ mode: EntryMode) {
-        update { try $0.games.setEntryMode(mode, for: target.gameID) }
+        update(.other) { try $0.games.setEntryMode(mode, for: target.gameID) }
     }
 
     /// Removes every roll, which unlocks the entry mode.
     func clearRolls() {
-        update { _ = try $0.games.clearRolls(in: target.gameID) }
+        update(.other) { _ = try $0.games.clearRolls(in: target.gameID) }
     }
 
     /// Saves a typed score of 0 through 300 (the Quick score rule); other text is ignored.
     func saveFinalScore(_ text: String) {
         guard let score = QuickScoreEntry.score(text) else { return }
-        if update({ try $0.games.setFinalScore(score, for: target.gameID) }) {
+        if update(.roll, { try $0.games.setFinalScore(score, for: target.gameID) }) {
             isEditingFinalScore = false
         }
     }
@@ -136,14 +178,28 @@ import Observation
     /// settings say so.
     func setShown(_ pins: PinSet) {
         pad?.setShown(pins)
-        if pad?.autoAdvances == true { next() }
+        if edit == nil, pad?.autoAdvances == true { next() }
     }
 
+    /// Records the roll, or replaces the edited one.
     private func record(_ input: (RollPad) -> RollInput) {
         guard let pad, acceptsTap() else { return }
         let input = input(pad)
         let ball = recordedBallID
-        update { _ = try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
+        guard let edit else {
+            update(.roll) { _ = try $0.games.recordRoll(input, ballID: ball, in: target.gameID) }
+            return
+        }
+        var outcome: RollEditOutcome?
+        update(.edit) {
+            outcome = try $0.games.replaceRoll(
+                frameIndex: edit.frameIndex, rollIndex: edit.rollIndex, with: input, ballID: ball, in: target.gameID
+            )
+        }
+        guard let outcome else { return }
+        clearedFrames = outcome.clearedFrames.filter { $0 != edit.frameIndex }
+        self.edit = edit.next(in: outcome.game)
+        self.pad = makePad()
     }
 
     /// False within `tapLockout` of the last roll or Undo.
@@ -154,18 +210,25 @@ import Observation
         return true
     }
 
-    /// Runs one write, then reloads from the store whether it worked or not.
+    /// Runs one write, then reloads from the store whether it worked or not, and reports
+    /// `kind` to `onWrite` when it worked.
     /// - Returns: Whether the write worked.
     @discardableResult
-    private func update(_ body: (BowlingStore) throws -> Void) -> Bool {
-        defer { reload() }
+    private func update(_ kind: ScoringWrite, _ body: (BowlingStore) throws -> Void) -> Bool {
+        let worked: Bool
         do {
             try app.write(body)
-            return true
+            worked = true
         } catch {
             app.error = error
-            return false
+            worked = false
         }
+        reload()
+        if worked {
+            clearedFrames = []
+            onWrite?(kind)
+        }
+        return worked
     }
 
     private func reload() {
@@ -177,12 +240,21 @@ import Observation
         scorecard = Scorer.scorecard(for: game)
         ballOverride = nil
         hasOverride = false
+        if edit?.roll(in: game) == nil { edit = nil }
         pad = makePad()
     }
 
+    /// The edited roll's rack, prefilled with what it left standing; otherwise the next roll.
     private func makePad() -> RollPad? {
-        Scorer.nextRoll(in: game).map {
-            RollPad(position: $0, entryMode: game.entryMode, settings: app.scoringSettings)
+        guard let edit else {
+            return Scorer.nextRoll(in: game).map {
+                RollPad(position: $0, entryMode: game.entryMode, settings: app.scoringSettings)
+            }
         }
+        guard let position = edit.position(in: game), let roll = edit.roll(in: game) else { return nil }
+        var pad = RollPad(position: position, entryMode: game.entryMode, settings: app.scoringSettings)
+        let knocked = roll.pinsKnown && !roll.isFoul ? roll.pinsDown : []
+        pad.setShown(position.standingPins.subtracting(knocked))
+        return pad
     }
 }

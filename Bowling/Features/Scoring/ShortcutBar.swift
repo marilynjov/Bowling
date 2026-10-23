@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Strike or Spare, Miss, Foul, Undo and the ball chip. One row, or two at accessibility
-/// sizes. Every button but Undo records the roll and advances.
+/// sizes. Every button but Undo records the roll and advances; while a frame is edited they
+/// replace its ball, and Undo is hidden.
 struct ShortcutBar: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let model: ScoringModel
@@ -29,8 +30,10 @@ struct ShortcutBar: View {
     }
 
     @ViewBuilder private var tools: some View {
-        shortcut("Undo", action: model.undo)
-            .disabled(!model.canUndo)
+        if model.edit == nil {
+            shortcut("Undo", action: model.undo)
+                .disabled(!model.canUndo)
+        }
         BallChip(model: model)
     }
 

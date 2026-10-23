@@ -37,6 +37,18 @@ enum AccessibilityText {
         return String(localized: "Leave \(pins), \(kindWord(for: leave))")
     }
 
+    /// A bowler strip chip: "Alex, 64, current turn" / "Sam, 87" / "Sam, 201, finished".
+    static func bowlerChip(name: String, score: Int, isCurrent: Bool, isFinished: Bool) -> String {
+        if isCurrent { return String(localized: "\(name), \(score), current turn") }
+        if isFinished { return String(localized: "\(name), \(score), finished") }
+        return "\(name), \(score)"
+    }
+
+    /// Announced when the turn moves to another bowler.
+    static func turn(_ name: String) -> String {
+        String(localized: "\(name)'s turn")
+    }
+
     /// A tile with no data shows "–", which VoiceOver would read as "en dash".
     static func statTile(title: String, value: String, sample: String?) -> String {
         let spoken = value == "–" ? String(localized: "no data") : value

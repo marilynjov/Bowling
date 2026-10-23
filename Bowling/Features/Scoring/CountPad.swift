@@ -21,14 +21,19 @@ struct CountPad: View {
         }
     }
 
-    private func button(_ pins: Int) -> some View {
-        Button { model.count(pins) } label: {
+    /// The edited roll's old count is highlighted.
+    @ViewBuilder private func button(_ pins: Int) -> some View {
+        let button = Button { model.count(pins) } label: {
             Text("\(pins)")
                 .font(.tileValue)
                 .monospacedDigit()
                 .frame(maxWidth: .infinity, minHeight: 56)
         }
-        .buttonStyle(.bordered)
         .disabled(!pad.countChoices.contains(pins))
+        if model.editedCount == pins {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
+        }
     }
 }
