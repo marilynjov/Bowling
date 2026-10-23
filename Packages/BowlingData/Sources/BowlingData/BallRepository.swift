@@ -32,6 +32,27 @@ public final class BallRepository {
             .map { $0.summary() }
     }
 
+    /// Retired balls, by name: the Arsenal list's collapsed Retired group.
+    public func retiredBalls() -> [BallSummary] {
+        let descriptor = FetchDescriptor<Ball>(predicate: #Predicate { $0.isRetired })
+        let retired = (try? context.fetch(descriptor)) ?? []
+        return retired
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            .map { $0.summary() }
+    }
+
+    /// A retired ball keeps its games, stats, and log but leaves `activeBalls()`, so the
+    /// pickers stop offering it. Games that already use it are unchanged.
+    /// - Throws: `.notFound` for an unknown ball.
+    public func setRetired(_ isRetired: Bool, for ballID: BallID) throws {
+        try context.write {
+            let ball = try context.ball(ballID)
+            guard ball.isRetired != isRetired else { return }
+            ball.isRetired = isRetired
+            ball.updatedAt = .now
+        }
+    }
+
     /// The 1a Arsenal form: name, weight, intended role, and brand.
     /// - Throws: `.invalidBall(.emptyName)` or `.invalidBall(.weightOutOfRange)`.
     public func addBall(name: String, weightPounds: Int, intendedRole: BallRole, brand: String) throws -> BallSummary {
