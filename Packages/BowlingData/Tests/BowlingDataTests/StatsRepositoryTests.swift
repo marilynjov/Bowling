@@ -96,6 +96,36 @@ import BowlingFixtures
         #expect(store.stats.games(matching: filter, now: now, calendar: calendar) == expected(filter))
     }
 
+    // The 1b cards read these fields (spec section 6 "Definitions (1b)"). Their values are
+    // checked against hand counts in BowlingCoreTests' DemoFixtureExpected1b.swift; this
+    // checks that games read back from the store give the same numbers, so nothing a card
+    // needs is lost on the way through SwiftData.
+    @Test(arguments: DemoBowler.allCases)
+    func the1bStatsFromTheStoreMatchTheFixtureRecords(bowler: DemoBowler) {
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: Set(EventType.allCases), bowlerID: bowler.id)
+        let stored = StatsEngine.report(games: fetch(filter), filter: filter)
+        let fixture = StatsEngine.report(games: expected(filter), filter: filter)
+        #expect(stored.openFrames == fixture.openFrames)
+        #expect(stored.cleanGames == fixture.cleanGames)
+        #expect(stored.firstBallAverage == fixture.firstBallAverage)
+        #expect(stored.headPin == fixture.headPin)
+        #expect(stored.byFrame == fixture.byFrame)
+        #expect(stored.whatIfSinglePins == fixture.whatIfSinglePins)
+    }
+
+    // The owner's fixture games reach every 1b field, so the comparison above is not
+    // between two empty reports.
+    @Test func theOwnersFixtureFillsEvery1bField() {
+        let filter = StatsFilter(datePreset: .allTime, eventTypes: Set(EventType.allCases), bowlerID: DemoBowler.owner.id)
+        let report = StatsEngine.report(games: fetch(filter), filter: filter)
+        #expect(report.openFrames.attempts > 0)
+        #expect(report.cleanGames.attempts > 0)
+        #expect(report.firstBallAverage.count > 0)
+        #expect(report.headPin.attempts > 0)
+        #expect(report.byFrame.allSatisfy { $0.strikes.attempts > 0 && $0.pins.count > 0 })
+        #expect(report.whatIfSinglePins.rewritten > 0)
+    }
+
     // MARK: Default scope
 
     @Test func defaultScopeIsCompetitionForABowlerWithCompetitionGames() {
