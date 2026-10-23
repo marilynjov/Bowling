@@ -47,13 +47,15 @@ A `Form`, top to bottom.
 
 `NamedRefPicker` is a searchable list:
 
-- A **None** row first, then the items from `centers()` / `leagues()` / `oilPatterns()`
+- A **None** row first, then the items from `centers()` / `leagueRecords()` / `oilPatterns()`
   filtered by the search text (case- and diacritic-insensitive contains), checkmark on
   the current pick.
 - A last row **Add "<text>"** when the trimmed search text is non-empty and matches no
-  existing name exactly (case-insensitive). It creates the item (`createCenter`,
-  `createLeague(name:centerID:)` with the form's current center, `createOilPattern`),
-  picks it, and pops back.
+  listed name exactly, ignoring case and accents ("cafe lanes" matches "Café Lanes").
+  The League picker lists only the picked center's leagues (or those with no center when
+  none is picked), so a league name can repeat at another center. Changing the center
+  clears the league. Add creates the item (`createCenter`, `createLeague(name:centerID:)`
+  with the form's current center, `createOilPattern`), picks it, and pops back.
 - Picking a row pops back.
 
 ### 3. Bowlers
