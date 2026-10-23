@@ -24,6 +24,10 @@ enum ErrorText {
             String(localized: "Give the ball a name.")
         case .invalidBall(.weightOutOfRange):
             String(localized: "Ball weight must be 6 to 16 pounds.")
+        case .invalidBall(.negativeSpec):
+            String(localized: "RG and differentials can't be negative.")
+        case .invalidBall(.resurfaceIntervalBelowOne):
+            String(localized: "The resurface interval must be at least 1 game.")
         case .invalidBowler(.emptyName):
             String(localized: "Enter a name.")
         case .invalidMaintenance(.dateInFuture):

@@ -25,6 +25,10 @@ public enum BallFieldError: Sendable, Hashable {
     case emptyName
     /// Outside 6 through 16 pounds.
     case weightOutOfRange
+    /// RG, differential, or intermediate differential below zero or not a finite number.
+    case negativeSpec
+    /// Set but below 1 game; nil is how to turn the reminder off.
+    case resurfaceIntervalBelowOne
 }
 
 public enum MaintenanceFieldError: Sendable, Hashable {
