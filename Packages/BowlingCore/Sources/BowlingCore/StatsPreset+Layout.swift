@@ -1,6 +1,6 @@
 // Saved layouts (spec section 7 "Customize" and "Layout rules"). A layout is the raw card
 // IDs stored on the owner. It may hold IDs this build cannot show: cards from a newer app
-// version, or cards that are not available yet. Those are skipped on display and kept
+// version, or cards whose `isAvailable` is false. Those are skipped on display and kept
 // on save, so a synced layout survives a round trip through an older device.
 extension StatsPreset {
     /// The Stats cards to show, in order. An empty layout, or one with nothing this build
