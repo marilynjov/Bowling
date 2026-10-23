@@ -11,6 +11,11 @@ public struct BallSummary: Sendable, Hashable, Identifiable {
     public var intendedRole: BallRole
     /// Games with this ball as the default or on any roll, each game counted once.
     public var gamesBowled: Int
+    public var isRetired: Bool
+    /// The row shows the photo from `photo(for:)` or a placeholder.
+    public var hasPhoto: Bool
+    /// `BallMaintenance.isResurfaceDue`: the Arsenal list's "Resurface due" badge.
+    public var isResurfaceDue: Bool
 }
 
 @MainActor
@@ -89,7 +94,10 @@ extension Ball {
             brand: brand,
             weightPounds: weightPounds,
             intendedRole: BallRole(storedValue: intendedRole),
-            gamesBowled: gamesBowled
+            gamesBowled: gamesBowled,
+            isRetired: isRetired,
+            hasPhoto: photo != nil,
+            isResurfaceDue: resurfaceIntervalGames != nil && wear().isResurfaceDue
         )
     }
 
