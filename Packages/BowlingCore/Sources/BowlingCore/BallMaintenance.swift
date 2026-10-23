@@ -47,7 +47,8 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
 public struct BallMaintenance: Sendable, Hashable {
     /// Games with the ball as the default or on any roll override, each counted once.
     public var gamesBowled: Int
-    /// Games bowled after the latest resurface, or every game bowled when there is none.
+    /// Games bowled after the latest resurface; without one, games since purchase, or every
+    /// game bowled when the purchase date is not set either.
     public var gamesSinceResurface: Int
     /// Date of the latest resurface; nil when the ball has never been resurfaced.
     public var lastResurface: Date?
@@ -62,11 +63,22 @@ public struct BallMaintenance: Sendable, Hashable {
 
     /// A game played at the very instant of a resurface counts as before it: the bowler
     /// logs the resurface when the ball comes back from the shop, ahead of the next game.
-    public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord], resurfaceIntervalGames: Int?) {
+    /// A game at or after `purchaseDate` counts as after the purchase; pass the start of the
+    /// purchase day so that day's games count whatever time the date picker stored.
+    public init(
+        ball: BallID, games: [GameRecord], events: [MaintenanceRecord], resurfaceIntervalGames: Int?,
+        purchaseDate: Date? = nil
+    ) {
         let used = games.filter { $0.uses(ball) }
         let resurface = events.filter { $0.kind == .resurface }.map(\.date).max()
         gamesBowled = used.count
-        gamesSinceResurface = resurface.map { date in used.count { $0.sessionDate > date } } ?? used.count
+        gamesSinceResurface = if let resurface {
+            used.count { $0.sessionDate > resurface }
+        } else if let purchaseDate {
+            used.count { $0.sessionDate >= purchaseDate }
+        } else {
+            used.count
+        }
         lastResurface = resurface
         self.resurfaceIntervalGames = resurfaceIntervalGames
         self.events = events.sorted { $0.date > $1.date }

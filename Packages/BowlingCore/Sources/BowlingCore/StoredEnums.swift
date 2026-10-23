@@ -76,6 +76,35 @@ public enum BallRole: String, Sendable, Hashable, Codable, CaseIterable {
     }
 }
 
+/// Stored default: unknown, which is also a value the user can pick.
+public enum Coverstock: String, Sendable, Hashable, Codable, CaseIterable {
+    case plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other
+    case unknown
+
+    public init(storedValue: String) {
+        self = Self(rawValue: storedValue) ?? .unknown
+    }
+
+    public init(from decoder: any Decoder) throws {
+        self.init(storedValue: try decoder.singleValueContainer().decode(String.self))
+    }
+}
+
+/// Stored default: unknown, which is also a value the user can pick. `pancake` is the
+/// plastic spare-ball core.
+public enum CoreType: String, Sendable, Hashable, Codable, CaseIterable {
+    case symmetric, asymmetric, pancake
+    case unknown
+
+    public init(storedValue: String) {
+        self = Self(rawValue: storedValue) ?? .unknown
+    }
+
+    public init(from decoder: any Decoder) throws {
+        self.init(storedValue: try decoder.singleValueContainer().decode(String.self))
+    }
+}
+
 /// The user's explicit default stats scope. The stored empty string means "follow the
 /// bowling style" and reads as nil on `BowlerRecord`, as does `.unknown`.
 public enum StatsScope: String, Sendable, Hashable, Codable, CaseIterable {
