@@ -2,15 +2,23 @@ import BowlingData
 import Foundation
 import SwiftUI
 
+/// A center, league, or oil pattern: what `NamedRefPicker` lists.
+protocol NamedItem: Identifiable where ID == UUID {
+    var name: String { get }
+}
+
+extension NamedRef: NamedItem {}
+extension LeagueRecord: NamedItem {}
+
 /// Center, league, or oil pattern: a searchable list with None and an Add "<text>" row.
 /// Picking or adding goes back to the form.
-struct NamedRefPicker: View {
+struct NamedRefPicker<Item: NamedItem>: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
     let title: String
-    let items: [NamedRef]
+    let items: [Item]
     @Binding var selection: UUID?
     /// Creates an item from a trimmed name and returns its ID.
     let create: (String) throws -> UUID

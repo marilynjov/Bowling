@@ -8,19 +8,17 @@ struct AddBowlerPicker: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
 
-    let candidates: [BowlerRecord]
-    /// Decides the Add row: a nil name hides it.
-    let addName: (String) -> String?
+    let choices: AddBowlerChoices
     let onPick: (BowlerRecord) -> Void
     /// Creates a bowler from a trimmed name.
     let create: (String) throws -> BowlerRecord
 
     var body: some View {
         List {
-            ForEach(NameSearch.filter(candidates, by: search, name: \.name)) { bowler in
+            ForEach(NameSearch.filter(choices.candidates, by: search, name: \.name)) { bowler in
                 PickerRow(name: bowler.name, isPicked: false) { pick(bowler) }
             }
-            if let name = addName(search) {
+            if let name = choices.addName(for: search) {
                 AddRow(name: name) { add(name) }
             }
         }
@@ -54,8 +52,7 @@ private struct AddBowlerPickerPreview: View {
             let _ = app.revision
             let bowlers = app.store.bowlers.bowlers()
             AddBowlerPicker(
-                candidates: bowlers.filter { !$0.isOwner },
-                addName: { NameSearch.addName(for: $0, existing: bowlers.map(\.name)) },
+                choices: AddBowlerChoices(candidates: bowlers.filter { !$0.isOwner }, names: bowlers.map(\.name)),
                 onPick: { _ in }
             ) { name in
                 try app.write { try $0.bowlers.createBowler(name: name) }

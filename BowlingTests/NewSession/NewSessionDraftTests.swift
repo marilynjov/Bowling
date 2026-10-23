@@ -98,20 +98,43 @@ import Testing
         #expect(detail.bowlers[0].games[0].entryMode == .countOnly)
     }
 
-    @Test func addBowlerOffersOnlyPeopleNotInTheLineup() {
+    @Test func addBowlerListsOthersButChecksNamesAgainstEveryone() {
         var d = NewSessionDraft(owner: owner, date: .now)
         let all = store.bowlers.bowlers()
-        #expect(d.candidates(from: all).map(\.id) == [friend.id])
+        #expect(d.addBowlerChoices(from: all).candidates.map(\.id) == [friend.id])
         d.add(friend)
-        #expect(d.candidates(from: all).isEmpty)
+        let choices = d.addBowlerChoices(from: all)
+        #expect(choices.candidates.isEmpty)
+        #expect(choices.addName(for: "ana") == nil)
+        #expect(choices.addName(for: " sam ") == nil)
+        #expect(choices.addName(for: "Luz") == "Luz")
     }
 
-    @Test func addBowlerNeverDuplicatesSomeoneInTheLineup() {
-        var d = NewSessionDraft(owner: owner, date: .now)
-        d.add(friend)
-        let all = store.bowlers.bowlers()
-        #expect(d.addBowlerName(for: "ana", among: all) == nil)
-        #expect(d.addBowlerName(for: " sam ", among: all) == nil)
-        #expect(d.addBowlerName(for: "Luz", among: all) == "Luz")
+    @Test func leaguesFollowThePickedCenter() throws {
+        let a = try store.sessions.createCenter(name: "AMF Bowl")
+        let b = try store.sessions.createCenter(name: "Sunset Lanes")
+        _ = try store.sessions.createLeague(name: "Tuesday Mixed", centerID: a)
+        _ = try store.sessions.createLeague(name: "Friday Night", centerID: b)
+        _ = try store.sessions.createLeague(name: "Open Doubles", centerID: nil)
+        let records = store.sessions.leagueRecords()
+        var d = NewSessionDraft(owner: owner, date: .now, eventType: .league)
+        #expect(d.leagues(from: records).map(\.name) == ["Open Doubles"])
+        d.centerID = a
+        #expect(d.leagues(from: records).map(\.name) == ["Tuesday Mixed"])
+        d.centerID = b
+        let names = d.leagues(from: records).map(\.name)
+        #expect(names == ["Friday Night"])
+        #expect(NameSearch.addName(for: "tuesday mixed", existing: names) == "tuesday mixed")
+    }
+
+    @Test func changingTheCenterClearsTheLeague() {
+        let a = UUID(), league = UUID()
+        var d = NewSessionDraft(owner: owner, date: .now, eventType: .league)
+        d.centerID = a
+        d.leagueID = league
+        d.centerID = a
+        #expect(d.leagueID == league)
+        d.centerID = UUID()
+        #expect(d.leagueID == nil)
     }
 }

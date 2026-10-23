@@ -40,7 +40,7 @@ struct HomeData: Hashable {
     /// The default scope's report, like Stats; a competition scope also gets the all-games
     /// report for the Average's second figure.
     private static func tiles(for owner: BowlerRecord, in store: BowlingStore, now: Date, calendar: Calendar) -> [HomeTile] {
-        let preferCompetition = HomeTiles.prefersCompetition(scope: owner.statsScope, profile: owner.statsProfile)
+        let preferCompetition = StatsPreset.prefersCompetition(scope: owner.statsScope, profile: owner.statsProfile)
         let eventTypes = store.stats.defaultEventTypes(for: owner.id, preferCompetition: preferCompetition)
         func report(_ filter: StatsFilter) -> StatsReport {
             StatsEngine.report(games: store.stats.games(matching: filter, now: now, calendar: calendar), filter: filter)

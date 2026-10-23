@@ -14,15 +14,6 @@ struct HomeTile: Hashable, Identifiable {
 
 /// Turns stats reports into Home's tiles.
 enum HomeTiles {
-    /// The saved scope wins; nil or `.unknown` follows the bowling style, like Stats.
-    static func prefersCompetition(scope: StatsScope?, profile: StatsProfile) -> Bool {
-        switch scope {
-        case .competition: true
-        case .all: false
-        case nil, .unknown: StatsPreset.prefersCompetition(profile)
-        }
-    }
-
     /// Tiles for `cards` in order, skipping cards that aren't tile-shaped (charts, tables).
     /// `allGames` non-nil means `scoped` is the competition report, so the Average's
     /// sample line also gives the all-games average.

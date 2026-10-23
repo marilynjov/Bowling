@@ -12,7 +12,6 @@ enum NameSearch {
 
     /// The trimmed text to create, or nil when it's blank or already exists, ignoring case
     /// and accents (so "cafe lanes" doesn't make a second "Café Lanes").
-    /// The repository's create calls don't trim, so this is the name to pass them.
     static func addName(for text: String, existing: [String]) -> String? {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
