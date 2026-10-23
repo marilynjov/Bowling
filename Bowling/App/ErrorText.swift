@@ -30,6 +30,8 @@ enum ErrorText {
             String(localized: "The maintenance date can't be in the future.")
         case .invalidMaintenance(.unknownKind):
             String(localized: "Choose a maintenance type.")
+        case .invalidPlace(.emptyName):
+            String(localized: "Enter a name.")
         case .notFinalOnly:
             String(localized: "This game is scored from its rolls, so its score can't be typed.")
         }

@@ -312,4 +312,74 @@ import Testing
         #expect(throws: RepositoryError.notFound) { try sessions.createLeague(name: "Trios", centerID: UUID()) }
         #expect(sessions.leagues().isEmpty)
     }
+
+    @Test func placeNamesAreTrimmed() throws {
+        let center = try sessions.createCenter(name: "  Sunset Lanes\n")
+        let league = try sessions.createLeague(name: "\tTuesday Trios ", centerID: center)
+        let pattern = try sessions.createOilPattern(name: " Shark  ")
+        #expect(sessions.centers() == [NamedRef(id: center, name: "Sunset Lanes")])
+        #expect(sessions.leagues() == [NamedRef(id: league, name: "Tuesday Trios")])
+        #expect(sessions.oilPatterns() == [NamedRef(id: pattern, name: "Shark")])
+    }
+
+    @Test(arguments: ["", "   ", "\n\t"])
+    func blankPlaceNamesAreRefused(_ name: String) throws {
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createCenter(name: name) }
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createLeague(name: name, centerID: nil) }
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createOilPattern(name: name) }
+        #expect(sessions.centers().isEmpty)
+        #expect(sessions.leagues().isEmpty)
+        #expect(sessions.oilPatterns().isEmpty)
+    }
+
+    // MARK: League details
+
+    @Test func leagueRecordReadsCenterSeasonAndGamesPerSession() throws {
+        let center = try sessions.createCenter(name: "Sunset Lanes")
+        let id = try sessions.createLeague(name: "Tuesday Mixed", centerID: center)
+        let start = date.addingTimeInterval(-60 * 86_400)
+        let end = date.addingTimeInterval(120 * 86_400)
+        let league = try store.context.league(id)
+        league.seasonStart = start
+        league.seasonEnd = end
+        league.seasonLabel = "2026-27"
+        league.gamesPerSession = 4
+        try store.context.save()
+
+        #expect(try sessions.league(id) == LeagueRecord(
+            id: id, name: "Tuesday Mixed", centerID: center, seasonLabel: "2026-27",
+            seasonStart: start, seasonEnd: end, gamesPerSession: 4
+        ))
+    }
+
+    @Test func newLeagueHasNoCenterNoSeasonAndThreeGames() throws {
+        let id = try sessions.createLeague(name: "Sunday Doubles", centerID: nil)
+        #expect(try sessions.league(id) == LeagueRecord(
+            id: id, name: "Sunday Doubles", centerID: nil, seasonLabel: "",
+            seasonStart: nil, seasonEnd: nil, gamesPerSession: 3
+        ))
+    }
+
+    @Test func leagueRecordsListByName() throws {
+        let sunday = try sessions.createLeague(name: "sunday Doubles", centerID: nil)
+        let monday = try sessions.createLeague(name: "Monday Majors", centerID: nil)
+        #expect(sessions.leagueRecords().map(\.id) == [monday, sunday])
+        #expect(sessions.leagueRecords().map(\.name) == sessions.leagues().map(\.name))
+    }
+
+    @Test func leagueRecordsForACenterListOnlyItsLeaguesByName() throws {
+        let sunset = try sessions.createCenter(name: "Sunset Lanes")
+        let bay = try sessions.createCenter(name: "AMF Bay")
+        let trios = try sessions.createLeague(name: "Trios", centerID: sunset)
+        let majors = try sessions.createLeague(name: "Majors", centerID: sunset)
+        _ = try sessions.createLeague(name: "Doubles", centerID: bay)
+        _ = try sessions.createLeague(name: "Roaming", centerID: nil)
+
+        #expect(sessions.leagueRecords(centerID: sunset).map(\.id) == [majors, trios])
+        #expect(sessions.leagueRecords(centerID: UUID()).isEmpty)
+    }
+
+    @Test func missingLeagueIsNotFound() {
+        #expect(throws: RepositoryError.notFound) { try sessions.league(UUID()) }
+    }
 }
