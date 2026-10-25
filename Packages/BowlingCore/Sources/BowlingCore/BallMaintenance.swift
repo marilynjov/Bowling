@@ -74,13 +74,21 @@ public struct BallMaintenance: Sendable, Hashable {
         let used = games.filter { $0.uses(ball) }
         let resurface = events.filter { $0.kind == .resurface }.map(\.date).max()
         gamesBowled = used.count
-        gamesSinceResurface = used.count { game in
-            (resurface.map { game.sessionDate > $0 } ?? true)
-                && (purchaseDate.map { game.sessionDate >= $0 } ?? true)
-        }
+        gamesSinceResurface = Self.gamesSinceResurface(
+            sessionDates: used.map(\.sessionDate), lastResurface: resurface, purchaseDate: purchaseDate
+        )
         lastResurface = resurface
         self.resurfaceIntervalGames = resurfaceIntervalGames
         self.events = events.sorted { $0.date > $1.date }
+    }
+
+    /// The `gamesSinceResurface` rule over the session dates of the games that use the
+    /// ball, so a caller holding only dates (the Arsenal list's badge) skips building
+    /// game records.
+    public static func gamesSinceResurface(sessionDates: [Date], lastResurface: Date?, purchaseDate: Date?) -> Int {
+        sessionDates.count { date in
+            (lastResurface.map { date > $0 } ?? true) && (purchaseDate.map { date >= $0 } ?? true)
+        }
     }
 }
 

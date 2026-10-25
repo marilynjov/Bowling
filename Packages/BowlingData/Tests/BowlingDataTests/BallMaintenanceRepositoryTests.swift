@@ -89,6 +89,37 @@ import Testing
         #expect(maintenance.isResurfaceDue)
     }
 
+    /// The Arsenal badge's shortcut must agree with the full calculation at every step.
+    @Test func summaryResurfaceDueAgreesWithMaintenance() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        let ball = try store.context.ball(ballID)
+        func check() throws {
+            let summary = try #require(balls.activeBalls().first { $0.id == ballID })
+            #expect(summary.isResurfaceDue == (try balls.maintenance(for: ballID).isResurfaceDue))
+        }
+        try check()
+        ball.resurfaceIntervalGames = 2
+        try insert(day: 1, defaultBall: ballID)
+        try check()
+        try insert(day: 2, defaultBall: otherBallID, override: ballID)
+        try check()
+        _ = try balls.logMaintenance(.resurface, date: Self.day(2.5), surfaceGritAfter: "", notes: "", for: ballID)
+        try check()
+        try insert(day: 3, defaultBall: ballID)
+        try insert(day: 4, defaultBall: ballID)
+        try check()
+        _ = try balls.logMaintenance(.polish, date: Self.day(4.5), surfaceGritAfter: "", notes: "", for: ballID)
+        try check()
+        // A purchase on day 4, after the resurface: only the day 4 game.
+        ball.purchaseDate = Self.day(4)
+        try check()
+        ball.resurfaceIntervalGames = 1
+        try check()
+        #expect(balls.activeBalls().first { $0.id == ballID }?.isResurfaceDue == true)
+    }
+
     @Test func logMaintenanceSnapshotsGamesAndCopiesTheGrit() throws {
         try insert(day: 1, defaultBall: ballID)
         try insert(day: 2, defaultBall: otherBallID, override: ballID)

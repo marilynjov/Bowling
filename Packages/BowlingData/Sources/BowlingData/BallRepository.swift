@@ -100,7 +100,7 @@ extension Ball {
             gamesBowled: gamesBowled,
             isRetired: isRetired,
             hasPhoto: photo != nil,
-            isResurfaceDue: resurfaceIntervalGames != nil && wear(calendar: calendar).isResurfaceDue
+            isResurfaceDue: isResurfaceDue(calendar: calendar)
         )
     }
 

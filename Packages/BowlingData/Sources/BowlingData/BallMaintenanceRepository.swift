@@ -52,6 +52,20 @@ extension Ball {
         )
     }
 
+    /// `wear(calendar:).isResurfaceDue` from session dates alone: `activeBalls()` runs it for
+    /// every ball on Scoring and New session, so it skips converting games to records.
+    func isResurfaceDue(calendar: Calendar) -> Bool {
+        guard let interval = resurfaceIntervalGames else { return false }
+        let lastResurface = (maintenance ?? [])
+            .filter { MaintenanceKind(storedValue: $0.kind) == .resurface }
+            .map(\.date).max()
+        let count = BallMaintenance.gamesSinceResurface(
+            sessionDates: gamesUsing.map { $0.session?.date ?? $0.createdAt },
+            lastResurface: lastResurface, purchaseDate: purchaseDate.map(calendar.startOfDay)
+        )
+        return count >= interval
+    }
+
     /// Games with this ball as the default or on any roll, each once.
     var gamesUsing: [Game] {
         let overrideGames = (rollsAsOverride ?? []).compactMap { $0.frame?.game }
