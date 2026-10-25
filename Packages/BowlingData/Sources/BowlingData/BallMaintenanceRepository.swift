@@ -7,10 +7,10 @@ import SwiftData
 extension BallRepository {
     /// Wear and the maintenance log, over every game the ball was used in, whatever the
     /// stats filter. Without a resurface, games since resurface count from the start of the
-    /// purchase day in the current calendar.
+    /// purchase day in the repository's calendar.
     /// - Throws: `.notFound` for an unknown ball.
     public func maintenance(for ballID: BallID) throws -> BallMaintenance {
-        try context.ball(ballID).wear()
+        try context.ball(ballID).wear(calendar: calendar)
     }
 
     /// Logs an event with a snapshot of the games bowled up to `date` (session date on or
@@ -43,12 +43,12 @@ extension BallRepository {
 }
 
 extension Ball {
-    func wear() -> BallMaintenance {
+    func wear(calendar: Calendar) -> BallMaintenance {
         BallMaintenance(
             ball: id, games: gamesUsing.map { $0.record() },
             events: (maintenance ?? []).map { $0.record() },
             resurfaceIntervalGames: resurfaceIntervalGames,
-            purchaseDate: purchaseDate.map(Calendar.current.startOfDay)
+            purchaseDate: purchaseDate.map(calendar.startOfDay)
         )
     }
 

@@ -23,6 +23,9 @@ public final class BallRepository {
     static let weightRange = 6...16
 
     let context: ModelContext
+    /// Finds the start of the purchase day for games since resurface. Tests set a fixed
+    /// time zone so the result does not depend on the machine's.
+    var calendar: Calendar = .current
 
     init(context: ModelContext) {
         self.context = context
@@ -34,7 +37,7 @@ public final class BallRepository {
         let active = (try? context.fetch(descriptor)) ?? []
         return active
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            .map { $0.summary() }
+            .map { $0.summary(calendar: calendar) }
     }
 
     /// Retired balls, by name: the Arsenal list's collapsed Retired group.
@@ -43,7 +46,7 @@ public final class BallRepository {
         let retired = (try? context.fetch(descriptor)) ?? []
         return retired
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            .map { $0.summary() }
+            .map { $0.summary(calendar: calendar) }
     }
 
     /// A retired ball keeps its games, stats, and log but leaves `activeBalls()`, so the
@@ -81,13 +84,13 @@ public final class BallRepository {
             ball.brand = brand
             if intendedRole != .unknown { ball.intendedRole = intendedRole.rawValue }
             context.insert(ball)
-            return ball.summary()
+            return ball.summary(calendar: calendar)
         }
     }
 }
 
 extension Ball {
-    func summary() -> BallSummary {
+    func summary(calendar: Calendar) -> BallSummary {
         BallSummary(
             id: id,
             name: name,
@@ -97,7 +100,7 @@ extension Ball {
             gamesBowled: gamesBowled,
             isRetired: isRetired,
             hasPhoto: photo != nil,
-            isResurfaceDue: resurfaceIntervalGames != nil && wear().isResurfaceDue
+            isResurfaceDue: resurfaceIntervalGames != nil && wear(calendar: calendar).isResurfaceDue
         )
     }
 
