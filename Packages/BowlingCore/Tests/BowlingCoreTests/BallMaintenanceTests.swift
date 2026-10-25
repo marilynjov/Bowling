@@ -63,6 +63,26 @@ import Testing
         #expect(maintenance.lastResurface == nil)
     }
 
+    @Test func withoutAResurfaceOnlyGamesSincePurchaseCount() {
+        let maintenance = BallMaintenance(
+            ball: Self.ball, games: Self.games, events: [], resurfaceIntervalGames: 3, purchaseDate: Self.day(3)
+        )
+        // On or after day 3: g3, g4, g6 = 3; g1 and g2 came before the purchase. Games
+        // bowled still counts all 5.
+        #expect(maintenance.gamesSinceResurface == 3)
+        #expect(maintenance.gamesBowled == 5)
+        #expect(maintenance.isResurfaceDue)
+    }
+
+    @Test func aResurfaceOverridesThePurchaseDate() {
+        let maintenance = BallMaintenance(
+            ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: nil,
+            purchaseDate: Self.day(0)
+        )
+        // Latest resurface day 2.5 wins over the day 0 purchase: g3, g4, g6 = 3.
+        #expect(maintenance.gamesSinceResurface == 3)
+    }
+
     @Test func onlyGamesAfterTheLatestResurfaceCount() {
         let maintenance = BallMaintenance(ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: nil)
         // Latest resurface is day 2.5, not day 0.5; polish (3.5) and oil extraction (4.5)

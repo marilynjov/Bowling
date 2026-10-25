@@ -327,7 +327,10 @@ Repository rules on top of the schema:
 
 - Deleting a Bowler who has games is refused with an explanation; the user can delete
   the games first. The owner can never be deleted.
-- Deleting a Ball warns with the count of affected games and offers "retire instead".
+- Deleting a Ball that any game uses, as its default or on a roll override, is refused
+  with the count of affected games and the app offers "retire instead". Nullifying would
+  be wrong: a roll with no ball means the game's default ball, so an override's rolls
+  would move to another ball.
 - Deleting a Center, League, or Pattern warns with the count of affected sessions.
 
 ### 3.4 Duplicates after sync (designed now, implemented in phase 2)
