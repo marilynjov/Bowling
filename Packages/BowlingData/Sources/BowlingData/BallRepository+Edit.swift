@@ -135,8 +135,8 @@ extension Ball {
     private func fields() -> BallFields {
         BallFields(
             name: name, brand: brand, weightPounds: weightPounds,
-            coverstock: BowlingCore.Coverstock(storedValue: coverstock), coverstockName: coverstockName,
-            coreType: BowlingCore.CoreType(storedValue: coreType), coreName: coreName,
+            coverstock: coverstockValue, coverstockName: coverstockName,
+            coreType: coreTypeValue, coreName: coreName,
             rg: rg, differential: differential, intermediateDifferential: intermediateDifferential,
             intendedRole: BallRole(storedValue: intendedRole), serialNumber: serialNumber,
             colorDescription: colorDescription, releaseDate: releaseDate, purchaseDate: purchaseDate,
@@ -149,9 +149,9 @@ extension Ball {
         self.name = name
         brand = fields.brand
         weightPounds = fields.weightPounds
-        if BowlingCore.Coverstock(storedValue: coverstock) != fields.coverstock { coverstock = fields.coverstock.rawValue }
+        if coverstockValue != fields.coverstock { coverstockValue = fields.coverstock }
         coverstockName = fields.coverstockName
-        if BowlingCore.CoreType(storedValue: coreType) != fields.coreType { coreType = fields.coreType.rawValue }
+        if coreTypeValue != fields.coreType { coreTypeValue = fields.coreType }
         coreName = fields.coreName
         rg = fields.rg
         differential = fields.differential
