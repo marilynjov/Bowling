@@ -121,6 +121,7 @@ import Testing
             (with { $0.rg = .infinity }, .negativeSpec),
             (with { $0.resurfaceIntervalGames = 0 }, .resurfaceIntervalBelowOne),
             (with { $0.resurfaceIntervalGames = -10 }, .resurfaceIntervalBelowOne),
+            (with { $0.purchaseDate = .now.addingTimeInterval(2 * 86_400) }, .purchaseDateInFuture),
         ]
     }()
 
@@ -144,6 +145,25 @@ import Testing
         fields.intermediateDifferential = 0
         fields.resurfaceIntervalGames = 1
         #expect(try balls.addBall(fields).fields == fields)
+    }
+
+    @Test func aPurchaseDateLaterTodayIsAccepted() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        var fields = Self.full
+        // The last second of today: its day has started, so it is not in the future.
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_399)
+        #expect(try balls.addBall(fields).fields.purchaseDate == fields.purchaseDate)
+    }
+
+    @Test func tomorrowsPurchaseDateIsRefused() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        var fields = Self.full
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_400)
+        #expect(throws: RepositoryError.invalidBall(.purchaseDateInFuture)) { try balls.addBall(fields) }
     }
 
     @Test func unknownBallIsNotFound() {

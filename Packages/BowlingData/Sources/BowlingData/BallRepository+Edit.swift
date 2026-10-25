@@ -22,6 +22,7 @@ public struct BallFields: Sendable, Hashable {
     public var colorDescription: String
     /// Month precision.
     public var releaseDate: Date?
+    /// Not after today. Games since resurface never count games logged before it.
     public var purchaseDate: Date?
     public var factoryFinish: String
     /// Current surface. On add, empty starts from `factoryFinish`.
@@ -81,7 +82,7 @@ extension BallRepository {
     /// finish.
     /// - Throws: `.invalidBall` for a field `updateBall` would refuse.
     public func addBall(_ fields: BallFields) throws -> BallDetail {
-        let name = try Self.validate(fields)
+        let name = try validate(fields)
         return try context.write {
             let ball = Ball(name: name, weightPounds: fields.weightPounds)
             context.insert(ball)
@@ -96,9 +97,10 @@ extension BallRepository {
     /// the stored string.
     /// - Throws: `.invalidBall(.emptyName)`, `.invalidBall(.weightOutOfRange)`,
     ///   `.invalidBall(.negativeSpec)` for a negative or non-finite RG or differential,
-    ///   `.invalidBall(.resurfaceIntervalBelowOne)`, or `.notFound` for an unknown ball.
+    ///   `.invalidBall(.resurfaceIntervalBelowOne)`, `.invalidBall(.purchaseDateInFuture)`
+    ///   for a purchase day after today, or `.notFound` for an unknown ball.
     public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail {
-        let name = try Self.validate(fields)
+        let name = try validate(fields)
         return try context.write {
             let ball = try context.ball(ballID)
             ball.apply(fields, name: name)
@@ -108,14 +110,18 @@ extension BallRepository {
     }
 
     /// The trimmed name, or the first field error.
-    private static func validate(_ fields: BallFields) throws -> String {
+    /// A purchase date later today is accepted: a date picker can store any time of day.
+    private func validate(_ fields: BallFields) throws -> String {
         let name = fields.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw RepositoryError.invalidBall(.emptyName) }
-        guard weightRange.contains(fields.weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
+        guard Self.weightRange.contains(fields.weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
         let specs = [fields.rg, fields.differential, fields.intermediateDifferential].compactMap(\.self)
         guard specs.allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw RepositoryError.invalidBall(.negativeSpec) }
         if let interval = fields.resurfaceIntervalGames, interval < 1 {
             throw RepositoryError.invalidBall(.resurfaceIntervalBelowOne)
+        }
+        if let purchase = fields.purchaseDate, calendar.startOfDay(for: purchase) > .now {
+            throw RepositoryError.invalidBall(.purchaseDateInFuture)
         }
         return name
     }

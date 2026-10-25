@@ -14,6 +14,7 @@ import Testing
         (.invalidBall(.weightOutOfRange), "Ball weight must be 6 to 16 pounds."),
         (.invalidBall(.negativeSpec), "RG and differentials can't be negative."),
         (.invalidBall(.resurfaceIntervalBelowOne), "The resurface interval must be at least 1 game."),
+        (.invalidBall(.purchaseDateInFuture), "The purchase date can't be in the future."),
         (.invalidBowler(.emptyName), "Enter a name."),
         (.invalidMaintenance(.dateInFuture), "The maintenance date can't be in the future."),
         (.invalidMaintenance(.unknownKind), "Choose a maintenance type."),

@@ -32,6 +32,8 @@ enum ErrorText {
             String(localized: "RG and differentials can't be negative.")
         case .invalidBall(.resurfaceIntervalBelowOne):
             String(localized: "The resurface interval must be at least 1 game.")
+        case .invalidBall(.purchaseDateInFuture):
+            String(localized: "The purchase date can't be in the future.")
         case .invalidBowler(.emptyName):
             String(localized: "Enter a name.")
         case .invalidMaintenance(.dateInFuture):

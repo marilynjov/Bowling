@@ -47,8 +47,8 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
 public struct BallMaintenance: Sendable, Hashable {
     /// Games with the ball as the default or on any roll override, each counted once.
     public var gamesBowled: Int
-    /// Games bowled after the latest resurface; without one, games since purchase, or every
-    /// game bowled when the purchase date is not set either.
+    /// Games bowled after the later of the latest resurface and the purchase; every game
+    /// bowled when neither is set. Games logged before the purchase date never count.
     public var gamesSinceResurface: Int
     /// Date of the latest resurface; nil when the ball has never been resurfaced.
     public var lastResurface: Date?
@@ -64,7 +64,9 @@ public struct BallMaintenance: Sendable, Hashable {
     /// A game played at the very instant of a resurface counts as before it: the bowler
     /// logs the resurface when the ball comes back from the shop, ahead of the next game.
     /// A game at or after `purchaseDate` counts as after the purchase; pass the start of the
-    /// purchase day so that day's games count whatever time the date picker stored.
+    /// purchase day so that day's games count whatever time the date picker stored. A game
+    /// must come after both, so a resurface before the purchase (the previous owner's) does
+    /// not bring back games from before it.
     public init(
         ball: BallID, games: [GameRecord], events: [MaintenanceRecord], resurfaceIntervalGames: Int?,
         purchaseDate: Date? = nil
@@ -72,12 +74,9 @@ public struct BallMaintenance: Sendable, Hashable {
         let used = games.filter { $0.uses(ball) }
         let resurface = events.filter { $0.kind == .resurface }.map(\.date).max()
         gamesBowled = used.count
-        gamesSinceResurface = if let resurface {
-            used.count { $0.sessionDate > resurface }
-        } else if let purchaseDate {
-            used.count { $0.sessionDate >= purchaseDate }
-        } else {
-            used.count
+        gamesSinceResurface = used.count { game in
+            (resurface.map { game.sessionDate > $0 } ?? true)
+                && (purchaseDate.map { game.sessionDate >= $0 } ?? true)
         }
         lastResurface = resurface
         self.resurfaceIntervalGames = resurfaceIntervalGames
