@@ -1006,7 +1006,8 @@ public enum StatsCardID: String, Sendable, Hashable, Codable, CaseIterable {
     case whatIfSinglePins
 
     public var group: StatsCardGroup { get }
-    /// False for 1b cards until 1b ships (§7 "Presets").
+    /// True for every Phase 1 card since 1b (the gap found in #100). A card added later
+    /// starts false; presets and layouts leave it out until it is true.
     public var isAvailable: Bool { get }
 }
 
@@ -1039,7 +1040,9 @@ Rules:
 - `.unknown` profile uses the casual preset (§3.2, §9).
 - `competitive` is every available card in `CaseIterable` order, which is the catalog
   order (§7 "every card", OQ-18).
-- In 1a the league preset omits `openPct` until 1b ships (§7).
+- The league preset ends with `openPct`, and `competitive` includes all seven 1b cards
+  (§7). A bowler with an empty layout gets them with no migration. A layout saved before
+  1b that holds 1b IDs (synced from a newer device) now shows them where they were saved.
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
 - Saving a layout (1b) keeps unknown IDs (§7). "Unknown" means any stored ID this build
@@ -1233,7 +1236,12 @@ Rules:
   the pin down and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball
   of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
   are not rewritten.
-- `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
+- `StatsCardID.isAvailable` is true for the seven 1b cards: `openPct` reads
+  `openFrames`, `cleanGamePct` `cleanGames`, `firstBallAverage` `firstBallAverage`,
+  `headPinRate` `headPin`, `byFrameStrike` `byFrame[].strikes`, `byFrameAverage`
+  `byFrame[].pins`, `whatIfSinglePins` `whatIfSinglePins`. A card whose group has zero
+  games (for example `headPinRate` with `pinGames == 0`) stays in place with an
+  explanation, as in section 4.
 
 ### 6.3 Leave occurrences (1b, §6 "Definitions (1b)", #40)
 
