@@ -34,6 +34,8 @@ public enum BallFieldError: Sendable, Hashable {
     case resurfaceIntervalBelowOne
     /// A purchase day after today would hold games since resurface at 0.
     case purchaseDateInFuture
+    /// Over `BallRepository.maxPhotoBytes`; the app downscales before saving.
+    case photoTooLarge
 }
 
 public enum MaintenanceFieldError: Sendable, Hashable {
