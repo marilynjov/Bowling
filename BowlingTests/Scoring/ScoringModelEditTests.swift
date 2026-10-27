@@ -191,4 +191,13 @@ import Testing
         typed.saveFinalScore("187")
         #expect(typed.currentScore == 187)
     }
+
+    @Test func replacingARollKeepsThePickedOverride() throws {
+        let model = try start(.pinByPin, ball: ballA.id)
+        model.strike()
+        model.beginEdit(frame: 1)
+        model.pickBall(ballB.id)
+        model.strike()
+        #expect(model.game.frames[0].rolls[0].ballID == ballB.id)
+    }
 }

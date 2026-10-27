@@ -53,6 +53,22 @@ import Testing
         return model
     }
 
+    /// Both bowlers' games 1 and 2 saved, then Alex's game 2 deleted; Sam's game 2 opened
+    /// from History, so only Sam is in that night.
+    func unevenNight() throws -> SessionScoringModel {
+        let first = try target(.finalOnly)
+        let samGame2 = try app.write { store in
+            for bowler in try store.sessions.session(first.sessionID).bowlers {
+                try store.games.setFinalScore(170, for: bowler.games[0].id)
+            }
+            let next = try store.games.startNextGame(in: first.sessionID)
+            for id in next { try store.games.setFinalScore(160, for: id) }
+            try store.games.deleteGame(next[1])
+            return next[0]
+        }
+        return try open(ScoringTarget(sessionID: first.sessionID, gameID: samGame2, startsOnTarget: true))
+    }
+
     @Test func opensOnTheRulesBowler() throws {
         let target = try target(.countOnly)
         try app.write { store in
@@ -181,5 +197,67 @@ import Testing
         #expect(app.error != nil)
         #expect(model.isShowingSummary)
         #expect(app.showsError(in: .gameSummary))
+    }
+
+    @Test func startsOnTargetOpensTheTappedBowler() throws {
+        var target = try target(.countOnly)
+        try app.write { store in
+            _ = try store.games.recordRoll(.count(7), ballID: nil, in: target.gameID)
+            _ = try store.games.recordRoll(.count(2), ballID: nil, in: target.gameID)
+        }
+        target.startsOnTarget = true
+        #expect(try open(target).current.bowlerName == "Sam")
+    }
+
+    @Test func nextGameOnAnUnevenNightOpensTheReturnedGames() throws {
+        let model = try unevenNight()
+        #expect(model.bowlers.map(\.bowlerName) == ["Sam"])
+        #expect(model.offersNextGame)
+        model.showSummary()
+        model.nextGame()
+        #expect(model.bowlers.map(\.bowlerName) == ["Sam", "Alex"])
+        #expect(model.bowlers.map(\.game.gameIndex) == [3, 2])
+        #expect(model.gameIndex == 3)
+        #expect(!model.isShowingSummary)
+    }
+
+    @Test func noNextGameOnAnOlderGameNumber() throws {
+        let target = try target(.finalOnly)
+        try app.write { store in
+            for bowler in try store.sessions.session(target.sessionID).bowlers {
+                try store.games.setFinalScore(170, for: bowler.games[0].id)
+            }
+            _ = try store.games.startNextGame(in: target.sessionID)
+        }
+        let model = try open(target)
+        #expect(!model.offersNextGame)
+        model.showSummary()
+        model.nextGame()
+        let detail = try app.store.sessions.session(target.sessionID)
+        #expect(detail.bowlers.map(\.games.count) == [2, 2])
+    }
+
+    @Test func aFailedRebuildClosesTheSummary() throws {
+        let model = try finishedTypedNight()
+        model.show(nextGames: [GameID()])
+        #expect(!model.isShowingSummary)
+        #expect(app.error != nil)
+        #expect(!model.offersNextGame)
+        model.showSummary()
+        model.nextGame()
+        let detail = try app.store.sessions.session(model.sessionID)
+        #expect(detail.bowlers.map(\.games.count) == [1, 1])
+    }
+
+    @Test func summariesFollowEachBowlersGame() throws {
+        let model = try unevenNight()
+        model.showSummary()
+        model.nextGame()
+        try #require(model.bowlers.count == 2)
+        model.bowlers[0].saveFinalScore("210")
+        model.bowlers[1].saveFinalScore("190")
+        #expect(model.isShowingSummary)
+        #expect(model.summaries.map(\.score) == [210, 190])
+        #expect(model.summaries.map(\.name) == ["Sam", "Alex"])
     }
 }
