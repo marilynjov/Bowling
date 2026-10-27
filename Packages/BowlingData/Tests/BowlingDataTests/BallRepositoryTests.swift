@@ -91,6 +91,49 @@ import Testing
         #expect(balls.activeBalls().first?.gamesBowled == 2)
     }
 
+    @Test func summaryCarriesTheArsenalRowFlags() throws {
+        let plain = try balls.addBall(name: "Plain", weightPounds: 15, intendedRole: .strike, brand: "")
+        #expect(!plain.isRetired)
+        #expect(!plain.hasPhoto)
+        #expect(!plain.isResurfaceDue)
+
+        try balls.setPhoto(Data([1]), for: plain.id)
+        try balls.setRetired(true, for: plain.id)
+        let retired = try #require(balls.retiredBalls().first)
+        #expect(retired.isRetired)
+        #expect(retired.hasPhoto)
+    }
+
+    @Test func resurfaceDueFollowsTheIntervalAndTheLatestResurface() throws {
+        let id = try balls.addBall(BallFields(name: "Phaze", weightPounds: 15, resurfaceIntervalGames: 2)).id
+        func insert(daysAgo: Double) throws {
+            let record = GameRecord(
+                gameIndex: 1, entryMode: .finalOnly, defaultBallID: id, finalScore: 200, isComplete: true,
+                frames: [], sessionID: SessionID(), sessionDate: .now.addingTimeInterval(-daysAgo * 86_400),
+                eventType: .league
+            )
+            _ = try insertGame(record, into: store.context)
+        }
+        try insert(daysAgo: 3)
+        #expect(balls.activeBalls().first?.isResurfaceDue == false)
+        try insert(daysAgo: 2)
+        // 2 games, interval 2: due.
+        #expect(balls.activeBalls().first?.isResurfaceDue == true)
+
+        _ = try balls.logMaintenance(.resurface, date: .now.addingTimeInterval(-86_400), surfaceGritAfter: "",
+                                     notes: "", for: id)
+        // Nothing after yesterday's resurface: 0 games.
+        #expect(balls.activeBalls().first?.isResurfaceDue == false)
+        try insert(daysAgo: 0.5)
+        try insert(daysAgo: 0.25)
+        #expect(balls.activeBalls().first?.isResurfaceDue == true)
+
+        var fields = try balls.detail(for: id).fields
+        fields.resurfaceIntervalGames = nil
+        _ = try balls.updateBall(id, with: fields)
+        #expect(balls.activeBalls().first?.isResurfaceDue == false)
+    }
+
     @Test func unknownStoredRoleReadsAsUnknown() throws {
         let ball = Ball(name: "Future", weightPounds: 15)
         ball.intendedRole = "hookAndSpare"

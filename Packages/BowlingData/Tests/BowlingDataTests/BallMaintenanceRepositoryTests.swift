@@ -59,6 +59,22 @@ import Testing
         #expect(maintenance.events.map(\.kind) == [.polish, .resurface, .resurface])
     }
 
+    @Test func withoutAResurfaceGamesCountFromThePurchaseDay() throws {
+        try insert(day: 1, defaultBall: ballID)
+        try insert(day: 2, defaultBall: otherBallID, override: ballID)
+        try insert(day: 3, defaultBall: ballID)
+        let ball = try store.context.ball(ballID)
+        // Late on day 2: the start of that day still counts the day 2 game.
+        ball.purchaseDate = Calendar.current.startOfDay(for: Self.day(2)).addingTimeInterval(23 * 3_600)
+        ball.resurfaceIntervalGames = 2
+
+        let maintenance = try balls.maintenance(for: ballID)
+        // Days 2 and 3 = 2; day 1 came before the purchase. All 3 are games bowled.
+        #expect(maintenance.gamesSinceResurface == 2)
+        #expect(maintenance.gamesBowled == 3)
+        #expect(maintenance.isResurfaceDue)
+    }
+
     @Test func logMaintenanceSnapshotsGamesAndCopiesTheGrit() throws {
         try insert(day: 1, defaultBall: ballID)
         try insert(day: 2, defaultBall: otherBallID, override: ballID)

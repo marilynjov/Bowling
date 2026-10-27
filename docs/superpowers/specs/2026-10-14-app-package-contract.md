@@ -137,10 +137,26 @@ public enum BallRole: String, Sendable, Hashable, Codable, CaseIterable {
 }
 ```
 
+**1b (#28, #29):** `.unknown` is also a value the user can pick for these two; a
+value from a newer version reads as `.unknown` too.
+
+```swift
+/// §3.2 Ball.coverstock. Stored default: unknown.
+public enum Coverstock: String, Sendable, Hashable, Codable, CaseIterable {
+    case plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other
+    case unknown
+}
+
+/// §3.2 Ball.coreType. Stored default: unknown. pancake is the plastic spare-ball core.
+public enum CoreType: String, Sendable, Hashable, Codable, CaseIterable {
+    case symmetric, asymmetric, pancake
+    case unknown
+}
+```
+
 Each enum also has `public init(storedValue: String)` that never fails, and its
-`init(from: Decoder)` uses the same fallback. Enums used only in 1b (coverstock, core
-type, maintenance kind) and only in later phases (invitation status) are not in the 1a
-contract.
+`init(from: Decoder)` uses the same fallback. Maintenance kind is in section 2.9;
+enums only in later phases (invitation status) are not in the contract yet.
 
 ### 2.3 RollRecord (1a, §3.2 Roll, §4)
 
@@ -378,8 +394,10 @@ public struct BallMaintenance: Sendable, Hashable {
     public var resurfaceIntervalGames: Int?
     public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
     public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
+    /// Without a resurface, games with session date >= purchaseDate count (1b, #32);
+    /// without either, every game. BallRepository passes the start of the purchase day.
     public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
-                resurfaceIntervalGames: Int?)
+                resurfaceIntervalGames: Int?, purchaseDate: Date? = nil)
 }
 
 extension GameRecord {
@@ -511,16 +529,22 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case invalidGame([ScoringError])          // §4: repositories refuse invalid games
     case entryModeLocked                      // §8: mode fixed once the first roll exists
     case bowlerHasGames(count: Int)           // §3.3
+    case ballHasGames(count: Int)             // §3.3, 1b: retire instead (section 3.6)
     case cannotDeleteOwner                    // §3.3
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
-    case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16
+    case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16,
+                                              // 1b: specs >= 0, interval >= 1
     case invalidBowler(BowlerFieldError)      // a bowler's name is required
     case invalidMaintenance(MaintenanceFieldError) // section 2.9: no future date, no .unknown kind
     case invalidPlace(PlaceFieldError)        // a center, league, or oil pattern name is required
     case notFinalOnly                         // setFinalScore on a game scored from rolls
 }
 
-public enum BallFieldError: Sendable, Hashable { case emptyName, weightOutOfRange }
+public enum BallFieldError: Sendable, Hashable {
+    case emptyName, weightOutOfRange
+    case negativeSpec                         // 1b: RG or a differential < 0 or not finite
+    case resurfaceIntervalBelowOne            // 1b: set but < 1; nil turns the reminder off
+}
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
 public enum PlaceFieldError: Sendable, Hashable { case emptyName }
@@ -613,6 +637,9 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
     public var intendedRole: BallRole
     public var gamesBowled: Int                    // §3.2 derived value: default ball or any
                                                    // roll override, each game once
+    public var isRetired: Bool                     // 1b
+    public var hasPhoto: Bool                      // 1b: photo(for:) or a placeholder
+    public var isResurfaceDue: Bool                // 1b: BallMaintenance.isResurfaceDue
 }
 ```
 
@@ -783,7 +810,7 @@ Rules:
 unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `BowlingStore.deleteAllData()`
 (section 3.1, OQ-12).
 
-### 3.6 BallRepository (1a basic, §7 Arsenal 1a)
+### 3.6 BallRepository (1a basic, §7 Arsenal 1a; 1b full, §7 Arsenal 1b)
 
 ```swift
 @MainActor public final class BallRepository {
@@ -796,11 +823,72 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
                         intendedRole: BallRole, brand: String) throws -> BallSummary
 
     // 1b: maintenance(for:), logMaintenance(_:date:surfaceGritAfter:notes:for:),
-    // section 2.9.
-    // 1b, not yet pinned: full add/edit form, photo, retire, delete with affected-game
-    // count (§3.3).
+    // section 2.9. maintenance(for:) is also the resurface reminder's input (#32):
+    // gamesSinceResurface counts from the latest resurface, else from the start of the
+    // purchase day, else every game; compare isResurfaceDue before and after a save.
+
+    // 1b (#28, #29, #30, #32). Every method throws .notFound for an unknown ball.
+    /// Retired balls, sorted by name: the Arsenal list's Retired group (#28).
+    public func retiredBalls() -> [BallSummary]
+    /// Header and specs of the ball detail screen, and the edit form's values (#30).
+    public func detail(for ballID: BallID) throws -> BallDetail
+    /// The 1b form. Name trimmed; an empty surfaceGrit starts from factoryFinish (§7).
+    /// Throws .invalidBall(...) as updateBall.
+    public func addBall(_ fields: BallFields) throws -> BallDetail
+    /// Replaces every editable field. Throws .invalidBall(.emptyName),
+    /// .invalidBall(.weightOutOfRange), .invalidBall(.negativeSpec),
+    /// .invalidBall(.resurfaceIntervalBelowOne).
+    public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail
+    /// Nil when the ball has no photo.
+    public func photo(for ballID: BallID) throws -> Data?
+    /// The app downscales first. Replaces an existing photo; empty data removes it.
+    public func setPhoto(_ imageData: Data, for ballID: BallID) throws
+    public func removePhoto(for ballID: BallID) throws
+    /// Retired balls keep their games, stats, and log; they leave activeBalls().
+    public func setRetired(_ isRetired: Bool, for ballID: BallID) throws
+    /// Deletes the ball, its photo, and its log. Throws .ballHasGames(count:) when any
+    /// game uses it as the default or on a roll override: a roll's nil ball means the
+    /// game's default, so nullifying an override would credit those rolls to another
+    /// ball. The app offers "Retire instead" (§3.3).
+    public func deleteBall(_ ballID: BallID) throws
+}
+
+/// Every editable Ball field (§3.2 Ball). Public init; only name and weightPounds have
+/// no default.
+public struct BallFields: Sendable, Hashable {
+    public var name: String
+    public var brand: String                       // default ""
+    public var weightPounds: Int                   // 6...16
+    public var coverstock: Coverstock              // default .unknown
+    public var coverstockName: String
+    public var coreType: CoreType                  // default .unknown
+    public var coreName: String
+    public var rg: Double?                         // >= 0
+    public var differential: Double?               // >= 0
+    public var intermediateDifferential: Double?   // >= 0, asymmetric cores only
+    public var intendedRole: BallRole              // default .strike; .unknown keeps stored
+    public var serialNumber: String
+    public var colorDescription: String
+    public var releaseDate: Date?                  // month precision
+    public var purchaseDate: Date?
+    public var factoryFinish: String
+    public var surfaceGrit: String                 // current surface
+    public var resurfaceIntervalGames: Int?        // nil: no reminder; else >= 1
+    public var notes: String
+}
+
+public struct BallDetail: Sendable, Hashable, Identifiable {
+    public var id: BallID
+    public var fields: BallFields
+    public var isRetired: Bool
+    public var hasPhoto: Bool
+    public var gamesBowled: Int                    // default or any roll override, once per game
 }
 ```
+
+A coverstock or core type in `BallFields` that reads the same as the stored string keeps
+that string, so editing another field never overwrites a newer version's value with
+`"unknown"`. The schema is unchanged; `Ball.bowler` (#93) comes later.
 
 ### 3.7 StatsRepository (1a)
 
@@ -1006,7 +1094,8 @@ public enum StatsCardID: String, Sendable, Hashable, Codable, CaseIterable {
     case whatIfSinglePins
 
     public var group: StatsCardGroup { get }
-    /// False for 1b cards until 1b ships (§7 "Presets").
+    /// True for every Phase 1 card since 1b (the gap found in #100). A card added later
+    /// starts false; presets and layouts leave it out until it is true.
     public var isAvailable: Bool { get }
 }
 
@@ -1039,7 +1128,9 @@ Rules:
 - `.unknown` profile uses the casual preset (§3.2, §9).
 - `competitive` is every available card in `CaseIterable` order, which is the catalog
   order (§7 "every card", OQ-18).
-- In 1a the league preset omits `openPct` until 1b ships (§7).
+- The league preset ends with `openPct`, and `competitive` includes all seven 1b cards
+  (§7). A bowler with an empty layout gets them with no migration. A layout saved before
+  1b that holds 1b IDs (synced from a newer device) now shows them where they were saved.
 - A card whose group has zero games (for example `leavesTable` when `pinGames == 0`)
   stays in place and shows an explanation (§7 "Layout rules"); the copy is the app's.
 - Saving a layout (1b) keeps unknown IDs (§7). "Unknown" means any stored ID this build
@@ -1148,12 +1239,14 @@ starts.
   Pinned in section 6.3 (#40).
 - ~~`BallReport`, `BallComparisonRow`, `StatsEngine.ballReport(for:games:)`,
   `compareBalls(games:)` (§6 "Ball report").~~ Pinned in section 2.9 (#38).
-- Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
-  affected-game count, resurface due (§3.2, §7 Arsenal 1b).
+- ~~Full `BallRecord`, coverstock and core enums, maintenance events, retire, delete with
+  affected-game count, resurface due (§3.2, §7 Arsenal 1b).~~ Pinned in sections 2.2,
+  2.9, 3.2 and 3.6 as `BallDetail` and `BallFields`; delete refuses a used ball with
+  `.ballHasGames(count:)` instead of warning.
 - ~~Layout writes from Customize and "Reset to preset" (§7), and `StatsPreset`'s
   `displayedStatsCards` and `displayedHomeTiles` (section 4.3).~~ Pinned in sections 3.5
   and 4.3 (#46).
-- Ball, center, league, pattern delete warnings (§3.3).
+- Center, league, pattern delete warnings (§3.3). Ball delete: section 3.6.
 - CSV export (§7 Settings 1b): pinned in section 6.1.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
@@ -1233,7 +1326,12 @@ Rules:
   the pin down and rescores with `Scorer`. A frame 10 spare made this way gets a fill ball
   of 0, so the gain is the spares' own. Fill-ball leaves are not spare attempts (1a) and
   are not rewritten.
-- `StatsCardID.isAvailable` stays false for the 1b cards until their screens ship.
+- `StatsCardID.isAvailable` is true for the seven 1b cards: `openPct` reads
+  `openFrames`, `cleanGamePct` `cleanGames`, `firstBallAverage` `firstBallAverage`,
+  `headPinRate` `headPin`, `byFrameStrike` `byFrame[].strikes`, `byFrameAverage`
+  `byFrame[].pins`, `whatIfSinglePins` `whatIfSinglePins`. A card whose group has zero
+  games (for example `headPinRate` with `pinGames == 0`) stays in place with an
+  explanation, as in section 4.
 
 ### 6.3 Leave occurrences (1b, §6 "Definitions (1b)", #40)
 

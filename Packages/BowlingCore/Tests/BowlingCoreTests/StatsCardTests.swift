@@ -36,12 +36,8 @@ import BowlingCore
         #expect(grouped[.whatIf] == [.whatIfSinglePins])
     }
 
-    @Test func onlyPhase1aCardsAreAvailable() {
-        #expect(StatsCardID.allCases.filter(\.isAvailable) == [
-            .average, .highGame, .highSeries,
-            .trendChart,
-            .strikePct, .sparePct, .fouls,
-            .leavesTable, .leftMostMadeLeast, .splitConversion, .makeableConversion, .singlePinConversion,
-        ])
+    // 1b shipped, so every Phase 1 card is in presets and layouts.
+    @Test func everyPhase1CardIsAvailable() {
+        #expect(StatsCardID.allCases.allSatisfy { $0.isAvailable })
     }
 }

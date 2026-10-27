@@ -12,6 +12,8 @@ import Testing
         (.ownerAlreadyExists, "Your profile already exists."),
         (.invalidBall(.emptyName), "Give the ball a name."),
         (.invalidBall(.weightOutOfRange), "Ball weight must be 6 to 16 pounds."),
+        (.invalidBall(.negativeSpec), "RG and differentials can't be negative."),
+        (.invalidBall(.resurfaceIntervalBelowOne), "The resurface interval must be at least 1 game."),
         (.invalidBowler(.emptyName), "Enter a name."),
         (.invalidMaintenance(.dateInFuture), "The maintenance date can't be in the future."),
         (.invalidMaintenance(.unknownKind), "Choose a maintenance type."),
@@ -25,6 +27,11 @@ import Testing
     @Test func bowlerHasGamesPluralizes() {
         #expect(ErrorText.message(for: RepositoryError.bowlerHasGames(count: 1)) == "This bowler has 1 game. Delete it first.")
         #expect(ErrorText.message(for: RepositoryError.bowlerHasGames(count: 3)) == "This bowler has 3 games. Delete them first.")
+    }
+
+    @Test func ballHasGamesPluralizes() {
+        #expect(ErrorText.message(for: RepositoryError.ballHasGames(count: 1)) == "This ball was used in 1 game. Retire it instead.")
+        #expect(ErrorText.message(for: RepositoryError.ballHasGames(count: 4)) == "This ball was used in 4 games. Retire it instead.")
     }
 
     @Test func otherErrorsUseTheirDescription() {
