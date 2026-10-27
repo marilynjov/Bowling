@@ -45,6 +45,41 @@ import Testing
     @Test func previewHasTheDemoOwner() {
         #expect(!AppModel.preview().needsOnboarding)
     }
+
+    @Test func openSessionSelectsHistoryAndPushesTheSession() {
+        let a = SessionID(), b = SessionID()
+        app.historyPath = [.session(a), .game(GameID())]
+        app.openSession(b)
+        #expect(app.selectedTab == .history)
+        #expect(app.historyPath == [.session(b)])
+    }
+
+    @Test func popHistoryRemovesTheRouteAndAbove() {
+        let a = SessionID(), g = GameID()
+        app.historyPath = [.session(a), .game(g)]
+        app.popHistory(from: .session(a))
+        #expect(app.historyPath.isEmpty)
+        app.historyPath = [.session(a), .game(g)]
+        app.popHistory(from: .game(g))
+        #expect(app.historyPath == [.session(a)])
+        app.popHistory(from: .session(SessionID()))
+        #expect(app.historyPath == [.session(a)])
+    }
+
+    @Test func closingScoringFromHistoryKeepsTheSession() throws {
+        let owner = try createOwner()
+        let id = try app.write {
+            try $0.sessions.startSession(
+                SessionMetadata(date: .now, eventType: .league),
+                bowlers: [(bowlerID: owner.id, defaultBallID: nil)], entryMode: .countOnly
+            )
+        }
+        let gameID = try #require(app.store.sessions.session(id).bowlers.first?.games.first?.id)
+        app.scoring = ScoringTarget(sessionID: id, gameID: gameID, startsOnTarget: true)
+        app.closeScoring()
+        #expect(app.scoring == nil)
+        _ = try app.store.sessions.session(id)
+    }
 }
 
 /// The shared alert must come from the topmost view: iOS can't present an alert from a
@@ -85,6 +120,13 @@ import Testing
         app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
         #expect(app.showsError(in: .scoring))
         #expect(!app.showsError(in: .newSession))
+    }
+
+    @Test func sessionDetailsShowsErrorsWhileEditing() {
+        app.editingSessionDetails = SessionID()
+        app.error = Boom()
+        #expect(app.showsError(in: .sessionDetails))
+        #expect(!app.showsError(in: .root))
     }
 
     @Test func quickScoreSheetShowsTheAlertWhileUp() {

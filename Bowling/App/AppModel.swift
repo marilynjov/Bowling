@@ -22,6 +22,10 @@ import Observation
     var selectedTab: AppTab = .home
     /// The open Scoring session, shown by the root's full-screen cover.
     var scoring: ScoringTarget?
+    /// The History tab's pushed screens.
+    var historyPath: [HistoryRoute] = []
+    /// The session whose details form sheet is up, shown by History.
+    var editingSessionDetails: SessionID?
     /// Shown by the root's shared alert.
     var error: (any Error)?
     /// The game summary sheet is up over Scoring, so its alert shows errors.
@@ -51,6 +55,7 @@ import Observation
         let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
             : isQuickScoring ? .quickScore
+            : editingSessionDetails != nil ? .sessionDetails
             : .root
         return presenter == topmost
     }
@@ -114,12 +119,26 @@ import Observation
         if savedQuickScore == saved { savedQuickScore = nil }
     }
 
-    /// Closes Scoring. A session left before any roll is deleted (spec §8); one that is
-    /// already gone needs nothing.
+    /// Shows `id` on the History tab, replacing whatever was pushed there.
+    func openSession(_ id: SessionID) {
+        selectedTab = .history
+        historyPath = [.session(id)]
+    }
+
+    /// Removes `route` and everything above it, as after deleting what it shows. Does
+    /// nothing when `route` isn't on the path.
+    func popHistory(from route: HistoryRoute) {
+        guard let index = historyPath.firstIndex(of: route) else { return }
+        historyPath.removeSubrange(index...)
+    }
+
+    /// Closes Scoring. A session left before any roll is deleted (spec §8), unless Scoring
+    /// was opened on an existing session from History; one that is already gone needs nothing.
     func closeScoring() {
         guard let target = scoring else { return }
         scoring = nil
         isShowingGameSummary = false
+        guard !target.startsOnTarget else { return }
         do {
             try write { try $0.sessions.discardIfUnstarted(target.sessionID) }
         } catch RepositoryError.notFound {
@@ -137,7 +156,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, scoring, gameSummary
+    case root, newSession, quickScore, sessionDetails, scoring, gameSummary
 }
 
 /// The root's tabs.
@@ -155,6 +174,9 @@ struct SavedQuickScore: Hashable {
 struct ScoringTarget: Identifiable, Hashable {
     var sessionID: SessionID
     var gameID: GameID
+    /// Scoring opens on `gameID` rather than the first unfinished game, and closing it never
+    /// discards the session: it was opened from History.
+    var startsOnTarget = false
     var id: SessionID { sessionID }
 }
 
