@@ -67,6 +67,16 @@ enum AccessibilityText {
         return parts.joined(separator: ", ")
     }
 
+    /// A session detail bowler header: "Alex, series 590".
+    static func bowlerHeader(name: String, series: Int) -> String {
+        String(localized: "\(name), series \(series)")
+    }
+
+    /// A session detail game row: "Game 2, 189".
+    static func gameRow(_ gameIndex: Int, score: Int) -> String {
+        String(localized: "Game \(gameIndex), \(score)")
+    }
+
     private static func word(for mark: Mark) -> String {
         switch mark {
         case .strike: String(localized: "strike")

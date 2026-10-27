@@ -132,6 +132,19 @@ import Observation
         historyPath.removeSubrange(index...)
     }
 
+    /// Deletes what `request` names, then pops the History screens that showed it.
+    /// - Throws: whatever the delete throws; the path is left as it was.
+    func delete(_ request: DeleteRequest) throws {
+        switch request.target {
+        case .session(let id):
+            try write { try $0.sessions.deleteSession(id) }
+            popHistory(from: .session(id))
+        case .game(let id):
+            try write { try $0.games.deleteGame(id) }
+            popHistory(from: .game(id))
+        }
+    }
+
     /// Closes Scoring. A session left before any roll is deleted (spec §8), unless Scoring
     /// was opened on an existing session from History; one that is already gone needs nothing.
     func closeScoring() {

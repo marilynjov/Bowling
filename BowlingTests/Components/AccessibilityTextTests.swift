@@ -48,4 +48,8 @@ import Testing
         )
         #expect(AccessibilityText.sessionRow(row) == "October 21, League, AMF Bowl, Tuesday Mixed, 3 bowlers, 201, 189, 224, in progress")
     }
+    @Test func historyDetailStrings() {
+        #expect(AccessibilityText.bowlerHeader(name: "Alex", series: 590) == "Alex, series 590")
+        #expect(AccessibilityText.gameRow(2, score: 189) == "Game 2, 189")
+    }
 }
