@@ -10,7 +10,9 @@ struct ArsenalScreen: View {
 
     var body: some View {
         @Bindable var app = app
-        Group {
+        // The canvas is always there, so `.task` runs before the first load fills `list`.
+        ZStack {
+            Color.canvas.ignoresSafeArea()
             if let list {
                 if list.rows.isEmpty {
                     empty
@@ -19,7 +21,6 @@ struct ArsenalScreen: View {
                 }
             }
         }
-        .background(Color.canvas)
         .navigationTitle("Arsenal")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
