@@ -15,7 +15,7 @@ struct RootView: View {
                         NavigationStack { HomeScreen() }
                     }
                     Tab("History", systemImage: "clock", value: AppTab.history) {
-                        NavigationStack { HistoryScreen() }
+                        HistoryStack()
                     }
                     Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                         NavigationStack { StatsScreen() }

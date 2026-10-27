@@ -17,6 +17,7 @@ struct SessionDetailData: Hashable {
     struct Section: Hashable, Identifiable {
         var id: BowlerID
         var name: String
+        var series: Int
         /// "Series 590".
         var seriesText: String
         var games: [GameRow]
@@ -46,6 +47,7 @@ struct SessionDetailData: Hashable {
             Section(
                 id: bowler.bowler.id,
                 name: bowler.bowler.name,
+                series: bowler.seriesTotal,
                 seriesText: String(localized: "Series \(bowler.seriesTotal)"),
                 games: bowler.games.map { game in
                     GameRow(
