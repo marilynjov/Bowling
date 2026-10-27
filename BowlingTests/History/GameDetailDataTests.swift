@@ -85,6 +85,12 @@ import Testing
         #expect(data.ballsUsed.map(\.text) == ["Default · Deleted ball"])
     }
 
+    @Test func aRetiredBallKeepsItsName() throws {
+        let id = try game(.pinByPin, ball: phaze.id)
+        try store.balls.setRetired(true, for: phaze.id)
+        #expect(try GameDetailData.load(id, from: store).ballsUsed.map(\.text) == ["Default · Phaze"])
+    }
+
     @Test func latestFlag() throws {
         let session = try store.sessions.startSession(
             SessionMetadata(date: .now, eventType: .practice),

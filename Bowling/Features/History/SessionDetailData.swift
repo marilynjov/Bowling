@@ -44,11 +44,12 @@ struct SessionDetailData: Hashable {
         let metadata = detail.metadata
         let gameCount = detail.bowlers.map(\.games.count).reduce(0, +)
         let sections = detail.bowlers.map { bowler in
-            Section(
+            let series = bowler.games.map(\.shownScore).reduce(0, +)
+            return Section(
                 id: bowler.bowler.id,
                 name: bowler.bowler.name,
-                series: bowler.seriesTotal,
-                seriesText: String(localized: "Series \(bowler.seriesTotal)"),
+                series: series,
+                seriesText: String(localized: "Series \(series)"),
                 games: bowler.games.map { game in
                     GameRow(
                         id: game.id,
@@ -78,7 +79,7 @@ struct SessionDetailData: Hashable {
                 name(of: metadata.oilPatternID, in: store.sessions.oilPatterns()),
                 lanes.isEmpty ? nil : String(localized: "Lanes \(lanes)"),
             ].compactMap { $0 },
-            notes: notes.isEmpty ? nil : metadata.notes,
+            notes: notes.isEmpty ? nil : notes,
             sections: sections,
             latestGameIndex: detail.bowlers.flatMap(\.games).map(\.gameIndex).max() ?? 0,
             resumeTarget: resumable?.id == id ? resumable.flatMap(ScoringTarget.resume) : nil,

@@ -22,7 +22,7 @@ struct SessionDetailScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.canvas)
-        .navigationTitle(data?.date.formatted(date: .abbreviated, time: .omitted) ?? "")
+        .navigationTitle(isDeleted ? "" : data?.date.formatted(date: .abbreviated, time: .omitted) ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if data != nil, !isDeleted {

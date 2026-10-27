@@ -93,14 +93,12 @@ struct GameDetailScreen: View {
         }
     }
 
-    /// Ball names come from the active balls; a retired one reads "Deleted ball" until
-    /// #106's `detail(for:)` is used. A missing game shows the deleted state, unless this
-    /// screen is already being popped after its own delete.
+    /// A missing game shows the deleted state, unless this screen is already being popped
+    /// after its own delete.
     private func reload() {
         let store = app.store
-        let balls = store.balls.activeBalls()
         do {
-            data = try GameDetailData.load(id, from: store, ballName: { id in balls.first { $0.id == id }?.name })
+            data = try GameDetailData.load(id, from: store)
             isDeleted = false
         } catch RepositoryError.notFound {
             if app.historyPath.contains(.game(id)) { isDeleted = true }

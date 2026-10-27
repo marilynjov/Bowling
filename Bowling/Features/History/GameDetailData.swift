@@ -42,6 +42,19 @@ struct GameDetailData: Hashable {
     var editTarget: ScoringTarget
     var deleteRequest: DeleteRequest
 
+    /// Ball names come from `detail(for:)`, so a retired ball keeps its name; one that is really
+    /// gone reads "Deleted ball". Each ball is looked up once per load.
+    /// - Throws: `RepositoryError.notFound` when the game or its session is gone.
+    static func load(_ id: GameID, from store: BowlingStore) throws -> GameDetailData {
+        var names: [BallID: String?] = [:]
+        return try load(id, from: store, ballName: { ball in
+            if let cached = names[ball] { return cached }
+            let name = (try? store.balls.detail(for: ball))?.fields.name
+            names[ball] = .some(name)
+            return name
+        })
+    }
+
     /// - Parameter ballName: A ball's name; nil when it no longer exists, read as "Deleted ball".
     /// - Throws: `RepositoryError.notFound` when the game or its session is gone.
     static func load(_ id: GameID, from store: BowlingStore, ballName: (BallID) -> String?) throws -> GameDetailData {

@@ -94,6 +94,13 @@ import Testing
         #expect(data.notes == "Slick")
     }
 
+    @Test func notesAreTrimmed() throws {
+        let id = try session(
+            SessionMetadata(date: .now, eventType: .practice, notes: "  Slick \n"), lineup: [sam], scores: [[200]]
+        )
+        #expect(try SessionDetailData.load(id, from: store).notes == "Slick")
+    }
+
     @Test func aDeletedSessionThrows() {
         #expect(throws: RepositoryError.notFound) { try SessionDetailData.load(SessionID(), from: store) }
     }
