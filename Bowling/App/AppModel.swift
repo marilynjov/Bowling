@@ -16,6 +16,8 @@ import Observation
     var isStartingSession = false
     /// The Quick score sheet is up, shown by the root.
     var isQuickScoring = false
+    /// The Add ball sheet is up, shown by Arsenal.
+    var isAddingBall = false
     /// The last quick score, which Home's banner can undo; nil hides the banner.
     var savedQuickScore: SavedQuickScore?
     /// The root's tab.
@@ -50,6 +52,7 @@ import Observation
         guard error != nil else { return false }
         let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
+            : isAddingBall ? .addBall
             : isQuickScoring ? .quickScore
             : .root
         return presenter == topmost
@@ -137,7 +140,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, scoring, gameSummary
+    case root, newSession, quickScore, scoring, gameSummary, addBall
 }
 
 /// The root's tabs.

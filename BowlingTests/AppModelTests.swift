@@ -69,6 +69,13 @@ import Testing
         #expect(!app.showsError(in: .scoring))
     }
 
+    @Test func errorWhileAddingABallShowsOnTheSheet() {
+        app.isAddingBall = true
+        app.error = Boom()
+        #expect(app.showsError(in: .addBall))
+        #expect(!app.showsError(in: .root))
+    }
+
     @Test func errorWhileScoringShowsOnTheCover() {
         app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
         app.error = Boom()
