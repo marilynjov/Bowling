@@ -52,4 +52,8 @@ import Testing
         #expect(AccessibilityText.bowlerHeader(name: "Alex", series: 590) == "Alex, series 590")
         #expect(AccessibilityText.gameRow(2, score: 189) == "Game 2, 189")
     }
+    @Test func ballUseReadsFrames() {
+        let use = GameDetailData.BallUse(id: BallID(), name: "Hammer", isDefault: false, frames: [3, 7], text: "Hammer · frames 3 and 7")
+        #expect(AccessibilityText.ballUse(use) == "Hammer, frames 3 and 7")
+    }
 }

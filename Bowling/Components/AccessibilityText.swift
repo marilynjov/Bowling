@@ -37,6 +37,15 @@ enum AccessibilityText {
         return String(localized: "Leave \(pins), \(kindWord(for: leave))")
     }
 
+    /// A ball row on the game detail: "Hammer, frames 3 and 7" / "Phaze, default".
+    static func ballUse(_ use: GameDetailData.BallUse) -> String {
+        guard !use.isDefault else { return String(localized: "\(use.name), default") }
+        let list = use.frames.map(String.init).formatted(.list(type: .and))
+        return use.frames.count == 1
+            ? String(localized: "\(use.name), frame \(list)")
+            : String(localized: "\(use.name), frames \(list)")
+    }
+
     /// A bowler strip chip: "Alex, 64, current turn" / "Sam, 87" / "Sam, 201, finished".
     static func bowlerChip(name: String, score: Int, isCurrent: Bool, isFinished: Bool) -> String {
         if isCurrent { return String(localized: "\(name), \(score), current turn") }
