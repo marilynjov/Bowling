@@ -157,3 +157,12 @@ struct ScoringTarget: Identifiable, Hashable {
     var gameID: GameID
     var id: SessionID { sessionID }
 }
+
+extension ScoringTarget {
+    /// The first unfinished game, bowlers in lineup order and their games by `gameIndex`;
+    /// nil when every game is complete.
+    static func resume(_ session: SessionSummary) -> ScoringTarget? {
+        session.games.first(where: { !$0.isComplete })
+            .map { ScoringTarget(sessionID: session.id, gameID: $0.id) }
+    }
+}

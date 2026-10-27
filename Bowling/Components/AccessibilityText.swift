@@ -55,6 +55,18 @@ enum AccessibilityText {
         return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
 
+    /// A session row read as one line: "October 21, League, AMF Bowl, Tuesday Mixed, 3 bowlers,
+    /// 201, 189, in progress".
+    static func sessionRow(_ row: RecentRow) -> String {
+        var parts = [
+            row.date.formatted(Date.FormatStyle().month(.wide).day()),
+            row.eventType.title, row.centerName, row.leagueName, row.bowlersText,
+        ].compactMap { $0 }
+        parts += row.ownerScores.map(String.init)
+        if row.isInProgress { parts.append(String(localized: "in progress")) }
+        return parts.joined(separator: ", ")
+    }
+
     private static func word(for mark: Mark) -> String {
         switch mark {
         case .strike: String(localized: "strike")

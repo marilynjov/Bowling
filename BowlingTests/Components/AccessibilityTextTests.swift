@@ -1,4 +1,5 @@
 import BowlingCore
+import Foundation
 import Testing
 @testable import Bowling
 
@@ -38,5 +39,13 @@ import Testing
     }
     @Test func turnAnnouncement() {
         #expect(AccessibilityText.turn("Alex") == "Alex's turn")
+    }
+    @Test func sessionRowReadsAsOneLine() {
+        let date = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 21, hour: 12))!
+        let row = RecentRow(
+            id: SessionID(), date: date, eventType: .league, centerName: "AMF Bowl", scores: "201 · 189 · 224…",
+            leagueName: "Tuesday Mixed", bowlerCount: 3, gameCount: 3, ownerScores: [201, 189, 224], isInProgress: true
+        )
+        #expect(AccessibilityText.sessionRow(row) == "October 21, League, AMF Bowl, Tuesday Mixed, 3 bowlers, 201, 189, 224, in progress")
     }
 }
