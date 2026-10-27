@@ -52,8 +52,7 @@ struct AddBallSheet: View {
 
     private func save() {
         do {
-            _ = try app.write { try draft.save(to: $0) }
-            app.isAddingBall = false
+            try app.addBall(draft)
         } catch {
             app.error = error
         }

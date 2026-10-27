@@ -41,11 +41,13 @@ struct ArsenalScreen: View {
         List(rows) { row in
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.name).font(.headline)
-                Text(row.detail)
-                Text(row.games)
+                Group {
+                    Text(row.detail)
+                    Text(row.games)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(row.accessibilityLabel)
             .listRowBackground(Color.surface)

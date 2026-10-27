@@ -82,6 +82,15 @@ import Observation
         scoring = target
     }
 
+    /// Arsenal's Add ball Save: adds the ball and closes the sheet. Does nothing once the
+    /// sheet is closed, so a second tap on Save can't add the ball twice.
+    /// - Throws: whatever `BallDraft.save` throws; the sheet stays with its values.
+    func addBall(_ draft: BallDraft) throws {
+        guard isAddingBall else { return }
+        _ = try write { try draft.save(to: $0) }
+        isAddingBall = false
+    }
+
     /// Home's Resume: opens Scoring on the unfinished game.
     func resume(_ target: ScoringTarget) {
         scoring = target
