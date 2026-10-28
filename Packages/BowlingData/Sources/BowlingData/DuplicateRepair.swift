@@ -24,8 +24,9 @@ extension GameRepository {
     /// Also rescores every countOnly or pinByPin game whose cached `finalScore` or
     /// `isComplete` is stale, such as one whose rows were imported before its cached values,
     /// and stamps `updatedAt` only on a game that changed. A game holding fewer rolls than its
-    /// `recordedRollCount` is still importing and is left alone, so a partial copy never
-    /// overwrites the score other devices hold. Phase 2 calls it after every remote import,
+    /// `recordedRollCount` is still importing: only its duplicate rows are removed, and it is
+    /// neither cleared, rescored, nor stamped, so a partial copy never overwrites the rolls
+    /// or the score other devices hold. Phase 2 calls it after every remote import,
     /// before `BowlingStore.mergeOwners()` (§3.4 "Repair order").
     /// - Returns: The games that changed and the duplicate games deleted. Phase 2 needs the
     ///   deleted IDs so a screen showing one of them, such as Scoring, can leave it.
@@ -37,15 +38,20 @@ extension GameRepository {
             var deleted: Set<GameID> = []
             let kept = Self.removingDuplicateGames(games, deleted: &deleted, in: context)
             let changed = try kept.filter { game in
+                // Counted before the duplicate rows go: a losing frame can hold positions the
+                // kept one lacks.
+                let isImporting = game.rollsPresent < game.recordedRollCount
                 if game.removeDuplicateRows(in: context) {
+                    // A gap from rows still on the way would read as invalid and clear every
+                    // roll after it, so a game still importing keeps everything else as is.
+                    guard !isImporting else { return true }
                     try game.apply(Self.scored(Self.clearedFromFirstInvalidRoll(game.record())), in: context)
                     return true
                 }
                 // A finalOnly score is typed, and an unknown mode's comes from a newer app that
                 // may not score from rolls, so this device must not overwrite either.
                 let record = game.record()
-                guard [.countOnly, .pinByPin].contains(record.entryMode),
-                      game.rollsPresent >= game.recordedRollCount else { return false }
+                guard [.countOnly, .pinByPin].contains(record.entryMode), !isImporting else { return false }
                 let scored = Self.scored(record)
                 guard (scored.finalScore, scored.isComplete) != (game.finalScore, game.isComplete) else { return false }
                 game.finalScore = scored.finalScore
@@ -98,7 +104,7 @@ extension GameRepository {
 }
 
 struct DuplicateRepairResult: Equatable {
-    /// Games kept and rescored or stamped.
+    /// Games kept whose rows or cached values changed.
     var changed: Set<GameID> = []
     /// Duplicate games deleted with their frames and rolls.
     var deleted: Set<GameID> = []

@@ -116,6 +116,28 @@ import Testing
         #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 4)
     }
 
+    /// Frame 3 has not arrived and frame 5 holds a duplicate roll. A full repair would read
+    /// frame 4 after an unfinished frame 3 as invalid and clear frames 4 to 6, then sync that
+    /// loss everywhere. A game still importing only loses the duplicate row.
+    @Test func aGameStillImportingOnlyLosesItsDuplicateRows() throws {
+        let game = try savedGame((1...6).map { FrameRecord(frameIndex: $0, rolls: [Self.count(1, 3), Self.count(2, 4)]) })
+        #expect(game.recordedRollCount == 12)
+        #expect(game.finalScore == 42)
+        context.delete(try frame(3, of: game))
+        try context.save()
+        let duplicate = insertRoll(2, pinCount: 4, updatedAt: base.addingTimeInterval(60), in: try frame(5, of: game))
+        try context.save()
+
+        #expect(try store.games.repairDuplicates() == DuplicateRepairResult(changed: [game.id]))
+
+        #expect((game.frames ?? []).map(\.frameIndex).sorted() == [1, 2, 4, 5, 6])
+        #expect(try frame(5, of: game).rolls?.filter { $0.rollIndex == 2 }.map(\.id) == [duplicate.id])
+        #expect(try context.fetchCount(FetchDescriptor<Roll>()) == 10)
+        #expect(game.recordedRollCount == 12)
+        #expect(game.finalScore == 42)
+        #expect(game.updatedAt == base)
+    }
+
     @Test func secondRepairChangesNothing() throws {
         let game = try savedGame()
         insertFrame(2, pins: [6, 3], updatedAt: base.addingTimeInterval(60), in: game)

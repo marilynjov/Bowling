@@ -379,8 +379,9 @@ so the design handles them now:
   chosen per bowler, so one session can end up with bowler 1's game 2 from one device
   and bowler 2's game 2 from the other. A second run
   changes nothing, and every device reaches the same result once it holds the same Game
-  rows. A game holding fewer rolls than its `recordedRollCount` is still importing and is
-  not rescored. A frame that arrives after its game was deleted stays unlinked
+  rows. A game holding fewer rolls than its `recordedRollCount` is still importing: only
+  its duplicate frame and roll rows are removed, and it is not cleared, rescored, or
+  stamped, since a gap from rows still on the way would read as invalid. A frame that arrives after its game was deleted stays unlinked
   (`game == nil`); no repair deletes it, because a frame waiting for its Game row looks
   the same.
 - **Repair order.** After every remote import, run `repairDuplicates` (duplicate games,
