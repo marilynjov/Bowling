@@ -10,12 +10,20 @@ struct StatTile: View {
     var sample: String?
     /// 0...1; rates show a bar, means don't.
     var progress: Double?
+    /// A second line under the sample, such as Stats' "Last 10 201 · Last 30 195".
+    var footnote: String?
 
-    init(title: String, value: String, sample: String?, progress: Double? = nil) {
+    init(title: String, value: String, sample: String?, progress: Double? = nil, footnote: String? = nil) {
         self.title = title
         self.value = value
         self.sample = sample
         self.progress = progress
+        self.footnote = footnote
+    }
+
+    init(_ content: StatTileContent, footnote: String? = nil) {
+        self.init(title: content.title, value: content.value, sample: content.sample,
+                  progress: content.progress, footnote: footnote)
     }
 
     init(title: String, rate: Rate, unit: StatFormat.Unit) {
@@ -44,6 +52,11 @@ struct StatTile: View {
                     .font(.figure)
                     .foregroundStyle(.inkMuted)
             }
+            if let footnote {
+                Text(footnote)
+                    .font(.figure)
+                    .foregroundStyle(.inkMuted)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
@@ -51,7 +64,8 @@ struct StatTile: View {
         .background(.surface, in: .rect(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.hairline))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(AccessibilityText.statTile(title: title, value: value, sample: sample))
+        .accessibilityLabel(AccessibilityText.statTile(title: title, value: value, sample: sample)
+            + (footnote.map { ", " + $0 } ?? ""))
     }
 }
 
