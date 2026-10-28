@@ -14,7 +14,7 @@ extension BallRepository {
     }
 
     /// Logs an event with a snapshot of the games bowled up to `date` (session date on or
-    /// before it, as `GameConversion` dates a game), so a back-dated event matches when it
+    /// before it, by `Game.sessionDate`), so a back-dated event matches when it
     /// happened. `date` is a full timestamp, now by default. A non-empty grit becomes the
     /// ball's current surface unless another event with a grit is dated later.
     /// - Throws: `.invalidMaintenance(.dateInFuture)` for a date after now,
@@ -29,7 +29,7 @@ extension BallRepository {
             let isLatestGrit = (ball.maintenance ?? []).allSatisfy { $0.surfaceGritAfter.isEmpty || $0.date <= date }
             let event = MaintenanceEvent(date: date, kind: MaintenanceEvent.Kind(stored: kind.rawValue))
             event.surfaceGritAfter = surfaceGritAfter
-            event.gamesOnBallAtTime = ball.gamesUsing.count { ($0.session?.date ?? $0.createdAt) <= date }
+            event.gamesOnBallAtTime = ball.gamesUsing.count { $0.sessionDate <= date }
             event.notes = notes
             context.insert(event)
             event.ball = ball
@@ -57,10 +57,10 @@ extension Ball {
     func isResurfaceDue(calendar: Calendar) -> Bool {
         guard let interval = resurfaceIntervalGames else { return false }
         let lastResurface = (maintenance ?? [])
-            .filter { MaintenanceKind(storedValue: $0.kind) == .resurface }
+            .filter { $0.kindRecord == .resurface }
             .map(\.date).max()
         let count = BallMaintenance.gamesSinceResurface(
-            sessionDates: gamesUsing.map { $0.session?.date ?? $0.createdAt },
+            sessionDates: gamesUsing.map(\.sessionDate),
             lastResurface: lastResurface, purchaseDate: purchaseDate.map(calendar.startOfDay)
         )
         return count >= interval
@@ -77,9 +77,13 @@ extension Ball {
 extension MaintenanceEvent {
     /// Reads the stored kind straight into `MaintenanceKind`, so a kind from a newer app
     /// version reads as `.unknown` instead of the model enum's `.other`.
+    var kindRecord: MaintenanceKind {
+        MaintenanceKind(storedValue: kind)
+    }
+
     func record() -> MaintenanceRecord {
         MaintenanceRecord(
-            id: id, date: date, kind: MaintenanceKind(storedValue: kind),
+            id: id, date: date, kind: kindRecord,
             surfaceGritAfter: surfaceGritAfter, gamesOnBallAtTime: gamesOnBallAtTime, notes: notes
         )
     }
