@@ -23,9 +23,10 @@ public final class BallRepository {
     static let weightRange = 6...16
 
     let context: ModelContext
-    /// Finds the start of the purchase day for games since resurface. Tests set a fixed
-    /// time zone so the result does not depend on the machine's.
-    var calendar: Calendar = .current
+    /// Finds the start of the purchase day for games since resurface and the future
+    /// purchase check. Autoupdating, so a long-lived repository follows the device's time
+    /// zone after travel. Tests set a fixed time zone.
+    var calendar: Calendar = .autoupdatingCurrent
 
     init(context: ModelContext) {
         self.context = context
