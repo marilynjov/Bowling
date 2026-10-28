@@ -39,4 +39,19 @@ import Testing
     @Test func turnAnnouncement() {
         #expect(AccessibilityText.turn("Alex") == "Alex's turn")
     }
+
+    @Test func ballRowReadsEveryPart() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .strike, gamesBowled: 12)
+            == "Phaze, 15 pounds, strike, 12 games")
+    }
+
+    @Test func ballRowWithNoGames() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .strike, gamesBowled: 0)
+            == "Phaze, 15 pounds, strike, no games yet")
+    }
+
+    @Test func ballRowLeavesOutAnUnknownRole() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .unknown, gamesBowled: 1)
+            == "Phaze, 15 pounds, 1 game")
+    }
 }
