@@ -297,7 +297,8 @@ Derived values, computed by the repository:
 - **Games bowled**: count of games where defaultBall is this ball, plus games where any
   roll overrides to it, counted once per game.
 - **Games since last resurface**: games bowled since the most recent event of kind
-  resurface, or since purchase if none.
+  resurface, or since purchase if none. The latest resurface always wins over the
+  purchase date.
 - **Resurface due**: `resurfaceIntervalGames` is set and games since last resurface meets
   or exceeds it.
 

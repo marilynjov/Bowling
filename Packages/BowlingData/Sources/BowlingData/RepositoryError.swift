@@ -32,6 +32,10 @@ public enum BallFieldError: Sendable, Hashable {
     case negativeSpec
     /// Set but below 1 game; nil is how to turn the reminder off.
     case resurfaceIntervalBelowOne
+    /// A purchase day after today would hold games since resurface at 0.
+    case purchaseDateInFuture
+    /// Over `BallRepository.maxPhotoBytes`; the app downscales before saving.
+    case photoTooLarge
 }
 
 public enum MaintenanceFieldError: Sendable, Hashable {

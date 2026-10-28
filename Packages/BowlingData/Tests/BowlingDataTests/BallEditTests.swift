@@ -121,6 +121,7 @@ import Testing
             (with { $0.rg = .infinity }, .negativeSpec),
             (with { $0.resurfaceIntervalGames = 0 }, .resurfaceIntervalBelowOne),
             (with { $0.resurfaceIntervalGames = -10 }, .resurfaceIntervalBelowOne),
+            (with { $0.purchaseDate = .now.addingTimeInterval(2 * 86_400) }, .purchaseDateInFuture),
         ]
     }()
 
@@ -144,6 +145,58 @@ import Testing
         fields.intermediateDifferential = 0
         fields.resurfaceIntervalGames = 1
         #expect(try balls.addBall(fields).fields == fields)
+    }
+
+    @Test func aPurchaseDateLaterTodayIsAccepted() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        var fields = Self.full
+        // The last second of today: its day has started, so it is not in the future.
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_399)
+        #expect(try balls.addBall(fields).fields.purchaseDate == fields.purchaseDate)
+    }
+
+    @Test func tomorrowsPurchaseDateIsRefused() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        var fields = Self.full
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_400)
+        #expect(throws: RepositoryError.invalidBall(.purchaseDateInFuture)) { try balls.addBall(fields) }
+    }
+
+    /// A ball synced from a device further east can carry a purchase date that is still
+    /// tomorrow on this device. Editing another field must not be refused for it.
+    @Test func anUnchangedFuturePurchaseDateDoesNotBlockAnEdit() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Chicago"))
+        balls.calendar = calendar
+        let id = try balls.addBall(Self.full).id
+        let synced = calendar.startOfDay(for: .now).addingTimeInterval(86_400 + 3_600)
+        try store.context.ball(id).purchaseDate = synced
+        try store.context.save()
+
+        var fields = try balls.detail(for: id).fields
+        fields.name = "Renamed"
+        let updated = try balls.updateBall(id, with: fields)
+        #expect(updated.fields.name == "Renamed")
+        #expect(updated.fields.purchaseDate == synced)
+    }
+
+    @Test func updateBallRefusesANewlySetFuturePurchaseDate() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Tokyo"))
+        balls.calendar = calendar
+        let id = try balls.addBall(Self.full).id
+        var fields = Self.full
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_400)
+        #expect(throws: RepositoryError.invalidBall(.purchaseDateInFuture)) { try balls.updateBall(id, with: fields) }
+        #expect(try balls.detail(for: id).fields.purchaseDate == Self.purchased)
+
+        // Later today in the same zone is accepted.
+        fields.purchaseDate = calendar.startOfDay(for: .now).addingTimeInterval(86_399)
+        #expect(try balls.updateBall(id, with: fields).fields.purchaseDate == fields.purchaseDate)
     }
 
     @Test func unknownBallIsNotFound() {

@@ -22,6 +22,8 @@ public struct BallFields: Sendable, Hashable {
     public var colorDescription: String
     /// Month precision.
     public var releaseDate: Date?
+    /// Not after today when added or changed. With no resurface logged, games since
+    /// resurface count from it, so games logged before it do not count.
     public var purchaseDate: Date?
     public var factoryFinish: String
     /// Current surface. On add, empty starts from `factoryFinish`.
@@ -81,7 +83,7 @@ extension BallRepository {
     /// finish.
     /// - Throws: `.invalidBall` for a field `updateBall` would refuse.
     public func addBall(_ fields: BallFields) throws -> BallDetail {
-        let name = try Self.validate(fields)
+        let name = try validate(fields, checksPurchaseDate: true)
         return try context.write {
             let ball = Ball(name: name, weightPounds: fields.weightPounds)
             context.insert(ball)
@@ -96,11 +98,14 @@ extension BallRepository {
     /// the stored string.
     /// - Throws: `.invalidBall(.emptyName)`, `.invalidBall(.weightOutOfRange)`,
     ///   `.invalidBall(.negativeSpec)` for a negative or non-finite RG or differential,
-    ///   `.invalidBall(.resurfaceIntervalBelowOne)`, or `.notFound` for an unknown ball.
+    ///   `.invalidBall(.resurfaceIntervalBelowOne)`, `.invalidBall(.purchaseDateInFuture)`
+    ///   for a changed purchase date on a day after today, or `.notFound` for an unknown
+    ///   ball. An unchanged purchase date is not checked: one saved "later today" on a
+    ///   device further east reads as tomorrow here after sync, and must not lock the form.
     public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail {
-        let name = try Self.validate(fields)
+        let ball = try context.ball(ballID)
+        let name = try validate(fields, checksPurchaseDate: fields.purchaseDate != ball.purchaseDate)
         return try context.write {
-            let ball = try context.ball(ballID)
             ball.apply(fields, name: name)
             ball.updatedAt = .now
             return ball.detail()
@@ -108,14 +113,18 @@ extension BallRepository {
     }
 
     /// The trimmed name, or the first field error.
-    private static func validate(_ fields: BallFields) throws -> String {
+    /// A purchase date later today is accepted: a date picker can store any time of day.
+    private func validate(_ fields: BallFields, checksPurchaseDate: Bool) throws -> String {
         let name = fields.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw RepositoryError.invalidBall(.emptyName) }
-        guard weightRange.contains(fields.weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
+        guard Self.weightRange.contains(fields.weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
         let specs = [fields.rg, fields.differential, fields.intermediateDifferential].compactMap(\.self)
         guard specs.allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw RepositoryError.invalidBall(.negativeSpec) }
         if let interval = fields.resurfaceIntervalGames, interval < 1 {
             throw RepositoryError.invalidBall(.resurfaceIntervalBelowOne)
+        }
+        if checksPurchaseDate, let purchase = fields.purchaseDate, calendar.startOfDay(for: purchase) > .now {
+            throw RepositoryError.invalidBall(.purchaseDateInFuture)
         }
         return name
     }
@@ -129,8 +138,8 @@ extension Ball {
     private func fields() -> BallFields {
         BallFields(
             name: name, brand: brand, weightPounds: weightPounds,
-            coverstock: BowlingCore.Coverstock(storedValue: coverstock), coverstockName: coverstockName,
-            coreType: BowlingCore.CoreType(storedValue: coreType), coreName: coreName,
+            coverstock: coverstockValue, coverstockName: coverstockName,
+            coreType: coreTypeValue, coreName: coreName,
             rg: rg, differential: differential, intermediateDifferential: intermediateDifferential,
             intendedRole: BallRole(storedValue: intendedRole), serialNumber: serialNumber,
             colorDescription: colorDescription, releaseDate: releaseDate, purchaseDate: purchaseDate,
@@ -143,9 +152,9 @@ extension Ball {
         self.name = name
         brand = fields.brand
         weightPounds = fields.weightPounds
-        if BowlingCore.Coverstock(storedValue: coverstock) != fields.coverstock { coverstock = fields.coverstock.rawValue }
+        if coverstockValue != fields.coverstock { coverstockValue = fields.coverstock }
         coverstockName = fields.coverstockName
-        if BowlingCore.CoreType(storedValue: coreType) != fields.coreType { coreType = fields.coreType.rawValue }
+        if coreTypeValue != fields.coreType { coreTypeValue = fields.coreType }
         coreName = fields.coreName
         rg = fields.rg
         differential = fields.differential

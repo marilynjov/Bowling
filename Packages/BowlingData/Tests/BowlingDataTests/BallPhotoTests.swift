@@ -64,9 +64,27 @@ import Testing
         #expect(photoCount == 1)
     }
 
+    @Test func aPhotoAtTheLimitIsStored() throws {
+        let data = Data(count: BallRepository.maxPhotoBytes)
+        try balls.setPhoto(data, for: ballID)
+        #expect(try balls.photo(for: ballID)?.count == BallRepository.maxPhotoBytes)
+    }
+
+    @Test func aPhotoOverTheLimitIsRefusedAndKeepsTheOldOne() throws {
+        try balls.setPhoto(Data([1]), for: ballID)
+        #expect(throws: RepositoryError.invalidBall(.photoTooLarge)) {
+            try balls.setPhoto(Data(count: BallRepository.maxPhotoBytes + 1), for: ballID)
+        }
+        #expect(try balls.photo(for: ballID) == Data([1]))
+        #expect(photoCount == 1)
+    }
+
     @Test func unknownBallIsNotFound() {
         #expect(throws: RepositoryError.notFound) { try balls.photo(for: BallID()) }
         #expect(throws: RepositoryError.notFound) { try balls.setPhoto(Data([1]), for: BallID()) }
+        #expect(throws: RepositoryError.notFound) {
+            try balls.setPhoto(Data(count: BallRepository.maxPhotoBytes + 1), for: BallID())
+        }
         #expect(throws: RepositoryError.notFound) { try balls.removePhoto(for: BallID()) }
         #expect(photoCount == 0)
     }

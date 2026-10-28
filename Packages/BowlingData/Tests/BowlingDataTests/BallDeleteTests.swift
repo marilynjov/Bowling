@@ -78,6 +78,29 @@ import Testing
         #expect(throws: RepositoryError.ballHasGames(count: 3)) { try balls.deleteBall(ballID) }
     }
 
+    /// One game, the other ball by default, this ball as the override in frames 1 and 2.
+    @Test func anOverrideInTwoFramesOfOneGameCountsOnce() throws {
+        let frames = (1...2).map { index in
+            FrameRecord(frameIndex: index, rolls: [
+                RollRecord(rollIndex: 1, pinCount: 7, pinsKnown: false),
+                RollRecord(rollIndex: 2, pinCount: 2, pinsKnown: false, ballID: ballID),
+            ])
+        }
+        let record = GameRecord(
+            gameIndex: 1, entryMode: .countOnly, defaultBallID: otherBallID, finalScore: 18,
+            isComplete: false, frames: frames, sessionID: SessionID(), sessionDate: .now, eventType: .league
+        )
+        try BowlingDataTests.insertGame(record, into: store.context)
+
+        // Two override rolls, one game: 1 everywhere a game count appears.
+        #expect(try balls.detail(for: ballID).gamesBowled == 1)
+        #expect(balls.activeBalls().first { $0.id == ballID }?.gamesBowled == 1)
+        let wear = try balls.maintenance(for: ballID)
+        #expect(wear.gamesBowled == 1)
+        #expect(wear.gamesSinceResurface == 1)
+        #expect(throws: RepositoryError.ballHasGames(count: 1)) { try balls.deleteBall(ballID) }
+    }
+
     @Test func aRetiredBallWithGamesIsStillRefused() throws {
         try insertGame(defaultBall: ballID)
         try balls.setRetired(true, for: ballID)
