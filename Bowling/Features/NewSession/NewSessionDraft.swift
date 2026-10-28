@@ -44,24 +44,13 @@ struct AddBowlerChoices {
 
 /// The new-session form's answers. Nothing is saved until `start`.
 struct NewSessionDraft {
-    var date: Date
-    var eventType: EventType
-    /// Changing it clears the league, which belongs to one center.
-    var centerID: CenterID? {
-        didSet { if centerID != oldValue { leagueID = nil } }
-    }
-    /// Saved only for league sessions; see `metadata`.
-    var leagueID: LeagueID?
-    var oilPatternID: OilPatternID?
-    var lanes = ""
-    var notes = ""
+    var details: SessionDetailsDraft
     var entryMode: EntryMode = .pinByPin
     /// Lineup order. The owner is always in it.
     var lineup: [LineupEntry]
 
     init(owner: BowlerRecord, date: Date, eventType: EventType = .practice) {
-        self.date = date
-        self.eventType = eventType
+        details = SessionDetailsDraft(date: date, eventType: eventType)
         lineup = [LineupEntry(bowlerID: owner.id, name: owner.name, isOwner: true)]
     }
 
@@ -77,13 +66,6 @@ struct NewSessionDraft {
     func addBowlerChoices(from bowlers: [BowlerRecord]) -> AddBowlerChoices {
         let candidates = bowlers.filter { bowler in !lineup.contains { $0.bowlerID == bowler.id } }
         return AddBowlerChoices(candidates: candidates, names: bowlers.map(\.name))
-    }
-
-    /// The league picker's rows: the picked center's leagues, or the leagues with no center
-    /// when none is picked. Add "<name>" checks only these, so a name can repeat at
-    /// another center.
-    func leagues(from records: [LeagueRecord]) -> [LeagueRecord] {
-        records.filter { $0.centerID == centerID }
     }
 
     /// Removes friends; the owner stays.
@@ -104,15 +86,38 @@ struct NewSessionDraft {
         }
     }
 
-    private var savedLeagueID: LeagueID? {
-        eventType == .league ? leagueID : nil
+    var date: Date {
+        get { details.date }
+        set { details.date = newValue }
     }
+    var eventType: EventType {
+        get { details.eventType }
+        set { details.eventType = newValue }
+    }
+    var centerID: CenterID? {
+        get { details.centerID }
+        set { details.centerID = newValue }
+    }
+    var leagueID: LeagueID? {
+        get { details.leagueID }
+        set { details.leagueID = newValue }
+    }
+    var oilPatternID: OilPatternID? {
+        get { details.oilPatternID }
+        set { details.oilPatternID = newValue }
+    }
+    var lanes: String {
+        get { details.lanes }
+        set { details.lanes = newValue }
+    }
+    var notes: String {
+        get { details.notes }
+        set { details.notes = newValue }
+    }
+    var metadata: SessionMetadata { details.metadata }
 
-    var metadata: SessionMetadata {
-        SessionMetadata(
-            date: date, eventType: eventType, centerID: centerID, leagueID: savedLeagueID,
-            oilPatternID: oilPatternID, lanes: lanes, notes: notes
-        )
+    func leagues(from records: [LeagueRecord]) -> [LeagueRecord] {
+        details.leagues(from: records)
     }
 
     /// Fills in an event type's remembered values, dropping any no longer in `available`.
@@ -130,7 +135,7 @@ struct NewSessionDraft {
     /// What to remember for `eventType` after a successful start.
     var defaults: SessionDefaults {
         SessionDefaults(
-            centerID: centerID, leagueID: savedLeagueID, oilPatternID: oilPatternID,
+            centerID: centerID, leagueID: details.metadata.leagueID, oilPatternID: oilPatternID,
             ballID: ownerBallID, entryMode: entryMode
         )
     }

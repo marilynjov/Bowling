@@ -37,6 +37,15 @@ enum AccessibilityText {
         return String(localized: "Leave \(pins), \(kindWord(for: leave))")
     }
 
+    /// A ball row on the game detail: "Hammer, frames 3 and 7" / "Phaze, default".
+    static func ballUse(_ use: GameDetailData.BallUse) -> String {
+        guard !use.isDefault else { return String(localized: "\(use.name), default") }
+        let list = use.frames.map(String.init).formatted(.list(type: .and))
+        return use.frames.count == 1
+            ? String(localized: "\(use.name), frame \(list)")
+            : String(localized: "\(use.name), frames \(list)")
+    }
+
     /// A bowler strip chip: "Alex, 64, current turn" / "Sam, 87" / "Sam, 201, finished".
     static func bowlerChip(name: String, score: Int, isCurrent: Bool, isFinished: Bool) -> String {
         if isCurrent { return String(localized: "\(name), \(score), current turn") }
@@ -53,6 +62,28 @@ enum AccessibilityText {
     static func statTile(title: String, value: String, sample: String?) -> String {
         let spoken = value == "–" ? String(localized: "no data") : value
         return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
+    }
+
+    /// A session row read as one line: "October 21, League, AMF Bowl, Tuesday Mixed, 3 bowlers,
+    /// 201, 189, in progress".
+    static func sessionRow(_ row: RecentRow) -> String {
+        var parts = [
+            row.date.formatted(Date.FormatStyle().month(.wide).day()),
+            row.eventType.title, row.centerName, row.leagueName, row.bowlersText,
+        ].compactMap { $0 }
+        parts += row.ownerScores.map(String.init)
+        if row.isInProgress { parts.append(String(localized: "in progress")) }
+        return parts.joined(separator: ", ")
+    }
+
+    /// A session detail bowler header: "Alex, series 590".
+    static func bowlerHeader(name: String, series: Int) -> String {
+        String(localized: "\(name), series \(series)")
+    }
+
+    /// A session detail game row: "Game 2, 189".
+    static func gameRow(_ gameIndex: Int, score: Int) -> String {
+        String(localized: "Game \(gameIndex), \(score)")
     }
 
     /// An Arsenal row: "Phaze, 15 pounds, strike, 12 games"; an unknown role is left out.

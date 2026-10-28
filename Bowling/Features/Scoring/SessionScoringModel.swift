@@ -7,8 +7,10 @@ import Observation
 /// turn it is, and when the game summary shows (spec §1 and §3).
 @Observable final class SessionScoringModel {
     let sessionID: SessionID
+    /// The highest game number among the open games, for the summary's title.
     private(set) var gameIndex: Int
-    /// Lineup order. A bowler with no game of this number is left out.
+    /// Lineup order. A bowler with no game of this number is left out; after Next game,
+    /// each bowler's new game, which can differ in number on an uneven night.
     private(set) var bowlers: [ScoringModel]
     private(set) var currentIndex: Int
     /// Starts from the on-device setting; not saved per session.
@@ -23,6 +25,8 @@ import Observation
     private var wasAllFinished: Bool
     /// The current bowler's finished frames after the last write, to see a frame end.
     private var lastFinishedFrames: Int
+    /// Next game wrote the games but they couldn't be opened, so a second tap can't add more.
+    private var rebuildFailed = false
 
     /// - Throws: `.notFound` for a missing session or game.
     init(target: ScoringTarget, app: AppModel, now: @escaping () -> Date = Date.init) throws {
@@ -32,14 +36,14 @@ import Observation
         let rotates = app.scoringSettings.rotateBowlers
         self.rotates = rotates
         let game = try app.store.games.game(target.gameID)
-        gameIndex = game.gameIndex
         let bowlers = try Self.models(sessionID: target.sessionID, gameIndex: game.gameIndex, app: app, now: now)
         let targetIndex = bowlers.firstIndex { $0.target.gameID == target.gameID } ?? 0
         let games = bowlers.map(\.game)
-        let start = !Rotation.isFinished(game) && rotates
+        let start = !target.startsOnTarget && !Rotation.isFinished(game) && rotates
             ? Rotation.current(after: nil, games: games, rotates: true) ?? targetIndex
             : targetIndex
         self.bowlers = bowlers
+        gameIndex = games.map(\.gameIndex).max() ?? game.gameIndex
         currentIndex = start
         wasAllFinished = games.allSatisfy(Rotation.isFinished)
         lastFinishedFrames = Rotation.finishedFrames(games[start])
@@ -58,15 +62,24 @@ import Observation
 
     var current: ScoringModel { bowlers[currentIndex] }
 
-    /// "Game 2 · Alex".
-    var title: String { "Game \(gameIndex) · \(current.bowlerName)" }
+    /// "Game 2 · Alex", with the current bowler's own game number.
+    var title: String { "Game \(current.game.gameIndex) · \(current.bowlerName)" }
 
     var allFinished: Bool { bowlers.allSatisfy { Rotation.isFinished($0.game) } }
 
-    /// One card per bowler, in lineup order.
+    /// One card per bowler for that bowler's open game, in lineup order.
     var summaries: [GameSummary] {
         guard let detail = try? app.store.sessions.session(sessionID) else { return [] }
-        return detail.bowlers.compactMap { GameSummary($0, gameIndex: gameIndex) }
+        let open = Set(bowlers.map(\.target.gameID))
+        return detail.bowlers.compactMap { bowler in
+            bowler.games.first { open.contains($0.id) }.flatMap { GameSummary(bowler, gameIndex: $0.gameIndex) }
+        }
+    }
+
+    /// Next game is offered only when this is the session's latest game number; an older
+    /// one shows Done (spec §4).
+    var offersNextGame: Bool {
+        !rebuildFailed && (try? isLatestGame()) == true
     }
 
     /// A chip tap: that bowler bowls next, for someone bowling out of turn.
@@ -77,30 +90,50 @@ import Observation
     }
 
     /// The summary's Next game: every bowler's next game, then the rule picks who starts.
-    /// On failure the error shows and the sheet stays. Only from the summary, so a second
-    /// tap can't start another round.
+    /// If the write fails the error shows and the sheet stays. Only from the summary, so a
+    /// second tap can't start another round.
     func nextGame() {
-        guard isShowingSummary, allFinished else { return }
+        guard isShowingSummary, allFinished, !rebuildFailed else { return }
         do {
-            _ = try app.write { try $0.games.startNextGame(in: sessionID) }
-            let next = gameIndex + 1
-            let models = try Self.models(sessionID: sessionID, gameIndex: next, app: app, now: now)
-            guard !models.isEmpty else { throw RepositoryError.notFound }
-            gameIndex = next
-            bowlers = models
-            currentIndex = Rotation.current(after: nil, games: models.map(\.game), rotates: true) ?? 0
-            wasAllFinished = allFinished
-            lastFinishedFrames = Rotation.finishedFrames(current.game)
-            observeWrites()
-            isShowingSummary = false
+            guard try isLatestGame() else { return }
+            let ids = try app.write { try $0.games.startNextGame(in: sessionID) }
+            show(nextGames: ids)
         } catch {
             app.error = error
         }
     }
 
+    /// Opens the games Next game created, in the order given. On failure the error shows,
+    /// the summary closes and Next game is no longer offered.
+    func show(nextGames ids: [GameID]) {
+        do {
+            let models = try ids.map {
+                try ScoringModel(target: ScoringTarget(sessionID: sessionID, gameID: $0), app: app, now: now)
+            }
+            guard !models.isEmpty else { throw RepositoryError.notFound }
+            bowlers = models
+            gameIndex = models.map(\.game.gameIndex).max() ?? gameIndex
+            currentIndex = Rotation.current(after: nil, games: models.map(\.game), rotates: true) ?? 0
+            wasAllFinished = allFinished
+            lastFinishedFrames = Rotation.finishedFrames(current.game)
+            observeWrites()
+        } catch {
+            app.error = error
+            rebuildFailed = true
+        }
+        isShowingSummary = false
+    }
+
     /// The Complete panel's Summary button.
     func showSummary() {
         isShowingSummary = true
+    }
+
+    /// This night's game number is the highest in the session.
+    /// - Throws: `.notFound` for a missing session.
+    private func isLatestGame() throws -> Bool {
+        let detail = try app.store.sessions.session(sessionID)
+        return gameIndex == detail.bowlers.flatMap(\.games).map(\.gameIndex).max()
     }
 
     private static func models(
