@@ -413,7 +413,13 @@ so the design handles them now:
 - **Before sync turns on.** Phase 2 must keep the repair from deleting a game that is
   open or recently written, close Scoring cleanly when its game is deleted, and give a
   game stuck with `recordedRollCount` above its real rows a way out of "importing". The
-  app-package contract, section 3.2, has the details.
+  app-package contract, section 3.2, has the details. One more: `mergedOwnerIDs` is one
+  string field, so two devices that merge different owners into the same kept owner
+  before seeing each other's write (which takes three devices) lose one ID to last
+  writer wins, and a late game for that owner is never claimed. Adding the `bowlerID`s
+  of claimed orphans does not help, since the merge only claims IDs already on the
+  record. A fix is for each device to remember the IDs it merged and write them back
+  whenever the synced field lacks one.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 
