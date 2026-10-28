@@ -54,13 +54,14 @@ extension Ball {
 
     /// `wear(calendar:).isResurfaceDue` from session dates alone: `activeBalls()` runs it for
     /// every ball on Scoring and New session, so it skips converting games to records.
-    func isResurfaceDue(calendar: Calendar) -> Bool {
+    /// `games` is `gamesUsing`, passed in so the caller walks the relationships once.
+    func isResurfaceDue(games: [Game], calendar: Calendar) -> Bool {
         guard let interval = resurfaceIntervalGames else { return false }
         let lastResurface = (maintenance ?? [])
             .filter { $0.kindRecord == .resurface }
             .map(\.date).max()
         let count = BallMaintenance.gamesSinceResurface(
-            sessionDates: gamesUsing.map(\.sessionDate),
+            sessionDates: games.map(\.sessionDate),
             lastResurface: lastResurface, purchaseDate: purchaseDate.map(calendar.startOfDay)
         )
         return count >= interval

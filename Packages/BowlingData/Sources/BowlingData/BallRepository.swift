@@ -91,23 +91,24 @@ public final class BallRepository {
 }
 
 extension Ball {
+    /// Walks the game relationships once for both counts: `activeBalls()` runs this for
+    /// every ball on Scoring and New session.
     func summary(calendar: Calendar) -> BallSummary {
-        BallSummary(
+        let games = gamesUsing
+        return BallSummary(
             id: id,
             name: name,
             brand: brand,
             weightPounds: weightPounds,
             intendedRole: BallRole(storedValue: intendedRole),
-            gamesBowled: gamesBowled,
+            gamesBowled: games.count,
             isRetired: isRetired,
             hasPhoto: photo != nil,
-            isResurfaceDue: isResurfaceDue(calendar: calendar)
+            isResurfaceDue: isResurfaceDue(games: games, calendar: calendar)
         )
     }
 
     var gamesBowled: Int {
-        let defaultGames = (gamesAsDefault ?? []).map(\.persistentModelID)
-        let overrideGames = (rollsAsOverride ?? []).compactMap { $0.frame?.game?.persistentModelID }
-        return Set(defaultGames + overrideGames).count
+        gamesUsing.count
     }
 }
