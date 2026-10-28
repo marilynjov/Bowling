@@ -395,6 +395,10 @@ so the design handles them now:
   `gameIndex` values when it moves a second owner's games, so if it ran first, duplicate
   games would no longer share an index and would never be found. Phase 2 adds the single
   entry point that runs both in this order.
+- **Before sync turns on.** Phase 2 must keep the repair from deleting a game that is
+  open or recently written, close Scoring cleanly when its game is deleted, and give a
+  game stuck with `recordedRollCount` above its real rows a way out of "importing". The
+  app-package contract, section 3.2, has the details.
 
 ## 4. Scoring rules (BowlingCore `Scorer`)
 
