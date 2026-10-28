@@ -137,12 +137,15 @@ import Testing
         let bowler = Bowler(name: "Sam")
         let game = Game(gameIndex: 1)
         context.insert(bowler)
-        game.bowler = bowler
+        game.assign(bowler)
         try context.save()
 
+        let bowlerID = bowler.id
         try deleteAndSave(bowler)
         #expect(try count(Game.self) == 1)
         #expect(game.bowler == nil)
+        // Kept so sync can tell a deleted bowler's game from one that never had a bowler (#89).
+        #expect(game.bowlerID == bowlerID)
     }
 
     @Test func deletingCenterNullifiesSessions() throws {
@@ -202,7 +205,7 @@ import Testing
         let game = Game(gameIndex: 1)
         context.insert(game)
         game.session = session
-        game.bowler = bowler
+        game.assign(bowler)
         game.defaultBall = ball
         try context.save()
 

@@ -11,6 +11,9 @@ final class Bowler {
     var name: String = ""
     var isOwner: Bool = false
     var handedness: String = Handedness.unknown.rawValue
+    /// A third party's address for phase 7 invitations. Encrypted in CloudKit, which can
+    /// only be chosen when the field is first created.
+    @Attribute(.allowsCloudEncryption)
     var email: String?
     var statsProfile: String = StatsProfile.unknown.rawValue
     /// Comma-separated stats card IDs. Empty means the profile's preset.
@@ -20,6 +23,9 @@ final class Bowler {
     /// The explicit default stats scope. Empty follows the bowling style, which a style
     /// change never overwrites.
     var statsScope: String = ""
+    /// Owner only. Comma-separated IDs of the owners merged into this one (§3.4), synced so
+    /// every device still claims a merged owner's games that arrive later.
+    var mergedOwnerIDs: String = ""
 
     @Relationship(deleteRule: .nullify, inverse: \Game.bowler)
     var games: [Game]?

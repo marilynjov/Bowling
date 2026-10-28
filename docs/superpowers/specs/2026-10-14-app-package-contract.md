@@ -559,7 +559,26 @@ finalOnly or complete game.
 
 No `@Query` in 1a: screens read these value types. Screens re-fetch after their own
 writes. Phase 2 adds a change signal on `BowlingStore` for changes that arrive through
-sync.
+sync. That signal must carry the game IDs the post-import repair deleted (internal
+`repairDuplicates()` already returns them in `DuplicateRepairResult.deleted`): a screen
+holding one of those IDs, such as Scoring, gets `.notFound` on its next read and has to
+leave it.
+
+Phase 2 must also settle, before sync turns on:
+
+- **Never delete a game in use.** Duplicate ranking reads `recordedRollCount` and
+  `updatedAt`, which change while a game is bowled, so two devices with different
+  snapshots can each delete the other's copy. The repair must skip a game open in
+  Scoring on this device or written recently (for example, `updatedAt` within the last
+  few minutes) and retry on a later import.
+- **Leave Scoring cleanly.** If a game Scoring holds is deleted anyway, Scoring closes it
+  with a short message and returns to the session or Home. It never shows the
+  `.notFound` error from the next `recordRoll`.
+- **A stuck roll count.** A game whose `recordedRollCount` stays above the rows that will
+  ever exist (an older app that undid rolls without updating the count, or Roll
+  deletions that sync before the Game row) is treated as importing forever: never
+  rescored and never fully repaired. Phase 2 needs an exit, such as recounting once
+  persistent history shows the import finished, or after a time limit.
 
 
 ```swift

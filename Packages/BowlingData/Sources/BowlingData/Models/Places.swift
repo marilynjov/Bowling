@@ -11,7 +11,10 @@ final class BowlingCenter {
     var name: String = ""
     var notes: String = ""
     var city: String?
+    /// Encrypted in CloudKit, which can only be chosen when the field is first created.
+    @Attribute(.allowsCloudEncryption)
     var latitude: Double?
+    @Attribute(.allowsCloudEncryption)
     var longitude: Double?
 
     @Relationship(deleteRule: .nullify, inverse: \Session.center)
