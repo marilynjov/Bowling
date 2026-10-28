@@ -6,8 +6,8 @@ import SwiftData
 // and the Arsenal list's "Resurface due" badge.
 extension BallRepository {
     /// Wear and the maintenance log, over every game the ball was used in, whatever the
-    /// stats filter. Without a resurface, games since resurface count from the start of the
-    /// purchase day in the repository's calendar.
+    /// stats filter. Games since resurface count from the latest resurface; only when none
+    /// is logged, from the start of the purchase day in the repository's calendar.
     /// - Throws: `.notFound` for an unknown ball.
     public func maintenance(for ballID: BallID) throws -> BallMaintenance {
         try context.ball(ballID).wear(calendar: calendar)

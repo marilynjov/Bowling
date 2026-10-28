@@ -22,7 +22,8 @@ public struct BallFields: Sendable, Hashable {
     public var colorDescription: String
     /// Month precision.
     public var releaseDate: Date?
-    /// Not after today. Games since resurface never count games logged before it.
+    /// Not after today when added or changed. With no resurface logged, games since
+    /// resurface count from it, so games logged before it do not count.
     public var purchaseDate: Date?
     public var factoryFinish: String
     /// Current surface. On add, empty starts from `factoryFinish`.

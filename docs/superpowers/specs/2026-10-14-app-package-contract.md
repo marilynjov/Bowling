@@ -389,16 +389,16 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
 /// §3.2 derived values, over every game the ball was used in (not the stats filter).
 public struct BallMaintenance: Sendable, Hashable {
     public var gamesBowled: Int                    // default or any roll override, once per game
-    public var gamesSinceResurface: Int            // games after the later of the latest
-                                                   // resurface and the purchase (#106 review)
+    public var gamesSinceResurface: Int            // games after the latest resurface; with
+                                                   // none, since purchase (#107 review)
     public var lastResurface: Date?                // nil: never resurfaced
     public var resurfaceIntervalGames: Int?
     public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
     public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
-    /// A game counts when its session date is > the latest resurface and >= purchaseDate,
-    /// so a resurface before the purchase does not bring back older games, and games
-    /// logged before the purchase date never count (1b, #32). Without either, every game.
-    /// BallRepository passes the start of the purchase day in its calendar.
+    /// The latest resurface wins: a game counts when its session date is > it. Only with
+    /// no resurface logged, a game counts when its session date is >= purchaseDate, so
+    /// games logged before the purchase date do not count (1b, #32). Without either,
+    /// every game. BallRepository passes the start of the purchase day in its calendar.
     public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
                 resurfaceIntervalGames: Int?, purchaseDate: Date? = nil)
     /// The same rule over session dates only; BallSummary.isResurfaceDue uses it.
@@ -832,8 +832,8 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
 
     // 1b: maintenance(for:), logMaintenance(_:date:surfaceGritAfter:notes:for:),
     // section 2.9. maintenance(for:) is also the resurface reminder's input (#32):
-    // gamesSinceResurface counts from the later of the latest resurface and the start of
-    // the purchase day, else every game; compare isResurfaceDue before and after a save.
+    // gamesSinceResurface counts from the latest resurface, else from the start of the
+    // purchase day, else every game; compare isResurfaceDue before and after a save.
 
     // 1b (#28, #29, #30, #32). Every method throws .notFound for an unknown ball.
     /// Retired balls, sorted by name: the Arsenal list's Retired group (#28).
@@ -847,7 +847,9 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
     /// cleared: the edit form starts from detail(for:).fields and changes only what the
     /// user edits. Throws .invalidBall(.emptyName), .invalidBall(.weightOutOfRange),
     /// .invalidBall(.negativeSpec), .invalidBall(.resurfaceIntervalBelowOne),
-    /// .invalidBall(.purchaseDateInFuture) for a purchase day after today.
+    /// .invalidBall(.purchaseDateInFuture) for a changed purchase date on a day after
+    /// today; an unchanged one is not checked, since a date saved "later today" further
+    /// east reads as tomorrow here after sync.
     public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail
     /// Nil when the ball has no photo.
     public func photo(for ballID: BallID) throws -> Data?
@@ -884,7 +886,8 @@ public struct BallFields: Sendable, Hashable {
     public var serialNumber: String
     public var colorDescription: String
     public var releaseDate: Date?                  // month precision
-    public var purchaseDate: Date?                 // not after today
+    public var purchaseDate: Date?                 // not after today, checked on add
+                                                   // and only when updateBall changes it
     public var factoryFinish: String
     public var surfaceGrit: String                 // current surface
     public var resurfaceIntervalGames: Int?        // nil: no reminder; else >= 1

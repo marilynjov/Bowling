@@ -112,7 +112,7 @@ import Testing
         try check()
         _ = try balls.logMaintenance(.polish, date: Self.day(4.5), surfaceGritAfter: "", notes: "", for: ballID)
         try check()
-        // A purchase on day 4, after the resurface: only the day 4 game.
+        // A purchase on day 4, after the resurface: the resurface still wins, days 3 and 4.
         ball.purchaseDate = Self.day(4)
         try check()
         ball.resurfaceIntervalGames = 1

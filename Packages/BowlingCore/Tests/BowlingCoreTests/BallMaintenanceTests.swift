@@ -74,15 +74,17 @@ import Testing
         #expect(maintenance.isResurfaceDue)
     }
 
-    @Test func aPurchaseAfterTheLatestResurfaceWins() {
+    /// The review's example: a purchase date filled in after a resurface must not hide
+    /// the badge the resurface count set.
+    @Test func theLatestResurfaceWinsOverALaterPurchase() {
         let maintenance = BallMaintenance(
-            ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: nil,
+            ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: 3,
             purchaseDate: Self.day(4)
         )
-        // Day 4 purchase is later than the day 2.5 resurface: g4 (day 4), g6 = 2; g3 is
-        // after the resurface but before the purchase.
-        #expect(maintenance.gamesSinceResurface == 2)
+        // The day 2.5 resurface wins over the day 4 purchase: g3, g4, g6 = 3, due at 3.
+        #expect(maintenance.gamesSinceResurface == 3)
         #expect(maintenance.lastResurface == Self.day(2.5))
+        #expect(maintenance.isResurfaceDue)
     }
 
     @Test func aPurchaseAfterEveryGameCountsNone() {

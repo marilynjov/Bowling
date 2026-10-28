@@ -47,8 +47,8 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
 public struct BallMaintenance: Sendable, Hashable {
     /// Games with the ball as the default or on any roll override, each counted once.
     public var gamesBowled: Int
-    /// Games bowled after the later of the latest resurface and the purchase; every game
-    /// bowled when neither is set. Games logged before the purchase date never count.
+    /// Games bowled after the latest resurface. With no resurface logged, games since the
+    /// purchase date; with neither, every game bowled.
     public var gamesSinceResurface: Int
     /// Date of the latest resurface; nil when the ball has never been resurfaced.
     public var lastResurface: Date?
@@ -63,10 +63,10 @@ public struct BallMaintenance: Sendable, Hashable {
 
     /// A game played at the very instant of a resurface counts as before it: the bowler
     /// logs the resurface when the ball comes back from the shop, ahead of the next game.
-    /// A game at or after `purchaseDate` counts as after the purchase; pass the start of the
-    /// purchase day so that day's games count whatever time the date picker stored. A game
-    /// must come after both, so a resurface before the purchase (the previous owner's) does
-    /// not bring back games from before it.
+    /// The latest resurface always wins: `purchaseDate` is only the starting point when no
+    /// resurface is logged, so filling in a purchase date later never hides a due badge
+    /// that a resurface set. A game at or after `purchaseDate` counts; pass the start of
+    /// the purchase day so that day's games count whatever time the date picker stored.
     public init(
         ball: BallID, games: [GameRecord], events: [MaintenanceRecord], resurfaceIntervalGames: Int?,
         purchaseDate: Date? = nil
@@ -86,8 +86,12 @@ public struct BallMaintenance: Sendable, Hashable {
     /// ball, so a caller holding only dates (the Arsenal list's badge) skips building
     /// game records.
     public static func gamesSinceResurface(sessionDates: [Date], lastResurface: Date?, purchaseDate: Date?) -> Int {
-        sessionDates.count { date in
-            (lastResurface.map { date > $0 } ?? true) && (purchaseDate.map { date >= $0 } ?? true)
+        if let lastResurface {
+            sessionDates.count { $0 > lastResurface }
+        } else if let purchaseDate {
+            sessionDates.count { $0 >= purchaseDate }
+        } else {
+            sessionDates.count
         }
     }
 }
