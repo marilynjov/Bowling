@@ -29,6 +29,29 @@ import Testing
         #expect(app.revision == 1)
     }
 
+    @Test func addBallSavesAndClosesTheSheet() throws {
+        app.isAddingBall = true
+        try app.addBall(BallDraft(name: "Phaze", weightPounds: 15))
+        #expect(!app.isAddingBall)
+        #expect(app.store.balls.activeBalls().map(\.name) == ["Phaze"])
+    }
+
+    @Test func secondAddBallTapAddsNothing() throws {
+        app.isAddingBall = true
+        let draft = BallDraft(name: "Phaze", weightPounds: 15)
+        try app.addBall(draft)
+        try app.addBall(draft)
+        #expect(app.store.balls.activeBalls().count == 1)
+    }
+
+    @Test func refusedAddBallKeepsTheSheet() {
+        app.isAddingBall = true
+        #expect(throws: RepositoryError.invalidBall(.weightOutOfRange)) {
+            try app.addBall(BallDraft(name: "Phaze"))
+        }
+        #expect(app.isAddingBall)
+    }
+
     @Test func needsOnboardingUntilOwnerExists() throws {
         #expect(app.needsOnboarding)
         _ = try createOwner()
@@ -102,6 +125,13 @@ import Testing
         app.error = Boom()
         #expect(app.showsError(in: .root))
         #expect(!app.showsError(in: .scoring))
+    }
+
+    @Test func errorWhileAddingABallShowsOnTheSheet() {
+        app.isAddingBall = true
+        app.error = Boom()
+        #expect(app.showsError(in: .addBall))
+        #expect(!app.showsError(in: .root))
     }
 
     @Test func errorWhileScoringShowsOnTheCover() {

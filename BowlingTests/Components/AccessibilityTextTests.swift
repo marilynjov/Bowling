@@ -56,4 +56,19 @@ import Testing
         let use = GameDetailData.BallUse(id: BallID(), name: "Hammer", isDefault: false, frames: [3, 7], text: "Hammer · frames 3 and 7")
         #expect(AccessibilityText.ballUse(use) == "Hammer, frames 3 and 7")
     }
+
+    @Test func ballRowReadsEveryPart() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .strike, gamesBowled: 12)
+            == "Phaze, 15 pounds, strike, 12 games")
+    }
+
+    @Test func ballRowWithNoGames() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .strike, gamesBowled: 0)
+            == "Phaze, 15 pounds, strike, no games yet")
+    }
+
+    @Test func ballRowLeavesOutAnUnknownRole() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .unknown, gamesBowled: 1)
+            == "Phaze, 15 pounds, 1 game")
+    }
 }
