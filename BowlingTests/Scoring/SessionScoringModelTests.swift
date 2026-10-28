@@ -216,7 +216,8 @@ import Testing
         model.showSummary()
         model.nextGame()
         #expect(model.bowlers.map(\.bowlerName) == ["Sam", "Alex"])
-        #expect(model.bowlers.map(\.game.gameIndex) == [3, 2])
+        // #111: every bowler's next game takes the session's highest number + 1.
+        #expect(model.bowlers.map(\.game.gameIndex) == [3, 3])
         #expect(model.gameIndex == 3)
         #expect(!model.isShowingSummary)
     }
