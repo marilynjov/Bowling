@@ -184,6 +184,7 @@ below but exist on every entity.
 | homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
 | statsScope | String raw: competition, all, unknown | Owner only. The default stats scope chosen in Settings. Empty means follow the bowling style; unknown is treated as empty |
 | mergedOwnerIDs | String | Owner only. Comma-separated, sorted UUIDs of the owners merged into this one (section 3.4) |
+| isArchived | Bool | Friends only. Default false. Hidden from New session and its pickers; games and stats are kept (#93) |
 | games | [Game]? | Inverse of Game.bowler |
 
 #### Session
@@ -336,8 +337,11 @@ Each has `name` and `notes`, and an inverse `sessions: [Session]?`.
 
 Repository rules on top of the schema:
 
-- Deleting a Bowler who has games is refused with an explanation; the user can delete
-  the games first. The owner can never be deleted.
+- Deleting a Bowler who has games is refused with the game count. The app then offers
+  two choices: archive the friend (hidden from New session and its pickers, games and
+  stats kept, can be unarchived) or delete the friend with all their games, behind a
+  confirmation that names the count. Deleting with games also removes any session left
+  with no games. The owner can never be archived or deleted (#93).
 - Deleting a Ball that any game uses, as its default or on a roll override, is refused
   with the count of affected games and the app offers "retire instead". Nullifying would
   be wrong: a roll with no ball means the game's default ball, so an override's rolls

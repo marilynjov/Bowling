@@ -537,6 +537,7 @@ public enum RepositoryError: Error, Sendable, Hashable {
     case bowlerHasGames(count: Int)           // §3.3
     case ballHasGames(count: Int)             // §3.3, 1b: retire instead (section 3.6)
     case cannotDeleteOwner                    // §3.3
+    case cannotArchiveOwner                   // §3.3, 1b, #93
     case ownerAlreadyExists                   // §3.2 Bowler.isOwner: one owner per user
     case invalidBall(BallFieldError)          // §3.2 Ball: name required, weight 6...16,
                                               // 1b: specs >= 0, interval >= 1
@@ -599,6 +600,7 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
     public var statsLayout: [String]               // raw card IDs; [] = preset (§3.2, §7)
     public var homeLayout: [String]                // raw card IDs; [] = preset
     public var statsScope: StatsScope?             // nil = follow the bowling style (OQ-14)
+    public var isArchived: Bool                    // 1b, #93: friends only; false on the owner
 }
 
 public struct SessionSummary: Sendable, Hashable, Identifiable {   // History row (§7)
@@ -800,8 +802,11 @@ Rules:
 @MainActor public final class BowlerRepository {
     /// nil before first launch completes.
     public func owner() -> BowlerRecord?
-    /// Owner first, then others by name (OQ-11).
-    public func bowlers() -> [BowlerRecord]
+    /// Owner first, then others by name (OQ-11). Archived friends are left out unless
+    /// includingArchived (1b, #93): New session and its pickers use the default; a screen
+    /// that manages friends passes true. History and stats read sessions, so an archived
+    /// friend's past games still show there.
+    public func bowlers(includingArchived: Bool = false) -> [BowlerRecord]
 
     /// First launch (§7). Throws .ownerAlreadyExists.
     public func createOwner(name: String, handedness: Handedness,
@@ -817,8 +822,15 @@ Rules:
     public func setStatsProfile(_ profile: StatsProfile) throws
     /// Settings default stats scope (§6, §7). nil = follow the bowling style.
     public func setStatsScope(_ scope: StatsScope?) throws
-    /// §3.3: .cannotDeleteOwner, .bowlerHasGames(count:).
-    public func deleteBowler(_ id: BowlerID) throws
+    /// 1b, #93: hides a friend from bowlers() (false brings them back), keeping their
+    /// games and stats. Throws .cannotArchiveOwner.
+    public func setArchived(_ isArchived: Bool, for id: BowlerID) throws
+    /// §3.3: .cannotDeleteOwner, always. Without includingGames, a friend with games
+    /// throws .bowlerHasGames(count:); the app then offers archive, or delete with
+    /// everything using that count in the confirmation. includingGames: true (1b, #93)
+    /// deletes the friend, their games with frames, rolls and photos, and any session
+    /// left with no games; sessions with someone else's games keep those.
+    public func deleteBowler(_ id: BowlerID, includingGames: Bool = false) throws
 
     // 1b, §7 Customize (#46). Each throws .notFound without an owner and touches
     // updatedAt. Saving keeps stored IDs this build cannot show (StatsPreset.layoutToSave)
