@@ -121,7 +121,8 @@ private struct GameSlot: Hashable {
 extension Game {
     /// Distinct frame and roll positions on this device, so duplicate rows count once.
     fileprivate var rollsPresent: Int {
-        Set((frames ?? []).flatMap { frame in (frame.rolls ?? []).map { [frame.frameIndex, $0.rollIndex] } }).count
+        // rollIndex is 1 through 3, so frameIndex * 4 + rollIndex is unique per position.
+        Set((frames ?? []).flatMap { frame in (frame.rolls ?? []).map { frame.frameIndex * 4 + $0.rollIndex } }).count
     }
 
     /// - Returns: Whether any row was deleted.
