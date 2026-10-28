@@ -200,7 +200,7 @@ public struct FrameRecord: Sendable, Hashable, Codable {
 ```swift
 public struct GameRecord: Sendable, Hashable, Codable, Identifiable {
     public var id: GameID
-    public var bowlerID: BowlerID?                 // §3.2 Game.bowler (optional relationship)
+    public var bowlerID: BowlerID?                 // §3.2 Game.bowlerID: kept when the Bowler row is missing (§3.4)
     public var gameIndex: Int                      // 1-based within session for this bowler
     public var entryMode: EntryMode
     public var defaultBallID: BallID?              // §3.2 Game.defaultBall

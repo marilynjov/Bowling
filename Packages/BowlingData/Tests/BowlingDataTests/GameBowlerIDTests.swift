@@ -76,3 +76,49 @@ import Testing
         }
     }
 }
+
+/// #110: a game whose Bowler row is gone, deleted on another device or not imported yet,
+/// still reads as that bowler's in its record, stats, and CSV export.
+@MainActor @Suite struct MissingBowlerReaderTests {
+    let store: BowlingStore
+    var context: ModelContext { store.context }
+    let friendID: UUID
+    let game: Game
+
+    init() throws {
+        store = try BowlingStore(inMemory: true)
+        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .casual)
+        let friend = try store.bowlers.createBowler(name: "Alex")
+        let session = try store.sessions.startSession(
+            SessionMetadata(date: DemoFixture.referenceDate, eventType: .league),
+            bowlers: [(friend.id, nil)], entryMode: .finalOnly
+        )
+        let id = try #require(try store.sessions.session(session).bowlers.first?.games.first?.id)
+        try store.games.setFinalScore(200, for: id)
+        game = try store.context.game(id)
+        let row = try store.context.bowler(friend.id)
+        friendID = friend.id
+        store.context.delete(row)
+        try store.context.save()
+    }
+
+    @Test func theRecordKeepsTheBowlerID() throws {
+        #expect(game.bowler == nil)
+        #expect(try store.games.game(game.id).bowlerID == friendID)
+    }
+
+    @Test func statsCountTheGameForItsBowlerOnly() throws {
+        let owner = try #require(context.owner())
+        let calendar = Calendar(identifier: .gregorian)
+        let friends = store.stats.games(matching: StatsFilter(bowlerID: friendID), now: .now, calendar: calendar)
+        let owners = store.stats.games(matching: StatsFilter(bowlerID: owner.id), now: .now, calendar: calendar)
+        #expect(friends.map(\.id) == [game.id])
+        #expect(owners.isEmpty)
+        #expect(store.stats.defaultEventTypes(for: friendID, preferCompetition: true) == BowlingCore.EventType.competition)
+    }
+
+    @Test func csvExportKeepsTheBowlerID() throws {
+        let games = try #require(try store.csvTables().first { $0.fileName == "games.csv" })
+        #expect(try games.rows.map { try games.value($0, "bowlerID") } == [friendID.uuidString])
+    }
+}

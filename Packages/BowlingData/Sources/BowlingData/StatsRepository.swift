@@ -32,7 +32,7 @@ public final class StatsRepository {
         guard preferCompetition else { return all }
         let competition = BowlingCore.EventType.competition.map(\.rawValue)
         var descriptor = FetchDescriptor<Game>(predicate: #Predicate { game in
-            game.isComplete && game.bowler?.id == bowler
+            game.isComplete && game.bowlerID == bowler
                 && game.session.flatMap { competition.contains($0.eventType) } == true
         })
         descriptor.fetchLimit = 1
@@ -48,7 +48,8 @@ public final class StatsRepository {
     }
 
     /// Every field in the store, so no in-memory pass is needed. Games without a session
-    /// or bowler never match, having no date or owner. Event types compare stored raw
+    /// or `bowlerID` never match, having no date or owner. A game matches on `bowlerID`
+    /// even while its Bowler row is missing (§3.4 "Games with no bowler"). Event types compare stored raw
     /// strings: a value this version does not know reads as `.unknown`, so it matches when
     /// `.unknown` is selected, which "All games" always does.
     static func predicate(for filter: StatsFilter, in interval: DateInterval?) -> Predicate<Game> {
@@ -63,7 +64,7 @@ public final class StatsRepository {
         let anyLeague = filter.leagueID == nil, leagueID = filter.leagueID ?? UUID()
         let anyPattern = filter.oilPatternID == nil, patternID = filter.oilPatternID ?? UUID()
         let session = #Predicate<Game> { game in
-            game.bowler?.id == bowlerID
+            game.bowlerID == bowlerID
                 && game.session.flatMap { session in
                     session.date >= start && session.date < end
                         && (selected.contains(session.eventType)

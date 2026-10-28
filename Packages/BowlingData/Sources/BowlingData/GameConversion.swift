@@ -17,7 +17,7 @@ extension Game {
     func record() -> GameRecord {
         GameRecord(
             id: id,
-            bowlerID: bowler?.id,
+            bowlerID: bowlerID,
             gameIndex: gameIndex,
             entryMode: BowlingCore.EntryMode(storedValue: entryMode),
             defaultBallID: defaultBall?.id,
