@@ -102,7 +102,7 @@ import Testing
         return [
             "Bowler": common.union([
                 "name", "isOwner", "handedness", "email", "statsProfile", "statsLayout", "homeLayout",
-                "statsScope", "mergedOwnerIDs", "games",
+                "statsScope", "mergedOwnerIDs", "isArchived", "games",
             ]),
             "Session": common.union([
                 "date", "eventType", "center", "league", "oilPattern", "lanes", "notes", "games",

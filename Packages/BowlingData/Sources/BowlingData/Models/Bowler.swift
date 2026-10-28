@@ -26,6 +26,8 @@ final class Bowler {
     /// Owner only. Comma-separated IDs of the owners merged into this one (§3.4), synced so
     /// every device still claims a merged owner's games that arrive later.
     var mergedOwnerIDs: String = ""
+    /// Friends only. Hidden from the new session pickers; games and stats are kept.
+    var isArchived: Bool = false
 
     @Relationship(deleteRule: .nullify, inverse: \Game.bowler)
     var games: [Game]?
