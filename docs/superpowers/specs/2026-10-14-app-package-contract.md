@@ -524,10 +524,20 @@ public final class BowlingStore {
     /// every device on the iCloud account, and the confirmation must say so.
     public func deleteAllData() throws
 
+    /// §3.4 "Repair order": every repair after sync (duplicate games, frames, and rolls;
+    /// games relinked to their bowler; the owner merge). Phase 2 calls it at launch and
+    /// after each finished, successful CloudKit import event. Idempotent.
+    @discardableResult
+    public func repairSyncedData() throws -> SyncRepairResult
+
     // Becoming internal (OQ-20, #76); not for the app:
     public nonisolated static var schema: Schema { get }
     /// CloudKit off until phase 2.
     public nonisolated static func makeContainer(inMemory: Bool = false) throws -> ModelContainer
+}
+
+public struct SyncRepairResult: Sendable, Hashable {
+    public var deletedGames: Set<GameID>      // duplicate games deleted; a screen holding one leaves it
 }
 
 public enum RepositoryError: Error, Sendable, Hashable {
@@ -567,10 +577,14 @@ finalOnly or complete game.
 
 No `@Query` in 1a: screens read these value types. Screens re-fetch after their own
 writes. Phase 2 adds a change signal on `BowlingStore` for changes that arrive through
-sync. That signal must carry the game IDs the post-import repair deleted (internal
-`repairDuplicates()` already returns them in `DuplicateRepairResult.deleted`): a screen
-holding one of those IDs, such as Scoring, gets `.notFound` on its next read and has to
-leave it.
+sync. That signal must carry the game IDs the post-import repair deleted
+(`repairSyncedData()` returns them in `SyncRepairResult.deletedGames`): a screen holding
+one of those IDs, such as Scoring, gets `.notFound` on its next read and has to leave it.
+
+A game can also hold a `bowlerID` whose Bowler row is missing (§3.4 "Games with no
+bowler"): `SessionDetail` leaves it out of `bowlers`, and `SessionSummary.games` includes
+it. Phase 2 shows such a game as "Unknown bowler" with an "Assign to..." action, which
+needs a repository method that does not exist yet.
 
 Phase 2 must also settle, before sync turns on:
 

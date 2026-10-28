@@ -362,7 +362,18 @@ so the design handles them now:
     `mergedOwnerIDs`. A device offline during the merge can still log a game for a
     merged owner; it syncs in with no bowler and that owner's `bowlerID`, and the next
     merge gives it to the kept owner. A game with no bowler whose `bowlerID` names
-    neither an owner nor a merged owner is left unassigned (the rest is #89).
+    neither an owner nor a merged owner is never claimed (see "Games with no bowler").
+- **Games with no bowler.** CloudKit does not import relationships atomically, so a Game
+  can arrive before its Bowler, or after another device deleted that Bowler. After every
+  remote import the repository links each game with no bowler to the Bowler whose id
+  equals `Game.bowlerID`, without stamping `updatedAt` or changing `lineupIndex`. The
+  owner merge then claims only games with no bowler whose `bowlerID` is empty or names an
+  owner or a merged owner. A game whose `bowlerID` names a missing bowler stays
+  unassigned: it keeps that `bowlerID` in its record, stats, and CSV export, so it counts
+  only for that bowler, which means in no one's stats while the bowler is missing. Phase
+  2 shows it as "Unknown bowler" and lets the user assign it by hand. Waiting until the
+  bowler is "confirmed missing" is not possible, because sync never signals that every
+  record has arrived.
 - **Same-name centers, leagues, and patterns** created on two devices. These are not
   merged automatically, because two centers can share a name. Settings gains a "Merge"
   action in phase 2 that moves all sessions from one record to another and deletes the
@@ -391,11 +402,14 @@ so the design handles them now:
   stamped, since a gap from rows still on the way would read as invalid. A frame that arrives after its game was deleted stays unlinked
   (`game == nil`); no repair deletes it, because a frame waiting for its Game row looks
   the same.
-- **Repair order.** After every remote import, run `repairDuplicates` (duplicate games,
-  then duplicate frames and rolls) before `mergeOwners`. The merge renumbers clashing
-  `gameIndex` values when it moves a second owner's games, so if it ran first, duplicate
-  games would no longer share an index and would never be found. Phase 2 adds the single
-  entry point that runs both in this order.
+- **Repair order.** `BowlingStore.repairSyncedData()` runs every repair in this order:
+  `repairDuplicates` (duplicate games, then duplicate frames and rolls), then the relink
+  of games to their bowlers, then `mergeOwners`. The merge renumbers clashing `gameIndex`
+  values when it moves a second owner's games, so if it ran first, duplicate games would
+  no longer share an index and would never be found. The relink must also come before
+  the merge, so a game whose bowler has arrived is linked, not judged an orphan. Each
+  step is idempotent. The app calls it at launch and after each finished, successful
+  CloudKit import event.
 - **Before sync turns on.** Phase 2 must keep the repair from deleting a game that is
   open or recently written, close Scoring cleanly when its game is deleted, and give a
   game stuck with `recordedRollCount` above its real rows a way out of "importing". The
