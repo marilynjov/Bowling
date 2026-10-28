@@ -216,7 +216,9 @@ import Testing
         model.showSummary()
         model.nextGame()
         #expect(model.bowlers.map(\.bowlerName) == ["Sam", "Alex"])
-        #expect(model.bowlers.map(\.game.gameIndex) == [3, 2])
+        // startNextGame numbers everyone from the session's highest game (#111),
+        // so the night is even again.
+        #expect(model.bowlers.map(\.game.gameIndex) == [3, 3])
         #expect(model.gameIndex == 3)
         #expect(!model.isShowingSummary)
     }
