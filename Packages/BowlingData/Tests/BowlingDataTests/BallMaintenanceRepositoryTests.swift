@@ -25,6 +25,11 @@ import Testing
     /// A one-frame countOnly game in its own session on `day`.
     @discardableResult
     func insert(day offset: Double, defaultBall: BallID?, override: BallID? = nil) throws -> Game {
+        try insert(at: Self.day(offset), defaultBall: defaultBall, override: override)
+    }
+
+    @discardableResult
+    func insert(at sessionDate: Date, defaultBall: BallID?, override: BallID? = nil) throws -> Game {
         let rolls = [
             RollRecord(rollIndex: 1, pinCount: 7, pinsKnown: false),
             RollRecord(rollIndex: 2, pinCount: 2, pinsKnown: false, ballID: override),
@@ -32,7 +37,7 @@ import Testing
         let record = GameRecord(
             gameIndex: 1, entryMode: .countOnly, defaultBallID: defaultBall, finalScore: 9,
             isComplete: false, frames: [FrameRecord(frameIndex: 1, rolls: rolls)],
-            sessionID: SessionID(), sessionDate: Self.day(offset), eventType: .league
+            sessionID: SessionID(), sessionDate: sessionDate, eventType: .league
         )
         return try insertGame(record, into: store.context)
     }
@@ -59,13 +64,22 @@ import Testing
         #expect(maintenance.events.map(\.kind) == [.polish, .resurface, .resurface])
     }
 
-    @Test func withoutAResurfaceGamesCountFromThePurchaseDay() throws {
-        try insert(day: 1, defaultBall: ballID)
-        try insert(day: 2, defaultBall: otherBallID, override: ballID)
-        try insert(day: 3, defaultBall: ballID)
+    /// Times are built from the start of each day in `timeZone`, so the day 2 game at 1:00
+    /// comes before the 23:00 purchase time and only counts because of the start of day,
+    /// whatever the machine's time zone.
+    @Test(arguments: ["Pacific/Kiritimati", "UTC", "Pacific/Pago_Pago"])
+    func withoutAResurfaceGamesCountFromThePurchaseDay(timeZone: String) throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: timeZone))
+        balls.calendar = calendar
+        func time(day offset: Double, hour: Double) -> Date {
+            calendar.startOfDay(for: Self.day(offset)).addingTimeInterval(hour * 3_600)
+        }
+        try insert(at: time(day: 1, hour: 1), defaultBall: ballID)
+        try insert(at: time(day: 2, hour: 1), defaultBall: otherBallID, override: ballID)
+        try insert(at: time(day: 3, hour: 1), defaultBall: ballID)
         let ball = try store.context.ball(ballID)
-        // Late on day 2: the start of that day still counts the day 2 game.
-        ball.purchaseDate = Calendar.current.startOfDay(for: Self.day(2)).addingTimeInterval(23 * 3_600)
+        ball.purchaseDate = time(day: 2, hour: 23)
         ball.resurfaceIntervalGames = 2
 
         let maintenance = try balls.maintenance(for: ballID)
@@ -73,6 +87,37 @@ import Testing
         #expect(maintenance.gamesSinceResurface == 2)
         #expect(maintenance.gamesBowled == 3)
         #expect(maintenance.isResurfaceDue)
+    }
+
+    /// The Arsenal badge's shortcut must agree with the full calculation at every step.
+    @Test func summaryResurfaceDueAgreesWithMaintenance() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        balls.calendar = calendar
+        let ball = try store.context.ball(ballID)
+        func check() throws {
+            let summary = try #require(balls.activeBalls().first { $0.id == ballID })
+            #expect(summary.isResurfaceDue == (try balls.maintenance(for: ballID).isResurfaceDue))
+        }
+        try check()
+        ball.resurfaceIntervalGames = 2
+        try insert(day: 1, defaultBall: ballID)
+        try check()
+        try insert(day: 2, defaultBall: otherBallID, override: ballID)
+        try check()
+        _ = try balls.logMaintenance(.resurface, date: Self.day(2.5), surfaceGritAfter: "", notes: "", for: ballID)
+        try check()
+        try insert(day: 3, defaultBall: ballID)
+        try insert(day: 4, defaultBall: ballID)
+        try check()
+        _ = try balls.logMaintenance(.polish, date: Self.day(4.5), surfaceGritAfter: "", notes: "", for: ballID)
+        try check()
+        // A purchase on day 4, after the resurface: the resurface still wins, days 3 and 4.
+        ball.purchaseDate = Self.day(4)
+        try check()
+        ball.resurfaceIntervalGames = 1
+        try check()
+        #expect(balls.activeBalls().first { $0.id == ballID }?.isResurfaceDue == true)
     }
 
     @Test func logMaintenanceSnapshotsGamesAndCopiesTheGrit() throws {

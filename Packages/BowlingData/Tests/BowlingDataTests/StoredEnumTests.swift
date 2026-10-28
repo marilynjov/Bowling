@@ -17,6 +17,13 @@ import Testing
         #expect(MaintenanceEvent.Kind(stored: Self.unknownRaw) == .other)
     }
 
+    /// Stored strings from before the alias to the BowlingCore enums.
+    @Test func ballEnumsKeepTheirStoredRawValues() {
+        #expect(Ball.Coverstock.allCases.map(\.rawValue)
+            == ["plastic", "urethane", "reactiveSolid", "reactivePearl", "reactiveHybrid", "other", "unknown"])
+        #expect(Ball.CoreType.allCases.map(\.rawValue) == ["symmetric", "asymmetric", "pancake", "unknown"])
+    }
+
     @Test func knownRawValuesRoundTrip() {
         for value in Ball.Coverstock.allCases {
             #expect(Ball.Coverstock(stored: value.rawValue) == value)

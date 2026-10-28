@@ -7,6 +7,12 @@ import SwiftData
 // BowlingCore keeps `.unknown`, which the app shows as "Other".
 
 extension Game {
+    /// The date a game is counted on: its session's, or its own creation date when it has
+    /// no session. `GameRecord.sessionDate`, wear, and maintenance snapshots all use it.
+    var sessionDate: Date {
+        session?.date ?? createdAt
+    }
+
     /// Frames sorted by `frameIndex` and rolls by `rollIndex`; relationship order is never used.
     func record() -> GameRecord {
         GameRecord(
@@ -19,7 +25,7 @@ extension Game {
             isComplete: isComplete,
             frames: (frames ?? []).sorted { $0.frameIndex < $1.frameIndex }.map { $0.record() },
             sessionID: session?.id,
-            sessionDate: session?.date ?? createdAt,
+            sessionDate: sessionDate,
             eventType: session.map { BowlingCore.EventType(storedValue: $0.eventType) } ?? .unknown,
             centerID: session?.center?.id, leagueID: session?.league?.id, oilPatternID: session?.oilPattern?.id
         )
@@ -41,6 +47,7 @@ extension Game {
         defaultBall = newDefaultBall
         finalScore = record.finalScore
         isComplete = record.isComplete
+        recordedRollCount = record.frames.reduce(0) { $0 + $1.rolls.count }
 
         var existing = Dictionary(grouping: frames ?? [], by: \.frameIndex)
         for frameRecord in record.frames {

@@ -40,6 +40,25 @@ import Testing
 
     // MARK: Saving after every roll
 
+    /// `Game.recordedRollCount` lives on the Game row so sync can rank a copy whose rolls
+    /// have not arrived (§3.4), so every write that adds or removes rolls updates it.
+    @Test func recordedRollCountFollowsEveryWrite() throws {
+        let game = try startGame(.countOnly)
+        let model = try store.context.game(game)
+        #expect(model.recordedRollCount == 0)
+
+        try bowl([7, 2, 10], in: game)
+        #expect(model.recordedRollCount == 3)
+        _ = try games.undoLastRoll(in: game)
+        #expect(model.recordedRollCount == 2)
+        _ = try games.clearRolls(in: game)
+        #expect(model.recordedRollCount == 0)
+
+        let finalOnly = try startGame(.finalOnly)
+        try games.setFinalScore(180, for: finalOnly)
+        #expect(try store.context.game(finalOnly).recordedRollCount == 0)
+    }
+
     @Test func everyRollIsSavedAsItIsRecorded() throws {
         let game = try startGame(.countOnly)
         for (rolled, count) in [7, 2, 10].enumerated() {

@@ -60,19 +60,22 @@ public final class GameRepository {
     }
 
     /// Adds the next game for every bowler in the session, with the entry mode, default
-    /// ball, and lineup position of that bowler's latest game.
+    /// ball, and lineup position of that bowler's latest game. Every new game gets the same
+    /// number, the session's highest `gameIndex` + 1, so a bowler whose latest game was
+    /// deleted rejoins the rest of the lineup instead of falling a game behind.
     /// - Returns: The new games, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID] {
         let session = try context.session(session)
         return try context.write {
-            session.gamesByBowler().compactMap { group in
+            let gameIndex = ((session.games ?? []).map(\.gameIndex).max() ?? 0) + 1
+            return session.gamesByBowler().compactMap { group in
                 guard let latest = group.games.last else { return nil }
-                let game = Game(gameIndex: latest.gameIndex + 1)
+                let game = Game(gameIndex: gameIndex)
                 context.insert(game)
                 game.entryMode = latest.entryMode
                 game.lineupIndex = latest.lineupIndex
                 game.session = session
-                game.bowler = group.bowler
+                game.assign(group.bowler)
                 game.defaultBall = latest.defaultBall
                 return game.id
             }

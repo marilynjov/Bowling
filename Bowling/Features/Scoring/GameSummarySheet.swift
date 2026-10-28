@@ -1,7 +1,8 @@
 import BowlingCore
 import SwiftUI
 
-/// The game summary (spec §3): a card per bowler, then Next game and End session.
+/// The game summary (spec §3): a card per bowler, then Next game and End session,
+/// or Done on an older game number.
 struct GameSummarySheet: View {
     @Environment(AppModel.self) private var app
     let session: SessionScoringModel
@@ -21,17 +22,26 @@ struct GameSummarySheet: View {
         }
     }
 
+    /// Next game and End session on the session's latest game number, else Done.
     private var buttons: some View {
         VStack(spacing: 8) {
-            Button(action: session.nextGame) {
-                Text("Next game").frame(maxWidth: .infinity, minHeight: 48)
+            if session.offersNextGame {
+                Button(action: session.nextGame) {
+                    Text("Next game").frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                Button(action: app.closeScoring) {
+                    Text("End session").frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Button(action: app.closeScoring) {
+                    Text("Done").frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            Button(action: app.closeScoring) {
-                Text("End session").frame(maxWidth: .infinity, minHeight: 48)
-            }
-            .buttonStyle(.bordered)
         }
         .padding(16)
         .background(Color.canvas)

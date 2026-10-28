@@ -389,15 +389,21 @@ public struct MaintenanceRecord: Sendable, Hashable, Codable, Identifiable {
 /// §3.2 derived values, over every game the ball was used in (not the stats filter).
 public struct BallMaintenance: Sendable, Hashable {
     public var gamesBowled: Int                    // default or any roll override, once per game
-    public var gamesSinceResurface: Int            // games strictly after the latest resurface
-    public var lastResurface: Date?                // nil: never resurfaced, counts since purchase
+    public var gamesSinceResurface: Int            // games after the latest resurface; with
+                                                   // none, since purchase (#107 review)
+    public var lastResurface: Date?                // nil: never resurfaced
     public var resurfaceIntervalGames: Int?
     public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
     public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
-    /// Without a resurface, games with session date >= purchaseDate count (1b, #32);
-    /// without either, every game. BallRepository passes the start of the purchase day.
+    /// The latest resurface wins: a game counts when its session date is > it. Only with
+    /// no resurface logged, a game counts when its session date is >= purchaseDate, so
+    /// games logged before the purchase date do not count (1b, #32). Without either,
+    /// every game. BallRepository passes the start of the purchase day in its calendar.
     public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
                 resurfaceIntervalGames: Int?, purchaseDate: Date? = nil)
+    /// The same rule over session dates only; BallSummary.isResurfaceDue uses it.
+    public static func gamesSinceResurface(sessionDates: [Date], lastResurface: Date?,
+                                           purchaseDate: Date?) -> Int
 }
 
 extension GameRecord {
@@ -544,6 +550,8 @@ public enum BallFieldError: Sendable, Hashable {
     case emptyName, weightOutOfRange
     case negativeSpec                         // 1b: RG or a differential < 0 or not finite
     case resurfaceIntervalBelowOne            // 1b: set but < 1; nil turns the reminder off
+    case purchaseDateInFuture                 // 1b: purchase day after today
+    case photoTooLarge                        // 1b: over BallRepository.maxPhotoBytes
 }
 public enum BowlerFieldError: Sendable, Hashable { case emptyName }
 public enum MaintenanceFieldError: Sendable, Hashable { case dateInFuture, unknownKind }
@@ -559,7 +567,26 @@ finalOnly or complete game.
 
 No `@Query` in 1a: screens read these value types. Screens re-fetch after their own
 writes. Phase 2 adds a change signal on `BowlingStore` for changes that arrive through
-sync.
+sync. That signal must carry the game IDs the post-import repair deleted (internal
+`repairDuplicates()` already returns them in `DuplicateRepairResult.deleted`): a screen
+holding one of those IDs, such as Scoring, gets `.notFound` on its next read and has to
+leave it.
+
+Phase 2 must also settle, before sync turns on:
+
+- **Never delete a game in use.** Duplicate ranking reads `recordedRollCount` and
+  `updatedAt`, which change while a game is bowled, so two devices with different
+  snapshots can each delete the other's copy. The repair must skip a game open in
+  Scoring on this device or written recently (for example, `updatedAt` within the last
+  few minutes) and retry on a later import.
+- **Leave Scoring cleanly.** If a game Scoring holds is deleted anyway, Scoring closes it
+  with a short message and returns to the session or Home. It never shows the
+  `.notFound` error from the next `recordRoll`.
+- **A stuck roll count.** A game whose `recordedRollCount` stays above the rows that will
+  ever exist (an older app that undid rolls without updating the count, or Roll
+  deletions that sync before the Game row) is treated as importing forever: never
+  rescored and never fully repaired. Phase 2 needs an exit, such as recounting once
+  persistent history shows the import finished, or after a time limit.
 
 
 ```swift
@@ -742,8 +769,9 @@ public struct RollEditOutcome: Sendable, Hashable {
     /// finalOnly only, 0...300 (§4). Marks the game complete. Throws .notFinalOnly on
     /// a game scored from rolls, .invalidGame([.finalScoreOutOfRange]) outside 0...300.
     public func setFinalScore(_ score: Int, for game: GameID) throws
-    /// §7 "Next game": game gameIndex + 1 for every bowler, with the entry mode and
-    /// default ball of that bowler's latest game, in lineup order.
+    /// §7 "Next game": one new game for every bowler who still has a game in the
+    /// session, all numbered the session's highest gameIndex + 1, with the entry mode
+    /// and default ball of that bowler's latest game, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID]
     public func deleteGame(_ id: GameID) throws
 }
@@ -835,13 +863,21 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
     /// The 1b form. Name trimmed; an empty surfaceGrit starts from factoryFinish (§7).
     /// Throws .invalidBall(...) as updateBall.
     public func addBall(_ fields: BallFields) throws -> BallDetail
-    /// Replaces every editable field. Throws .invalidBall(.emptyName),
-    /// .invalidBall(.weightOutOfRange), .invalidBall(.negativeSpec),
-    /// .invalidBall(.resurfaceIntervalBelowOne).
+    /// Replaces every editable field, so a field left at its BallFields default is
+    /// cleared: the edit form starts from detail(for:).fields and changes only what the
+    /// user edits. Throws .invalidBall(.emptyName), .invalidBall(.weightOutOfRange),
+    /// .invalidBall(.negativeSpec), .invalidBall(.resurfaceIntervalBelowOne),
+    /// .invalidBall(.purchaseDateInFuture) for a changed purchase date on a day after
+    /// today; an unchanged one is not checked, since a date saved "later today" further
+    /// east reads as tomorrow here after sync.
     public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail
     /// Nil when the ball has no photo.
     public func photo(for ballID: BallID) throws -> Data?
-    /// The app downscales first. Replaces an existing photo; empty data removes it.
+    /// At most 5 MB (5_000_000 bytes).
+    public nonisolated static let maxPhotoBytes: Int
+    /// The app downscales first (a JPEG for the list and detail header, well under the
+    /// limit). Replaces an existing photo; empty data removes it. Throws
+    /// .invalidBall(.photoTooLarge) over maxPhotoBytes, keeping the old photo.
     public func setPhoto(_ imageData: Data, for ballID: BallID) throws
     public func removePhoto(for ballID: BallID) throws
     /// Retired balls keep their games, stats, and log; they leave activeBalls().
@@ -870,7 +906,8 @@ public struct BallFields: Sendable, Hashable {
     public var serialNumber: String
     public var colorDescription: String
     public var releaseDate: Date?                  // month precision
-    public var purchaseDate: Date?
+    public var purchaseDate: Date?                 // not after today, checked on add
+                                                   // and only when updateBall changes it
     public var factoryFinish: String
     public var surfaceGrit: String                 // current surface
     public var resurfaceIntervalGames: Int?        // nil: no reminder; else >= 1
@@ -889,6 +926,13 @@ public struct BallDetail: Sendable, Hashable, Identifiable {
 A coverstock or core type in `BallFields` that reads the same as the stored string keeps
 that string, so editing another field never overwrites a newer version's value with
 `"unknown"`. The schema is unchanged; `Ball.bowler` (#93) comes later.
+
+**Resolving a ball name by ID.** Old games and rolls keep pointing at a ball after it is
+retired, so the app resolves a `ballID` (a game's `defaultBallID`, a roll's `ballID`, a
+`LeaveOccurrence.ballID`) over retired balls too: `detail(for:)` for one ball, or
+`activeBalls() + retiredBalls()` for a lookup table. `activeBalls()` alone is only for
+pickers. `deleteBall` refuses a ball any game uses, so a `ballID` that resolves to
+nothing (`.notFound`) should only come from sync; show it as an unknown ball.
 
 ### 3.7 StatsRepository (1a)
 
@@ -1370,8 +1414,9 @@ Rules:
   report, so the list's count equals the row's count.
 - Occurrences after a first-ball foul do not exist (no leave, §5), and a frame 10 fill
   ball is not a spare attempt, so its leave is never listed.
-- The app shows the session from `game.sessionID` and the ball name from `ballID` via
-  the existing read models; it does not re-sort the list.
+- The app shows the session from `game.sessionID` and the ball name from `ballID`,
+  resolved over active and retired balls as section 3.6 describes; it does not re-sort
+  the list.
 
 ## 7. What the app may not do
 

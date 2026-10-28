@@ -50,37 +50,9 @@ struct NewSessionSheet: View {
             }
             .listRowBackground(Color.surface)
 
-            Section {
-                NavigationLink {
-                    NamedRefPicker(title: "Center", items: centers, selection: draft.centerID) { name in
-                        try app.write { try $0.sessions.createCenter(name: name) }
-                    }
-                } label: {
-                    LabeledContent("Center", value: name(of: draft.wrappedValue.centerID, in: centers))
-                }
-                if draft.wrappedValue.eventType == .league {
-                    NavigationLink {
-                        NamedRefPicker(title: "League", items: draft.wrappedValue.leagues(from: leagues), selection: draft.leagueID) { name in
-                            let centerID = draft.wrappedValue.centerID
-                            return try app.write { try $0.sessions.createLeague(name: name, centerID: centerID) }
-                        }
-                    } label: {
-                        LabeledContent("League", value: name(of: draft.wrappedValue.leagueID, in: leagues))
-                    }
-                }
-                NavigationLink {
-                    NamedRefPicker(title: "Oil pattern", items: oilPatterns, selection: draft.oilPatternID) { name in
-                        try app.write { try $0.sessions.createOilPattern(name: name) }
-                    }
-                } label: {
-                    LabeledContent("Oil pattern", value: name(of: draft.wrappedValue.oilPatternID, in: oilPatterns))
-                }
-                LabeledContent("Lanes") {
-                    TextField("Lanes", text: draft.lanes, prompt: Text("13–14"))
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-            .listRowBackground(Color.surface)
+            SessionPlaceSection(
+                details: draft.details, centers: centers, leagues: leagues, oilPatterns: oilPatterns
+            )
 
             Section("Bowlers") {
                 ForEach(draft.lineup) { $entry in
@@ -142,10 +114,6 @@ struct NewSessionSheet: View {
                 app.sessionDefaults.defaults(for: type), available: .current(in: app.store)
             )
         }
-    }
-
-    private func name(of id: UUID?, in items: [some NamedItem]) -> String {
-        items.first { $0.id == id }?.name ?? "None"
     }
 
     private func ballName(_ id: BallID?) -> String {

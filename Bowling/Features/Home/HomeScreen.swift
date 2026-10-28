@@ -76,7 +76,7 @@ struct HomeScreen: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(data.recent) { row in
-                        Button { app.selectedTab = .history } label: {
+                        Button { app.openSession(row.id) } label: {
                             RecentSessionRow(row: row)
                         }
                         .buttonStyle(.plain)

@@ -36,7 +36,7 @@ struct GameSummary: Hashable, Identifiable {
         guard let game = bowler.games.first(where: { $0.gameIndex == gameIndex }) else { return nil }
         id = bowler.bowler.id
         name = bowler.bowler.name
-        score = Self.score(game)
+        score = game.shownScore
         switch game.entryMode {
         case .finalOnly:
             counts = nil
@@ -49,7 +49,7 @@ struct GameSummary: Hashable, Identifiable {
             let found = Scorer.scorecard(for: game).frames.compactMap(\.leave)
             leaves = found.isEmpty ? .none : .diagrams(found)
         }
-        series = gameIndex == 1 ? nil : bowler.games.filter { $0.gameIndex <= gameIndex }.map(Self.score).reduce(0, +)
+        series = gameIndex == 1 ? nil : bowler.games.filter { $0.gameIndex <= gameIndex }.map(\.shownScore).reduce(0, +)
     }
 
     /// "6 strikes · 3 spares · 1 open".
@@ -65,12 +65,15 @@ struct GameSummary: Hashable, Identifiable {
         series.map { String(localized: "Series \($0)") }
     }
 
-    private static func score(_ game: GameRecord) -> Int {
-        Scorer.scorecard(for: game).finalScore ?? game.finalScore
-    }
-
     private static func counts(_ game: GameRecord, bowler: BowlerID) -> Counts {
         let report = StatsEngine.report(games: [game], filter: StatsFilter(bowlerID: bowler))
         return Counts(strikes: report.strikes.hits, spares: report.spares.hits, opens: report.openFrames.hits)
+    }
+}
+
+extension GameRecord {
+    /// The score screens show: the scorer's, else the cached final score.
+    var shownScore: Int {
+        Scorer.scorecard(for: self).finalScore ?? finalScore
     }
 }

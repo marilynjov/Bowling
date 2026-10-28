@@ -11,7 +11,7 @@ struct ResumeCard: Hashable {
     var target: ScoringTarget
 }
 
-/// One of Home's recent sessions.
+/// One session in Home's recent list and in History.
 struct RecentRow: Hashable, Identifiable {
     var id: SessionID
     var date: Date
@@ -19,6 +19,39 @@ struct RecentRow: Hashable, Identifiable {
     var centerName: String?
     /// The owner's games in order, "187 · 201 · 176…"; "…" marks an unfinished game.
     var scores: String
+    /// Only for league sessions.
+    var leagueName: String?
+    var bowlerCount: Int
+    /// Every bowler's games, all of which deleting the session removes.
+    var gameCount: Int
+    /// The owner's games in order, unfinished ones at their score so far.
+    var ownerScores: [Int]
+    var isInProgress: Bool
+
+    /// "League · AMF Bowl · Tuesday Mixed"; a missing center or league is left out.
+    var detailsText: String {
+        [eventType.title, centerName, leagueName].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// "3 bowlers"; nil for a session of one.
+    var bowlersText: String? {
+        bowlerCount > 1 ? String(localized: "\(bowlerCount) bowlers") : nil
+    }
+}
+
+extension RecentRow {
+    init(_ session: SessionSummary, owner: BowlerID) {
+        let games = session.games.filter { $0.bowlerID == owner }
+        self.init(
+            id: session.id, date: session.date, eventType: session.eventType,
+            centerName: session.centerName,
+            scores: games.map { $0.isComplete ? "\($0.finalScore)" : "\($0.finalScore)…" }
+                .joined(separator: " · "),
+            leagueName: session.eventType == .league ? session.leagueName : nil,
+            bowlerCount: session.bowlerCount, gameCount: session.games.count,
+            ownerScores: games.map(\.finalScore), isInProgress: !session.isComplete
+        )
+    }
 }
 
 /// Everything Home shows, read in one pass after each write.
@@ -33,7 +66,7 @@ struct HomeData: Hashable {
         return HomeData(
             tiles: tiles(for: owner, in: store, now: now, calendar: calendar),
             resume: store.sessions.resumableSession().flatMap(resumeCard),
-            recent: store.sessions.sessions().prefix(3).map { recentRow($0, owner: owner.id) }
+            recent: store.sessions.sessions().prefix(3).map { RecentRow($0, owner: owner.id) }
         )
     }
 
@@ -53,27 +86,16 @@ struct HomeData: Hashable {
         )
     }
 
-    /// The first unfinished game, bowlers in lineup order and their games by `gameIndex`.
     private static func resumeCard(_ session: SessionSummary) -> ResumeCard? {
-        guard let game = session.games.first(where: { !$0.isComplete }) else { return nil }
+        guard let target = ScoringTarget.resume(session),
+              let game = session.games.first(where: { $0.id == target.gameID }) else { return nil }
         var progress = String(localized: "Game \(game.gameIndex)")
         if game.frames.contains(where: { !$0.rolls.isEmpty }), let next = Scorer.nextRoll(in: game) {
             progress = String(localized: "Game \(game.gameIndex) · frame \(next.frameIndex)")
         }
         return ResumeCard(
             eventType: session.eventType, centerName: session.centerName, progress: progress,
-            target: ScoringTarget(sessionID: session.id, gameID: game.id)
-        )
-    }
-
-    private static func recentRow(_ session: SessionSummary, owner: BowlerID) -> RecentRow {
-        let scores = session.games
-            .filter { $0.bowlerID == owner }
-            .map { $0.isComplete ? "\($0.finalScore)" : "\($0.finalScore)…" }
-            .joined(separator: " · ")
-        return RecentRow(
-            id: session.id, date: session.date, eventType: session.eventType,
-            centerName: session.centerName, scores: scores
+            target: target
         )
     }
 }

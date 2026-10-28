@@ -1,3 +1,4 @@
+import BowlingCore
 import Foundation
 import SwiftData
 
@@ -55,16 +56,9 @@ final class Ball {
 }
 
 extension Ball {
-    enum Coverstock: String, StoredEnum {
-        case plastic, urethane, reactiveSolid, reactivePearl, reactiveHybrid, other, unknown
-        static let fallback = Self.unknown
-    }
-
-    /// `pancake` is the plastic spare-ball core.
-    enum CoreType: String, StoredEnum {
-        case symmetric, asymmetric, pancake, unknown
-        static let fallback = Self.unknown
-    }
+    /// The contract enums, so the stored raw values cannot drift from what the app sees.
+    typealias Coverstock = BowlingCore.Coverstock
+    typealias CoreType = BowlingCore.CoreType
 
     enum IntendedRole: String, StoredEnum {
         case strike, spare, both
@@ -85,4 +79,12 @@ extension Ball {
         get { IntendedRole(stored: intendedRole) }
         set { intendedRole = newValue.rawValue }
     }
+}
+
+extension BowlingCore.Coverstock: StoredEnum {
+    static let fallback = Self.unknown
+}
+
+extension BowlingCore.CoreType: StoredEnum {
+    static let fallback = Self.unknown
 }

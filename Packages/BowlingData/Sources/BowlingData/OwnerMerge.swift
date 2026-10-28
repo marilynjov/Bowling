@@ -7,20 +7,32 @@ extension BowlingStore {
     /// Keeps the oldest owner (ties broken by the smaller UUID string), moves every game of
     /// the others to it, copies the non-empty fields it lacks, and deletes the others.
     /// Deterministic, so every device reaches the same store, and a second run changes
-    /// nothing. Phase 2 calls it after every remote import.
+    /// nothing. Phase 2 calls it after every remote import, after `repairDuplicates()`:
+    /// this merge renumbers clashing `gameIndex` values, which would hide duplicate games.
+    ///
+    /// The kept owner records the IDs it absorbed in `mergedOwnerIDs`. A device that was
+    /// offline during the merge can still log a game for a merged owner, which then syncs
+    /// in with no bowler and that owner's `bowlerID`.
     ///
     /// Games with no bowler also go to the kept owner: sync can deliver a game whose
-    /// bowler another device deleted.
+    /// bowler another device deleted. A game whose `bowlerID` names neither an owner nor a
+    /// merged owner is skipped: its bowler may not be imported yet, and claiming it would
+    /// put a friend's games in the owner's stats. The rest of the orphan rule is #89.
     func mergeOwners() throws {
         let owners = try context.fetch(FetchDescriptor<Bowler>(predicate: #Predicate { $0.isOwner }))
             .sorted(by: Bowler.mergeOrder)
+        let merged = owners.reduce(into: Set(owners.dropFirst().map(\.id))) { $0.formUnion($1.mergedOwners) }
+        let ownerIDs = merged.union(owners.map(\.id))
         let orphans = try context.fetch(FetchDescriptor<Game>(predicate: #Predicate { $0.bowler == nil }))
+            .filter { $0.bowlerID.map(ownerIDs.contains) ?? true }
         guard let kept = owners.first, owners.count > 1 || !orphans.isEmpty else { return }
         try context.write {
             moveGames(owners.map { $0.games ?? [] } + [orphans], to: kept)
             // Oldest first, so when several owners have a field the oldest one's value wins.
             let copied = owners.dropFirst().map { kept.copyMissingFields(from: $0) }
-            if copied.contains(true) { kept.updatedAt = .now }
+            let recorded = kept.mergedOwners != merged
+            if recorded { kept.mergedOwners = merged }
+            if copied.contains(true) || recorded { kept.updatedAt = .now }
             for other in owners.dropFirst() { context.delete(other) }
         }
     }
@@ -47,7 +59,7 @@ extension BowlingStore {
                     }
                 }
                 if game.bowler !== kept {
-                    game.bowler = kept
+                    game.assign(kept)
                     game.updatedAt = .now
                 }
             }
@@ -60,6 +72,12 @@ extension BowlingStore {
 }
 
 extension Bowler {
+    /// `mergedOwnerIDs` as a set. Written sorted, so every device stores the same string.
+    fileprivate var mergedOwners: Set<UUID> {
+        get { Set(mergedOwnerIDs.split(separator: ",").compactMap { UUID(uuidString: String($0)) }) }
+        set { mergedOwnerIDs = newValue.map(\.uuidString).sorted().joined(separator: ",") }
+    }
+
     /// The order `ModelContext.owner()` and the merge agree on: oldest first, ties broken by
     /// the smaller UUID string.
     static func mergeOrder(_ lhs: Bowler, _ rhs: Bowler) -> Bool {

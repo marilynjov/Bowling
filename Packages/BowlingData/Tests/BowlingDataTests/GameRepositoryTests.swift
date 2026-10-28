@@ -157,6 +157,34 @@ import Testing
         #expect(try store.sessions.session(session).bowlers.map(\.bowler.id) == [partner.id, owner.id])
     }
 
+    @Test func startNextGameOnAnEvenNightAddsOneToEveryone() throws {
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let metadata = SessionMetadata(date: DemoFixture.referenceDate, eventType: .league)
+        let session = try store.sessions.startSession(
+            metadata, bowlers: [(owner.id, nil), (partner.id, nil)], entryMode: .countOnly
+        )
+
+        let second = try games.startNextGame(in: session)
+        let third = try games.startNextGame(in: session)
+        #expect(try second.map { try games.game($0).gameIndex } == [2, 2])
+        #expect(try third.map { try games.game($0).gameIndex } == [3, 3])
+    }
+
+    @Test func startNextGameNumbersEveryoneFromTheSessionsHighestGame() throws {
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let metadata = SessionMetadata(date: DemoFixture.referenceDate, eventType: .league)
+        let session = try store.sessions.startSession(
+            metadata, bowlers: [(owner.id, nil), (partner.id, nil)], entryMode: .countOnly
+        )
+        let second = try games.startNextGame(in: session)
+        try games.deleteGame(second[1])
+
+        let next = try games.startNextGame(in: session)
+        let created = try next.map { try games.game($0) }
+        #expect(created.map(\.bowlerID) == [owner.id, partner.id])
+        #expect(created.map(\.gameIndex) == [3, 3])
+    }
+
     @Test func startNextGameInMissingSessionIsNotFound() {
         #expect(throws: RepositoryError.notFound) { try games.startNextGame(in: UUID()) }
     }

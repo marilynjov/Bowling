@@ -9,7 +9,11 @@ final class Game {
     var remoteID: String?
 
     var session: Session?
-    var bowler: Bowler?
+    /// Set only through `assign(_:)`, which keeps `bowlerID` in step.
+    private(set) var bowler: Bowler?
+    /// Copy of `bowler.id`. Survives the bowler being deleted, or not imported yet, so sync
+    /// can tell those games from ones that never had a bowler (#89).
+    private(set) var bowlerID: UUID?
     /// 1-based order within the session for this bowler.
     var gameIndex: Int = 1
     /// 1-based position of the bowler in the session's lineup, the order Scoring rotates
@@ -20,6 +24,9 @@ final class Game {
     /// Cached. Scorer output for pinByPin and countOnly, typed by the user for finalOnly.
     var finalScore: Int = 0
     var isComplete: Bool = false
+    /// Rolls this game holds, written with them by `apply(_:in:)`. Kept on the Game row so
+    /// sync code can rank and check a game before its Frame and Roll rows have arrived.
+    var recordedRollCount: Int = 0
 
     /// Unordered; sort by `Frame.frameIndex`. Empty for finalOnly games.
     @Relationship(deleteRule: .cascade, inverse: \Frame.game)
@@ -40,6 +47,12 @@ final class Game {
 }
 
 extension Game {
+    /// The only way to set `bowler`, so `bowlerID` always matches it.
+    func assign(_ bowler: Bowler?) {
+        self.bowler = bowler
+        bowlerID = bowler?.id
+    }
+
     enum EntryMode: String, StoredEnum {
         case pinByPin, countOnly, finalOnly
         static let fallback = Self.pinByPin

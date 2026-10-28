@@ -23,6 +23,10 @@ public final class BallRepository {
     static let weightRange = 6...16
 
     let context: ModelContext
+    /// Finds the start of the purchase day for games since resurface and the future
+    /// purchase check. Autoupdating, so a long-lived repository follows the device's time
+    /// zone after travel. Tests set a fixed time zone.
+    var calendar: Calendar = .autoupdatingCurrent
 
     init(context: ModelContext) {
         self.context = context
@@ -34,7 +38,7 @@ public final class BallRepository {
         let active = (try? context.fetch(descriptor)) ?? []
         return active
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            .map { $0.summary() }
+            .map { $0.summary(calendar: calendar) }
     }
 
     /// Retired balls, by name: the Arsenal list's collapsed Retired group.
@@ -43,7 +47,7 @@ public final class BallRepository {
         let retired = (try? context.fetch(descriptor)) ?? []
         return retired
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            .map { $0.summary() }
+            .map { $0.summary(calendar: calendar) }
     }
 
     /// A retired ball keeps its games, stats, and log but leaves `activeBalls()`, so the
@@ -81,29 +85,30 @@ public final class BallRepository {
             ball.brand = brand
             if intendedRole != .unknown { ball.intendedRole = intendedRole.rawValue }
             context.insert(ball)
-            return ball.summary()
+            return ball.summary(calendar: calendar)
         }
     }
 }
 
 extension Ball {
-    func summary() -> BallSummary {
-        BallSummary(
+    /// Walks the game relationships once for both counts: `activeBalls()` runs this for
+    /// every ball on Scoring and New session.
+    func summary(calendar: Calendar) -> BallSummary {
+        let games = gamesUsing
+        return BallSummary(
             id: id,
             name: name,
             brand: brand,
             weightPounds: weightPounds,
             intendedRole: BallRole(storedValue: intendedRole),
-            gamesBowled: gamesBowled,
+            gamesBowled: games.count,
             isRetired: isRetired,
             hasPhoto: photo != nil,
-            isResurfaceDue: resurfaceIntervalGames != nil && wear().isResurfaceDue
+            isResurfaceDue: isResurfaceDue(games: games, calendar: calendar)
         )
     }
 
     var gamesBowled: Int {
-        let defaultGames = (gamesAsDefault ?? []).map(\.persistentModelID)
-        let overrideGames = (rollsAsOverride ?? []).compactMap { $0.frame?.game?.persistentModelID }
-        return Set(defaultGames + overrideGames).count
+        gamesUsing.count
     }
 }

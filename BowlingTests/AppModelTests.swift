@@ -29,6 +29,29 @@ import Testing
         #expect(app.revision == 1)
     }
 
+    @Test func addBallSavesAndClosesTheSheet() throws {
+        app.isAddingBall = true
+        try app.addBall(BallDraft(name: "Phaze", weightPounds: 15))
+        #expect(!app.isAddingBall)
+        #expect(app.store.balls.activeBalls().map(\.name) == ["Phaze"])
+    }
+
+    @Test func secondAddBallTapAddsNothing() throws {
+        app.isAddingBall = true
+        let draft = BallDraft(name: "Phaze", weightPounds: 15)
+        try app.addBall(draft)
+        try app.addBall(draft)
+        #expect(app.store.balls.activeBalls().count == 1)
+    }
+
+    @Test func refusedAddBallKeepsTheSheet() {
+        app.isAddingBall = true
+        #expect(throws: RepositoryError.invalidBall(.weightOutOfRange)) {
+            try app.addBall(BallDraft(name: "Phaze"))
+        }
+        #expect(app.isAddingBall)
+    }
+
     @Test func needsOnboardingUntilOwnerExists() throws {
         #expect(app.needsOnboarding)
         _ = try createOwner()
@@ -44,6 +67,41 @@ import Testing
 
     @Test func previewHasTheDemoOwner() {
         #expect(!AppModel.preview().needsOnboarding)
+    }
+
+    @Test func openSessionSelectsHistoryAndPushesTheSession() {
+        let a = SessionID(), b = SessionID()
+        app.historyPath = [.session(a), .game(GameID())]
+        app.openSession(b)
+        #expect(app.selectedTab == .history)
+        #expect(app.historyPath == [.session(b)])
+    }
+
+    @Test func popHistoryRemovesTheRouteAndAbove() {
+        let a = SessionID(), g = GameID()
+        app.historyPath = [.session(a), .game(g)]
+        app.popHistory(from: .session(a))
+        #expect(app.historyPath.isEmpty)
+        app.historyPath = [.session(a), .game(g)]
+        app.popHistory(from: .game(g))
+        #expect(app.historyPath == [.session(a)])
+        app.popHistory(from: .session(SessionID()))
+        #expect(app.historyPath == [.session(a)])
+    }
+
+    @Test func closingScoringFromHistoryKeepsTheSession() throws {
+        let owner = try createOwner()
+        let id = try app.write {
+            try $0.sessions.startSession(
+                SessionMetadata(date: .now, eventType: .league),
+                bowlers: [(bowlerID: owner.id, defaultBallID: nil)], entryMode: .countOnly
+            )
+        }
+        let gameID = try #require(app.store.sessions.session(id).bowlers.first?.games.first?.id)
+        app.scoring = ScoringTarget(sessionID: id, gameID: gameID, startsOnTarget: true)
+        app.closeScoring()
+        #expect(app.scoring == nil)
+        _ = try app.store.sessions.session(id)
     }
 }
 
@@ -69,6 +127,13 @@ import Testing
         #expect(!app.showsError(in: .scoring))
     }
 
+    @Test func errorWhileAddingABallShowsOnTheSheet() {
+        app.isAddingBall = true
+        app.error = Boom()
+        #expect(app.showsError(in: .addBall))
+        #expect(!app.showsError(in: .root))
+    }
+
     @Test func errorWhileScoringShowsOnTheCover() {
         app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
         app.error = Boom()
@@ -85,6 +150,13 @@ import Testing
         app.scoring = ScoringTarget(sessionID: SessionID(), gameID: GameID())
         #expect(app.showsError(in: .scoring))
         #expect(!app.showsError(in: .newSession))
+    }
+
+    @Test func sessionDetailsShowsErrorsWhileEditing() {
+        app.editingSessionDetails = SessionID()
+        app.error = Boom()
+        #expect(app.showsError(in: .sessionDetails))
+        #expect(!app.showsError(in: .root))
     }
 
     @Test func quickScoreSheetShowsTheAlertWhileUp() {
