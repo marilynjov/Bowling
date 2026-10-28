@@ -15,6 +15,8 @@ public struct BowlerRecord: Sendable, Hashable, Identifiable {
     public var homeLayout: [String]
     /// Nil follows the bowling style's preference.
     public var statsScope: StatsScope?
+    /// A friend hidden from the new session pickers. Always false on the owner.
+    public var isArchived: Bool
 }
 
 @MainActor
@@ -30,11 +32,15 @@ public final class BowlerRepository {
         context.owner()?.record()
     }
 
-    /// The owner first, then everyone else by name.
-    public func bowlers() -> [BowlerRecord] {
+    /// The owner first, then everyone else by name. Archived friends are left out unless
+    /// `includingArchived`, for the screen that manages friends; their past games still
+    /// show in History and stats, which read sessions rather than this list.
+    public func bowlers(includingArchived: Bool = false) -> [BowlerRecord] {
         let all = (try? context.fetch(FetchDescriptor<Bowler>())) ?? []
         let owner = context.owner()
-        let others = all.filter { $0 !== owner }.sorted(by: Bowler.byName)
+        let others = all
+            .filter { $0 !== owner && (includingArchived || !$0.isArchived) }
+            .sorted(by: Bowler.byName)
         return ([owner].compactMap(\.self) + others).map { $0.record() }
     }
 
@@ -100,6 +106,19 @@ public final class BowlerRepository {
         return trimmed
     }
 
+    /// Hides a friend from `bowlers()` and so from the new session pickers, keeping their
+    /// games and stats; `false` brings them back.
+    /// - Throws: `.cannotArchiveOwner`, `.notFound` for an unknown bowler.
+    public func setArchived(_ isArchived: Bool, for id: BowlerID) throws {
+        let bowler = try context.bowler(id)
+        guard !bowler.isOwner else { throw RepositoryError.cannotArchiveOwner }
+        guard bowler.isArchived != isArchived else { return }
+        try context.write {
+            bowler.isArchived = isArchived
+            bowler.updatedAt = .now
+        }
+    }
+
     /// - Throws: `.cannotDeleteOwner`, or `.bowlerHasGames(count:)` so the user can delete
     ///   the games first.
     public func deleteBowler(_ id: BowlerID) throws {
@@ -121,7 +140,8 @@ extension Bowler {
             statsProfile: BowlingCore.StatsProfile(storedValue: statsProfile),
             statsLayout: Self.cardIDs(statsLayout),
             homeLayout: Self.cardIDs(homeLayout),
-            statsScope: Self.scope(statsScope)
+            statsScope: Self.scope(statsScope),
+            isArchived: isArchived && !isOwner
         )
     }
 
