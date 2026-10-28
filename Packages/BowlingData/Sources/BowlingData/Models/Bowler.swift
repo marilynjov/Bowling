@@ -23,6 +23,9 @@ final class Bowler {
     /// The explicit default stats scope. Empty follows the bowling style, which a style
     /// change never overwrites.
     var statsScope: String = ""
+    /// Owner only. Comma-separated IDs of the owners merged into this one (§3.4), synced so
+    /// every device still claims a merged owner's games that arrive later.
+    var mergedOwnerIDs: String = ""
 
     @Relationship(deleteRule: .nullify, inverse: \Game.bowler)
     var games: [Game]?

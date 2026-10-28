@@ -342,6 +342,61 @@ import Testing
         #expect(ownersOrphan.bowler === owner)
     }
 
+    /// A game whose bowler row is gone but whose `bowlerID` is kept, as sync delivers it.
+    private func insertOrphan(bowlerID: UUID, in session: Session, gameIndex: Int) throws -> Game {
+        let gone = Bowler(name: "Gone")
+        gone.id = bowlerID
+        context.insert(gone)
+        let game = insertGame(for: gone, in: session, gameIndex: gameIndex)
+        try context.save()
+        context.delete(gone)
+        try context.save()
+        return game
+    }
+
+    /// Devices A and B each create an owner. A merges and deletes OB while B, offline, logs
+    /// one more game for OB. A's record of the merge syncs with OA, so B's game, arriving
+    /// with no bowler and `bowlerID == OB`, still goes to OA on either device.
+    @Test func aMergedOwnersLaterGameMovesToTheKeptOwner() throws {
+        let ownerA = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        try context.save()
+        try store.mergeOwners()
+        #expect(ownerA.mergedOwnerIDs == Self.idB.uuidString)
+
+        let late = try insertOrphan(bowlerID: Self.idB, in: insertSession(daysAfterT0: 2), gameIndex: 1)
+        try store.mergeOwners()
+
+        #expect(late.bowler === ownerA)
+        #expect(late.bowlerID == Self.idA)
+    }
+
+    /// Device B's side: OB is gone and OA arrives with the merge already recorded.
+    @Test func aSyncedMergeRecordClaimsTheMergedOwnersGames() throws {
+        let ownerA = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        ownerA.mergedOwnerIDs = Self.idB.uuidString
+        let late = try insertOrphan(bowlerID: Self.idB, in: insertSession(daysAfterT0: 2), gameIndex: 1)
+
+        try store.mergeOwners()
+
+        #expect(late.bowler === ownerA)
+    }
+
+    /// OB had absorbed OC on another device; merging OB into OA keeps OC on the record.
+    @Test func mergedOwnerIDsCarryOverWhenAnOwnerIsMergedAgain() throws {
+        let ownerA = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
+        let ownerB = insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
+        ownerB.mergedOwnerIDs = Self.idC.uuidString
+        try context.save()
+
+        try store.mergeOwners()
+
+        #expect(ownerA.mergedOwnerIDs == [Self.idB, Self.idC].map(\.uuidString).sorted().joined(separator: ","))
+        let updatedAt = ownerA.updatedAt
+        try store.mergeOwners()
+        #expect(ownerA.updatedAt == updatedAt)
+    }
+
     @Test func gamesWithoutABowlerMoveToTheOnlyOwner() throws {
         let owner = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         let orphan = Game(gameIndex: 1)
@@ -382,16 +437,20 @@ import Testing
         #expect(indices == [[1, 1], [2, 1]])
     }
 
-    @Test func theKeptOwnersUpdatedAtStaysWhenNothingIsCopied() throws {
+    @Test func theKeptOwnerIsStampedOnlyForTheMergeRecordWhenNothingIsCopied() throws {
         // Both owners keep the defaults (handedness, statsProfile "unknown"; layouts,
-        // scope ""; email nil) and the kept owner has a name, so nothing is copied.
+        // scope ""; email nil) and the kept owner has a name, so nothing is copied. Only
+        // `mergedOwnerIDs` changes.
         let older = insertOwner(Self.idA, name: "Sam", createdAt: Self.t0)
         insertOwner(Self.idB, name: "Samuel", createdAt: Self.t0.addingTimeInterval(60))
         try context.save()
 
         try store.mergeOwners()
 
-        #expect(older.updatedAt == Self.t0)
+        #expect(older.updatedAt > Self.t0)
+        #expect(older.name == "Sam")
+        #expect(older.handedness == "unknown")
+        #expect(older.mergedOwnerIDs == Self.idB.uuidString)
     }
 
     @Test func anEmptyNameIsFilled() throws {

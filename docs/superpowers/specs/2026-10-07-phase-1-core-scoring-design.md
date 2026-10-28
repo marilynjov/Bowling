@@ -183,6 +183,7 @@ below but exist on every entity.
 | statsLayout | String | Owner only. Ordered card IDs for Stats, comma-separated. Empty means use the profile's preset (section 7) |
 | homeLayout | String | Owner only. Ordered card IDs for Home's tiles. Empty means use the profile's preset |
 | statsScope | String raw: competition, all, unknown | Owner only. The default stats scope chosen in Settings. Empty means follow the bowling style; unknown is treated as empty |
+| mergedOwnerIDs | String | Owner only. Comma-separated, sorted UUIDs of the owners merged into this one (section 3.4) |
 | games | [Game]? | Inverse of Game.bowler |
 
 #### Session
@@ -356,6 +357,11 @@ so the design handles them now:
     the oldest by `createdAt` (ties broken by smaller UUID string), moves every game of
     the others to it, copies over any non-empty fields the kept owner lacks, and deletes
     the others. The rule is deterministic, so every device reaches the same result.
+  - The kept owner adds the deleted owners' IDs, and the IDs they had absorbed, to
+    `mergedOwnerIDs`. A device offline during the merge can still log a game for a
+    merged owner; it syncs in with no bowler and that owner's `bowlerID`, and the next
+    merge gives it to the kept owner. A game with no bowler whose `bowlerID` names
+    neither an owner nor a merged owner is left unassigned (the rest is #89).
 - **Same-name centers, leagues, and patterns** created on two devices. These are not
   merged automatically, because two centers can share a name. Settings gains a "Merge"
   action in phase 2 that moves all sessions from one record to another and deletes the
