@@ -3,7 +3,7 @@ import Foundation
 
 /// The text a `StatTile` shows for a `Rate` or `Mean` and its sample size.
 enum StatFormat {
-    enum Unit { case games, frames, chances }
+    enum Unit { case games, frames, chances, firstBalls, leaves }
 
     /// A whole percent that never overstates: it stays at 99% until every attempt hits and
     /// at 1% or more once one does, so 199 of 200 isn't "100%" and 1 of 201 isn't "0%".
@@ -27,12 +27,18 @@ enum StatFormat {
         case (.games, 0): String(localized: "No games yet")
         case (.frames, 0): String(localized: "No frames yet")
         case (.chances, 0): String(localized: "No chances yet")
+        case (.firstBalls, 0): String(localized: "No first balls yet")
+        case (.leaves, 0): String(localized: "No leaves yet")
         case (.games, 1): String(localized: "1 game")
         case (.games, _): String(localized: "\(count) games")
         case (.frames, 1): String(localized: "1 frame")
         case (.frames, _): String(localized: "\(count) frames")
         case (.chances, 1): String(localized: "1 chance")
         case (.chances, _): String(localized: "\(count) chances")
+        case (.firstBalls, 1): String(localized: "1 first ball")
+        case (.firstBalls, _): String(localized: "\(count) first balls")
+        case (.leaves, 1): String(localized: "1 leave")
+        case (.leaves, _): String(localized: "\(count) leaves")
         }
     }
 }
