@@ -185,6 +185,24 @@ import Testing
         #expect(created.map(\.gameIndex) == [3, 3])
     }
 
+    /// Only bowlers who still have a game in the session get a new one (contract,
+    /// `startNextGame`).
+    @Test func startNextGameSkipsABowlerWhoseOnlyGameWasDeleted() throws {
+        let partner = try store.bowlers.createBowler(name: "Alex")
+        let metadata = SessionMetadata(date: DemoFixture.referenceDate, eventType: .league)
+        let session = try store.sessions.startSession(
+            metadata, bowlers: [(owner.id, nil), (partner.id, nil)], entryMode: .countOnly
+        )
+        let first = try #require(try store.sessions.session(session).bowlers.last?.games.first)
+        #expect(first.bowlerID == partner.id)
+        try games.deleteGame(first.id)
+
+        let next = try games.startNextGame(in: session)
+        let created = try next.map { try games.game($0) }
+        #expect(created.map(\.bowlerID) == [owner.id])
+        #expect(created.map(\.gameIndex) == [2])
+    }
+
     @Test func startNextGameInMissingSessionIsNotFound() {
         #expect(throws: RepositoryError.notFound) { try games.startNextGame(in: UUID()) }
     }
