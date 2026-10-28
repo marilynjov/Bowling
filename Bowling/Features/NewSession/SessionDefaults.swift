@@ -41,6 +41,12 @@ struct SessionDefaultsStore {
         return type == .unknown ? .practice : type
     }
 
+    /// Delete all data: forgets every event type's values and the last event type.
+    func reset() {
+        for type in EventType.allCases { defaults.removeObject(forKey: Self.key(type)) }
+        defaults.removeObject(forKey: Self.lastEventTypeKey)
+    }
+
     private static func key(_ eventType: EventType) -> String {
         "newSession.defaults.\(eventType.rawValue)"
     }

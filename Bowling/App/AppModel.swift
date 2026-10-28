@@ -112,6 +112,19 @@ import Observation
         savedQuickScore = SavedQuickScore(sessionID: id, score: score)
     }
 
+    /// Settings' Delete all data: deletes every record, then clears this phone's remembered
+    /// form values and scoring settings and the in-memory state, so the root shows first
+    /// launch. A failed delete changes nothing else.
+    func deleteAllData() throws {
+        try write { try $0.deleteAllData() }
+        sessionDefaults.reset()
+        scoringSettings.reset()
+        savedQuickScore = nil
+        selectedTab = .home
+        historyPath = []
+        editingSessionDetails = nil
+    }
+
     /// The banner's Undo: deletes the last quick score's session. Does nothing once it has
     /// been undone or the banner has gone, or when the session was already deleted elsewhere.
     func undoQuickScore() throws {
