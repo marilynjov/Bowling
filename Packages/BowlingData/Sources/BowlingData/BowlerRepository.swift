@@ -119,14 +119,29 @@ public final class BowlerRepository {
         }
     }
 
-    /// - Throws: `.cannotDeleteOwner`, or `.bowlerHasGames(count:)` so the user can delete
-    ///   the games first.
-    public func deleteBowler(_ id: BowlerID) throws {
+    /// Deletes a friend. A friend with games is refused unless `includingGames`, so the app
+    /// can show the count from `.bowlerHasGames(count:)` and offer archiving or deleting
+    /// everything. With `includingGames` the friend's games go too (their frames, rolls,
+    /// and photo by cascade), and so does every session left with no games; sessions that
+    /// still hold someone else's games keep them.
+    /// - Throws: `.cannotDeleteOwner`, `.bowlerHasGames(count:)` without `includingGames`,
+    ///   `.notFound` for an unknown bowler.
+    public func deleteBowler(_ id: BowlerID, includingGames: Bool = false) throws {
         let bowler = try context.bowler(id)
         guard !bowler.isOwner else { throw RepositoryError.cannotDeleteOwner }
-        let gameCount = bowler.games?.count ?? 0
-        guard gameCount == 0 else { throw RepositoryError.bowlerHasGames(count: gameCount) }
-        try context.write { context.delete(bowler) }
+        let games = bowler.games ?? []
+        guard includingGames || games.isEmpty else { throw RepositoryError.bowlerHasGames(count: games.count) }
+        try context.write {
+            var sessions: [PersistentIdentifier: Session] = [:]
+            for game in games {
+                if let session = game.session { sessions[session.persistentModelID] = session }
+                context.delete(game)
+            }
+            for session in sessions.values where (session.games ?? []).allSatisfy({ $0.bowler === bowler }) {
+                context.delete(session)
+            }
+            context.delete(bowler)
+        }
     }
 }
 
