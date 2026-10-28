@@ -82,7 +82,7 @@ extension BallRepository {
     /// finish.
     /// - Throws: `.invalidBall` for a field `updateBall` would refuse.
     public func addBall(_ fields: BallFields) throws -> BallDetail {
-        let name = try validate(fields)
+        let name = try validate(fields, checksPurchaseDate: true)
         return try context.write {
             let ball = Ball(name: name, weightPounds: fields.weightPounds)
             context.insert(ball)
@@ -98,11 +98,13 @@ extension BallRepository {
     /// - Throws: `.invalidBall(.emptyName)`, `.invalidBall(.weightOutOfRange)`,
     ///   `.invalidBall(.negativeSpec)` for a negative or non-finite RG or differential,
     ///   `.invalidBall(.resurfaceIntervalBelowOne)`, `.invalidBall(.purchaseDateInFuture)`
-    ///   for a purchase day after today, or `.notFound` for an unknown ball.
+    ///   for a changed purchase date on a day after today, or `.notFound` for an unknown
+    ///   ball. An unchanged purchase date is not checked: one saved "later today" on a
+    ///   device further east reads as tomorrow here after sync, and must not lock the form.
     public func updateBall(_ ballID: BallID, with fields: BallFields) throws -> BallDetail {
-        let name = try validate(fields)
+        let ball = try context.ball(ballID)
+        let name = try validate(fields, checksPurchaseDate: fields.purchaseDate != ball.purchaseDate)
         return try context.write {
-            let ball = try context.ball(ballID)
             ball.apply(fields, name: name)
             ball.updatedAt = .now
             return ball.detail()
@@ -111,7 +113,7 @@ extension BallRepository {
 
     /// The trimmed name, or the first field error.
     /// A purchase date later today is accepted: a date picker can store any time of day.
-    private func validate(_ fields: BallFields) throws -> String {
+    private func validate(_ fields: BallFields, checksPurchaseDate: Bool) throws -> String {
         let name = fields.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw RepositoryError.invalidBall(.emptyName) }
         guard Self.weightRange.contains(fields.weightPounds) else { throw RepositoryError.invalidBall(.weightOutOfRange) }
@@ -120,7 +122,7 @@ extension BallRepository {
         if let interval = fields.resurfaceIntervalGames, interval < 1 {
             throw RepositoryError.invalidBall(.resurfaceIntervalBelowOne)
         }
-        if let purchase = fields.purchaseDate, calendar.startOfDay(for: purchase) > .now {
+        if checksPurchaseDate, let purchase = fields.purchaseDate, calendar.startOfDay(for: purchase) > .now {
             throw RepositoryError.invalidBall(.purchaseDateInFuture)
         }
         return name
