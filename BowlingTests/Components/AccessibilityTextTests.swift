@@ -39,4 +39,13 @@ import Testing
     @Test func turnAnnouncement() {
         #expect(AccessibilityText.turn("Alex") == "Alex's turn")
     }
+    @Test func trendLabel() {
+        #expect(AccessibilityText.trend(sessions: 12, latest: "201", rolling: "195")
+            == "Trend, 12 sessions, latest session 201, rolling average 195")
+        #expect(AccessibilityText.trend(sessions: 1, latest: "201", rolling: "201")
+            == "Trend, 1 session, latest session 201, rolling average 201")
+    }
+    @Test func leaveRowLabel() {
+        #expect(AccessibilityText.leaveRow(PreviewData.leave(7, 10), made: 2, of: 9) == "Leave 7, 10, split, made 2 of 9")
+    }
 }

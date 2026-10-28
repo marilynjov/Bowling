@@ -55,6 +55,18 @@ enum AccessibilityText {
         return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
 
+    /// The Stats trend card as one element: "Trend, 12 sessions, latest session 201,
+    /// rolling average 195".
+    static func trend(sessions: Int, latest: String, rolling: String) -> String {
+        let count = sessions == 1 ? String(localized: "1 session") : String(localized: "\(sessions) sessions")
+        return String(localized: "Trend, \(count), latest session \(latest), rolling average \(rolling)")
+    }
+
+    /// A Stats leaves row: "Leave 7, 10, split, made 2 of 9".
+    static func leaveRow(_ leave: Leave, made: Int, of count: Int) -> String {
+        self.leave(leave) + ", " + String(localized: "made \(made) of \(count)")
+    }
+
     private static func word(for mark: Mark) -> String {
         switch mark {
         case .strike: String(localized: "strike")
