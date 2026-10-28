@@ -6,15 +6,11 @@ import SwiftData
 // and the Arsenal list's "Resurface due" badge.
 extension BallRepository {
     /// Wear and the maintenance log, over every game the ball was used in, whatever the
-    /// stats filter.
+    /// stats filter. Without a resurface, games since resurface count from the start of the
+    /// purchase day in the current calendar.
     /// - Throws: `.notFound` for an unknown ball.
     public func maintenance(for ballID: BallID) throws -> BallMaintenance {
-        let ball = try context.ball(ballID)
-        return BallMaintenance(
-            ball: ballID, games: ball.gamesUsing.map { $0.record() },
-            events: (ball.maintenance ?? []).map { $0.record() },
-            resurfaceIntervalGames: ball.resurfaceIntervalGames
-        )
+        try context.ball(ballID).wear()
     }
 
     /// Logs an event with a snapshot of the games bowled up to `date` (session date on or
@@ -47,6 +43,15 @@ extension BallRepository {
 }
 
 extension Ball {
+    func wear() -> BallMaintenance {
+        BallMaintenance(
+            ball: id, games: gamesUsing.map { $0.record() },
+            events: (maintenance ?? []).map { $0.record() },
+            resurfaceIntervalGames: resurfaceIntervalGames,
+            purchaseDate: purchaseDate.map(Calendar.current.startOfDay)
+        )
+    }
+
     /// Games with this ball as the default or on any roll, each once.
     var gamesUsing: [Game] {
         let overrideGames = (rollsAsOverride ?? []).compactMap { $0.frame?.game }

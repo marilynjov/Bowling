@@ -8,19 +8,21 @@ import BowlingCore
         #expect(StatsPreset.statsCards(for: .casual) == Self.casualCards)
     }
 
-    // openPct is in the league preset but is a 1b card, so it is left out until 1b ships.
     @Test func leagueStatsCardsAreCasualsPlusLeagueCards() {
         #expect(StatsPreset.statsCards(for: .league) == Self.casualCards + [
-            .highSeries, .leavesTable, .leftMostMadeLeast, .singlePinConversion,
+            .highSeries, .leavesTable, .leftMostMadeLeast, .singlePinConversion, .openPct,
         ])
     }
 
-    @Test func competitiveStatsCardsAreEveryAvailableCardInCatalogOrder() {
+    @Test func competitiveStatsCardsAreEveryCardInCatalogOrder() {
         #expect(StatsPreset.statsCards(for: .competitive) == [
             .average, .highGame, .highSeries,
             .trendChart,
             .strikePct, .sparePct, .fouls,
+            .openPct, .cleanGamePct, .firstBallAverage, .headPinRate,
             .leavesTable, .leftMostMadeLeast, .splitConversion, .makeableConversion, .singlePinConversion,
+            .byFrameStrike, .byFrameAverage,
+            .whatIfSinglePins,
         ])
     }
 
@@ -47,6 +49,19 @@ import BowlingCore
     ])
     func defaultScope(profile: StatsProfile, competition: Bool) {
         #expect(StatsPreset.prefersCompetition(profile) == competition)
+    }
+
+    @Test(arguments: StatsProfile.allCases)
+    func savedScopeWinsOverTheProfile(profile: StatsProfile) {
+        #expect(StatsPreset.prefersCompetition(scope: .competition, profile: profile))
+        #expect(!StatsPreset.prefersCompetition(scope: .all, profile: profile))
+    }
+
+    @Test(arguments: StatsProfile.allCases)
+    func noSavedScopeFollowsTheProfile(profile: StatsProfile) {
+        let byProfile = StatsPreset.prefersCompetition(profile)
+        #expect(StatsPreset.prefersCompetition(scope: nil, profile: profile) == byProfile)
+        #expect(StatsPreset.prefersCompetition(scope: .unknown, profile: profile) == byProfile)
     }
 
     @Test(arguments: StatsProfile.allCases)

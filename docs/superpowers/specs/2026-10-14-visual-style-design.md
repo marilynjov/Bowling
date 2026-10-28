@@ -112,8 +112,13 @@ Content stays solid, and glass is only for controls that float over it:
 
 ## App icon
 
-Tracked in #75, so the style can merge first. The concept is a white pin-deck triangle on
-teal (AccentColor), with the 10 pin in crimson.
+Drawn artwork (#75): a smiling red ball rolling down a purple lane toward three white pins
+with red bands, on a dark navy background. The icon is the full scene; the dark variant
+uses the same art, and the tinted variant is a greyscale copy for iOS to tint.
+
+The logo is the ball and pins alone on a clear background (`Logo` asset, `AppLogo` view).
+It shows on the launch screen at about 180 pt (`LaunchLogo`) over Canvas, so it follows
+light and dark mode.
 
 ## Out of scope
 

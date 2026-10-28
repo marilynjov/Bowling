@@ -9,6 +9,8 @@ import Observation
     let store: BowlingStore
     /// The new-session form's remembered values.
     let sessionDefaults: SessionDefaultsStore
+    /// Scoring's on-device settings.
+    let scoringSettings: ScoringSettings
     private(set) var revision = 0
     /// The New session sheet is up, shown by the root.
     var isStartingSession = false
@@ -22,10 +24,17 @@ import Observation
     var scoring: ScoringTarget?
     /// Shown by the root's shared alert.
     var error: (any Error)?
+    /// The game summary sheet is up over Scoring, so its alert shows errors.
+    var isShowingGameSummary = false
 
-    init(store: BowlingStore, sessionDefaults: SessionDefaultsStore = SessionDefaultsStore()) {
+    init(
+        store: BowlingStore,
+        sessionDefaults: SessionDefaultsStore = SessionDefaultsStore(),
+        scoringSettings: ScoringSettings = ScoringSettings()
+    ) {
         self.store = store
         self.sessionDefaults = sessionDefaults
+        self.scoringSettings = scoringSettings
     }
 
     /// Bumps `revision` even when `body` throws: the repository rolls back a failed write,
@@ -39,7 +48,7 @@ import Observation
     /// iOS can't present an alert from a view that is already presenting the Scoring cover.
     func showsError(in presenter: ErrorPresenter) -> Bool {
         guard error != nil else { return false }
-        let topmost: ErrorPresenter = scoring != nil ? .scoring
+        let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
             : isQuickScoring ? .quickScore
             : .root
@@ -105,12 +114,15 @@ import Observation
         if savedQuickScore == saved { savedQuickScore = nil }
     }
 
-    /// Closes Scoring. A session left before any roll is deleted (spec §8).
+    /// Closes Scoring. A session left before any roll is deleted (spec §8); one that is
+    /// already gone needs nothing.
     func closeScoring() {
         guard let target = scoring else { return }
         scoring = nil
+        isShowingGameSummary = false
         do {
             try write { try $0.sessions.discardIfUnstarted(target.sessionID) }
+        } catch RepositoryError.notFound {
         } catch {
             self.error = error
         }
@@ -125,7 +137,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, scoring
+    case root, newSession, quickScore, scoring, gameSummary
 }
 
 /// The root's tabs.

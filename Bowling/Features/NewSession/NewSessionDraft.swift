@@ -30,11 +30,26 @@ struct Available: Hashable {
     }
 }
 
+/// What Add bowler shows.
+struct AddBowlerChoices {
+    /// Everyone not in the lineup (so never the owner).
+    var candidates: [BowlerRecord]
+    /// Every bowler's name, for the Add row.
+    var names: [String]
+
+    func addName(for text: String) -> String? {
+        NameSearch.addName(for: text, existing: names)
+    }
+}
+
 /// The new-session form's answers. Nothing is saved until `start`.
 struct NewSessionDraft {
     var date: Date
     var eventType: EventType
-    var centerID: CenterID?
+    /// Changing it clears the league, which belongs to one center.
+    var centerID: CenterID? {
+        didSet { if centerID != oldValue { leagueID = nil } }
+    }
     /// Saved only for league sessions; see `metadata`.
     var leagueID: LeagueID?
     var oilPatternID: OilPatternID?
@@ -56,15 +71,19 @@ struct NewSessionDraft {
         lineup.append(LineupEntry(bowlerID: bowler.id, name: bowler.name, isOwner: bowler.isOwner))
     }
 
-    /// Who Add bowler lists: everyone not in the lineup (so never the owner).
-    func candidates(from bowlers: [BowlerRecord]) -> [BowlerRecord] {
-        bowlers.filter { bowler in !lineup.contains { $0.bowlerID == bowler.id } }
+    /// Add bowler's rows and Add "<name>" check, from every bowler. Names are checked
+    /// against everyone, not just the listed ones, so someone already in the lineup can't
+    /// be created twice.
+    func addBowlerChoices(from bowlers: [BowlerRecord]) -> AddBowlerChoices {
+        let candidates = bowlers.filter { bowler in !lineup.contains { $0.bowlerID == bowler.id } }
+        return AddBowlerChoices(candidates: candidates, names: bowlers.map(\.name))
     }
 
-    /// Add bowler's Add "<name>": checked against every bowler, not just the listed ones,
-    /// so someone already in the lineup can't be created twice.
-    func addBowlerName(for text: String, among bowlers: [BowlerRecord]) -> String? {
-        NameSearch.addName(for: text, existing: bowlers.map(\.name))
+    /// The league picker's rows: the picked center's leagues, or the leagues with no center
+    /// when none is picked. Add "<name>" checks only these, so a name can repeat at
+    /// another center.
+    func leagues(from records: [LeagueRecord]) -> [LeagueRecord] {
+        records.filter { $0.centerID == centerID }
     }
 
     /// Removes friends; the owner stays.

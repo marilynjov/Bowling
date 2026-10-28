@@ -8,7 +8,7 @@ struct NewSessionSheet: View {
     @Environment(AppModel.self) private var app
     @State private var draft: NewSessionDraft?
     @State private var centers: [NamedRef] = []
-    @State private var leagues: [NamedRef] = []
+    @State private var leagues: [LeagueRecord] = []
     @State private var oilPatterns: [NamedRef] = []
     @State private var balls: [BallSummary] = []
     @State private var bowlers: [BowlerRecord] = []
@@ -60,7 +60,7 @@ struct NewSessionSheet: View {
                 }
                 if draft.wrappedValue.eventType == .league {
                     NavigationLink {
-                        NamedRefPicker(title: "League", items: leagues, selection: draft.leagueID) { name in
+                        NamedRefPicker(title: "League", items: draft.wrappedValue.leagues(from: leagues), selection: draft.leagueID) { name in
                             let centerID = draft.wrappedValue.centerID
                             return try app.write { try $0.sessions.createLeague(name: name, centerID: centerID) }
                         }
@@ -99,8 +99,7 @@ struct NewSessionSheet: View {
                 .onMove { draft.wrappedValue.move(fromOffsets: $0, toOffset: $1) }
                 NavigationLink {
                     AddBowlerPicker(
-                        candidates: draft.wrappedValue.candidates(from: bowlers),
-                        addName: { draft.wrappedValue.addBowlerName(for: $0, among: bowlers) },
+                        choices: draft.wrappedValue.addBowlerChoices(from: bowlers),
                         onPick: { draft.wrappedValue.add($0) }
                     ) { name in
                         try app.write { try $0.bowlers.createBowler(name: name) }
@@ -145,7 +144,7 @@ struct NewSessionSheet: View {
         }
     }
 
-    private func name(of id: UUID?, in items: [NamedRef]) -> String {
+    private func name(of id: UUID?, in items: [some NamedItem]) -> String {
         items.first { $0.id == id }?.name ?? "None"
     }
 
@@ -157,7 +156,7 @@ struct NewSessionSheet: View {
     private func reload() {
         let store = app.store
         centers = store.sessions.centers()
-        leagues = store.sessions.leagues()
+        leagues = store.sessions.leagueRecords()
         oilPatterns = store.sessions.oilPatterns()
         balls = store.balls.activeBalls()
         bowlers = store.bowlers.bowlers()

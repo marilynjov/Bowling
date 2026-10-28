@@ -18,6 +18,9 @@ import BowlingCore
         #expect(Handedness.allCases.map(\.rawValue) == ["right", "left", "unknown"])
         #expect(BallRole.allCases.map(\.rawValue) == ["strike", "spare", "both", "unknown"])
         #expect(StatsScope.allCases.map(\.rawValue) == ["competition", "all", "unknown"])
+        #expect(Coverstock.allCases.map(\.rawValue)
+            == ["plastic", "urethane", "reactiveSolid", "reactivePearl", "reactiveHybrid", "other", "unknown"])
+        #expect(CoreType.allCases.map(\.rawValue) == ["symmetric", "asymmetric", "pancake", "unknown"])
     }
 
     @Test func knownValuesRoundTrip() throws {
@@ -27,6 +30,8 @@ import BowlingCore
         for value in Handedness.allCases { #expect(try roundTrip(value) == value) }
         for value in BallRole.allCases { #expect(try roundTrip(value) == value) }
         for value in StatsScope.allCases { #expect(try roundTrip(value) == value) }
+        for value in Coverstock.allCases { #expect(try roundTrip(value) == value) }
+        for value in CoreType.allCases { #expect(try roundTrip(value) == value) }
     }
 
     @Test func unknownRawValuesDecodeToUnknown() throws {
@@ -36,6 +41,8 @@ import BowlingCore
         #expect(try decode(Handedness.self, "both") == .unknown)
         #expect(try decode(BallRole.self, "polished") == .unknown)
         #expect(try decode(StatsScope.self, "lastSeason") == .unknown)
+        #expect(try decode(Coverstock.self, "polyester") == .unknown)
+        #expect(try decode(CoreType.self, "dualDensity") == .unknown)
     }
 
     @Test func storedValueInitFallsBack() {
@@ -47,6 +54,8 @@ import BowlingCore
         #expect(BallRole(storedValue: "x") == .unknown)
         #expect(StatsScope(storedValue: "all") == .all)
         #expect(StatsScope(storedValue: "") == .unknown)
+        #expect(Coverstock(storedValue: "reactivePearl") == .reactivePearl)
+        #expect(CoreType(storedValue: "x") == .unknown)
     }
 
     @Test func unknownStatsProfileIsTreatedAsCasual() {

@@ -24,14 +24,6 @@ import Testing
         try #require(tiles.first { $0.card == card })
     }
 
-    @Test func scopeFollowsSavedChoiceThenStyle() {
-        #expect(HomeTiles.prefersCompetition(scope: .competition, profile: .casual))
-        #expect(!HomeTiles.prefersCompetition(scope: .all, profile: .league))
-        #expect(HomeTiles.prefersCompetition(scope: nil, profile: .league))
-        #expect(!HomeTiles.prefersCompetition(scope: nil, profile: .casual))
-        #expect(HomeTiles.prefersCompetition(scope: .unknown, profile: .competitive))
-    }
-
     @Test func tilesKeepTheGivenOrder() {
         let tiles = HomeTiles.make(cards: StatsPreset.homeTiles(for: .league), scoped: report([]), allGames: nil)
         #expect(tiles.map(\.card) == [.average, .highGame, .highSeries, .strikePct, .sparePct])

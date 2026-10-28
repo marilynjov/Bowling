@@ -313,6 +313,25 @@ import Testing
         #expect(sessions.leagues().isEmpty)
     }
 
+    @Test func placeNamesAreTrimmed() throws {
+        let center = try sessions.createCenter(name: "  Sunset Lanes\n")
+        let league = try sessions.createLeague(name: "\tTuesday Trios ", centerID: center)
+        let pattern = try sessions.createOilPattern(name: " Shark  ")
+        #expect(sessions.centers() == [NamedRef(id: center, name: "Sunset Lanes")])
+        #expect(sessions.leagues() == [NamedRef(id: league, name: "Tuesday Trios")])
+        #expect(sessions.oilPatterns() == [NamedRef(id: pattern, name: "Shark")])
+    }
+
+    @Test(arguments: ["", "   ", "\n\t"])
+    func blankPlaceNamesAreRefused(_ name: String) throws {
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createCenter(name: name) }
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createLeague(name: name, centerID: nil) }
+        #expect(throws: RepositoryError.invalidPlace(.emptyName)) { try sessions.createOilPattern(name: name) }
+        #expect(sessions.centers().isEmpty)
+        #expect(sessions.leagues().isEmpty)
+        #expect(sessions.oilPatterns().isEmpty)
+    }
+
     // MARK: League details
 
     @Test func leagueRecordReadsCenterSeasonAndGamesPerSession() throws {

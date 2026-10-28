@@ -34,5 +34,15 @@ public enum StatsPreset {
         }
     }
 
+    /// The saved scope wins; nil or `.unknown` (a scope from a newer app version) follows
+    /// the bowling style.
+    public static func prefersCompetition(scope: StatsScope?, profile: StatsProfile) -> Bool {
+        switch scope {
+        case .competition: true
+        case .all: false
+        case nil, .unknown: prefersCompetition(profile)
+        }
+    }
+
     private static let casualStatsCards: [StatsCardID] = [.average, .highGame, .trendChart, .strikePct, .sparePct]
 }
