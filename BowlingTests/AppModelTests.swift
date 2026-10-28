@@ -25,6 +25,7 @@ import Testing
         app.sessionDefaults.save(SessionDefaults(centerID: UUID()), for: .league)
         app.scoringSettings.tapWhatFell = true
         app.selectedTab = .stats
+        app.historyPath = [.session(try #require(app.savedQuickScore).sessionID)]
         #expect(app.savedQuickScore != nil)
 
         try app.deleteAllData()
@@ -36,6 +37,7 @@ import Testing
         #expect(!app.scoringSettings.tapWhatFell)
         #expect(app.savedQuickScore == nil)
         #expect(app.selectedTab == .home)
+        #expect(app.historyPath.isEmpty)
     }
 
     @Test func writeBumpsRevision() throws {

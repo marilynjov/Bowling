@@ -121,6 +121,8 @@ import Observation
         scoringSettings.reset()
         savedQuickScore = nil
         selectedTab = .home
+        historyPath = []
+        editingSessionDetails = nil
     }
 
     /// The banner's Undo: deletes the last quick score's session. Does nothing once it has
