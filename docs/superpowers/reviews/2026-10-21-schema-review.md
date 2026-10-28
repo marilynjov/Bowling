@@ -199,6 +199,20 @@ allowed after promotion, so none has to land before phase 2:
 10. `repairDuplicates()` returns `DuplicateRepairResult` with the deleted game IDs; the
     contract notes that phase 2's change signal must carry them.
 
+### After marilynjov's second review (2026-10-27)
+
+11. A game still importing (`rollsPresent < recordedRollCount`) only loses its duplicate
+    rows; repair no longer clears and re-applies it, which had dropped every frame after
+    a gap left by rows still on the way.
+12. `Bowler.mergedOwnerIDs` (new attribute) records the owners merged into the kept one.
+    It syncs, so an offline device's later game for a merged owner is still claimed.
+13. `BowlingStore.init` backfills `bowlerID` and `recordedRollCount` for games saved
+    before this PR, without stamping `updatedAt`. Marked for removal before sync turns
+    on.
+14. Contract 3.2 and spec 3.4 note what phase 2 must settle: never delete a game that is
+    open or recently written, close Scoring cleanly when its game is deleted, and give a
+    game stuck with `recordedRollCount` above its real rows a way out.
+
 ## Decisions (Santiago, 2026-10-21)
 
 1. **Versioned schema after promotion.** Keep `BowlingSchemaV1` as is until phase 2.
@@ -217,11 +231,15 @@ allowed after promotion, so none has to land before phase 2:
 ## Still open
 
 - **#89 orphan rule.** `mergeOwners()` now leaves alone orphans whose `bowlerID` names
-  another bowler (fix 7), but still claims orphans with no `bowlerID`. #89 still needs
+  neither an owner nor a merged owner (fixes 7 and 12), but still claims orphans with no
+  `bowlerID`. #89 still needs
   the check of how NSPersistentCloudKitContainer batches related records on import
   before the rest of the rule is chosen.
 - **Unlinked frames.** Frames that arrive for a deleted game stay with `game == nil`.
   Phase 2 can clean them up once persistent history shows an import has finished.
+- **Readers of `bowler?.id`.** CSV export, `Game.record()`, and the stats predicate
+  still read the relationship, not `bowlerID`: #110, decided with #89.
+- **Phase 2 sync guards.** In-use games, the Scoring exit, and stuck roll counts (fix 14).
 - **Single repair entry point.** Neither repair has a caller yet. Phase 2 adds the one
   entry point that runs them in the spec 3.4 order.
 - Games created before `bowlerID` existed have it nil. Phase 1 has not shipped, so only
