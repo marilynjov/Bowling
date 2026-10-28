@@ -55,6 +55,23 @@ enum AccessibilityText {
         return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
 
+    /// An Arsenal row: "Phaze, 15 pounds, strike, 12 games"; an unknown role is left out.
+    static func ballRow(name: String, weightPounds: Int, role: BallRole, gamesBowled: Int) -> String {
+        let roleWord: String? = switch role {
+        case .strike: String(localized: "strike")
+        case .spare: String(localized: "spare")
+        case .both: String(localized: "both")
+        case .unknown: nil
+        }
+        let games = switch gamesBowled {
+        case 0: String(localized: "no games yet")
+        case 1: String(localized: "1 game")
+        default: String(localized: "\(gamesBowled) games")
+        }
+        return ([name, String(localized: "\(weightPounds) pounds"), roleWord, games].compactMap { $0 })
+            .joined(separator: ", ")
+    }
+
     private static func word(for mark: Mark) -> String {
         switch mark {
         case .strike: String(localized: "strike")
