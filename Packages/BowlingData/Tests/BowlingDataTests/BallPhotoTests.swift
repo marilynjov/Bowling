@@ -82,6 +82,9 @@ import Testing
     @Test func unknownBallIsNotFound() {
         #expect(throws: RepositoryError.notFound) { try balls.photo(for: BallID()) }
         #expect(throws: RepositoryError.notFound) { try balls.setPhoto(Data([1]), for: BallID()) }
+        #expect(throws: RepositoryError.notFound) {
+            try balls.setPhoto(Data(count: BallRepository.maxPhotoBytes + 1), for: BallID())
+        }
         #expect(throws: RepositoryError.notFound) { try balls.removePhoto(for: BallID()) }
         #expect(photoCount == 0)
     }

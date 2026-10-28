@@ -16,13 +16,13 @@ extension BallRepository {
 
     /// The app downscales `imageData` before calling. Replaces an existing photo in place,
     /// so the ball keeps a single BallPhoto. Empty data removes the photo.
-    /// - Throws: `.invalidBall(.photoTooLarge)` over `maxPhotoBytes`, `.notFound` for an
-    ///   unknown ball.
+    /// - Throws: `.notFound` for an unknown ball, checked first so a deleted ball never
+    ///   asks for a smaller photo; then `.invalidBall(.photoTooLarge)` over `maxPhotoBytes`.
     public func setPhoto(_ imageData: Data, for ballID: BallID) throws {
+        let ball = try context.ball(ballID)
         guard !imageData.isEmpty else { return try removePhoto(for: ballID) }
         guard imageData.count <= Self.maxPhotoBytes else { throw RepositoryError.invalidBall(.photoTooLarge) }
         try context.write {
-            let ball = try context.ball(ballID)
             if let photo = ball.photo {
                 photo.imageData = imageData
                 photo.updatedAt = .now
