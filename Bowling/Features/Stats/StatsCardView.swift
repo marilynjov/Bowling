@@ -11,7 +11,10 @@ struct StatsCardView: View {
             StatTile(content, footnote: footnote)
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Text(card.title).monoLabel()
+                Text(card.title)
+                    .monoLabel()
+                    // The trend's own label starts with "Trend".
+                    .accessibilityHidden(isTrend)
                 content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -19,6 +22,17 @@ struct StatsCardView: View {
             .padding(.horizontal, 14)
             .background(.surface, in: .rect(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.hairline))
+            .modifier(ExplainedCardAccessibility(label: explainedLabel))
+        }
+    }
+
+    /// The single VoiceOver label for a card that explains instead of showing data.
+    private var explainedLabel: String? {
+        switch card.body {
+        case .notApplicable(let text): AccessibilityText.explainedCard(title: card.title, text: text)
+        case .comingSoon: AccessibilityText.explainedCard(title: card.title, text: String(localized: "Coming soon."))
+        case .leftMost(nil): AccessibilityText.explainedCard(title: card.title, text: String(localized: "No leave seen 3 times yet."))
+        default: nil
         }
     }
 
@@ -41,11 +55,30 @@ struct StatsCardView: View {
         }
     }
 
+    private var isTrend: Bool {
+        if case .trend = card.body { true } else { false }
+    }
+
+    /// The card's explanation; the card reads as one element, title first.
     private func muted(_ text: String) -> some View {
         Text(text)
             .font(.subheadline)
             .foregroundStyle(.inkMuted)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct ExplainedCardAccessibility: ViewModifier {
+    var label: String?
+
+    func body(content: Content) -> some View {
+        if let label {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label)
+        } else {
+            content
+        }
     }
 }
 

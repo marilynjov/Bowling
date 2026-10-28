@@ -48,4 +48,8 @@ import Testing
     @Test func leaveRowLabel() {
         #expect(AccessibilityText.leaveRow(PreviewData.leave(7, 10), made: 2, of: 9) == "Leave 7, 10, split, made 2 of 9")
     }
+    @Test func explainedCardLabel() {
+        #expect(AccessibilityText.explainedCard(title: "Strike %", text: "Enter frames to see strikes and spares.")
+            == "Strike %, Enter frames to see strikes and spares.")
+    }
 }

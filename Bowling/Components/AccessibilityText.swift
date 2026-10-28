@@ -62,6 +62,12 @@ enum AccessibilityText {
         return String(localized: "Trend, \(count), latest session \(latest), rolling average \(rolling)")
     }
 
+    /// A Stats card that explains instead of showing a number: "Strike %, Enter frames to
+    /// see strikes and spares."
+    static func explainedCard(title: String, text: String) -> String {
+        "\(title), \(text)"
+    }
+
     /// A Stats leaves row: "Leave 7, 10, split, made 2 of 9".
     static func leaveRow(_ leave: Leave, made: Int, of count: Int) -> String {
         self.leave(leave) + ", " + String(localized: "made \(made) of \(count)")

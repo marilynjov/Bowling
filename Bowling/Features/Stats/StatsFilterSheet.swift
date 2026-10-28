@@ -51,6 +51,7 @@ struct StatsFilterSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
+                        draft.isExplicit = true
                         app.statsFilter = draft
                         dismiss()
                     }

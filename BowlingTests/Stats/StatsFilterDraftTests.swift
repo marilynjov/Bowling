@@ -87,7 +87,8 @@ import Testing
     @Test func deletedBowlerFallsBackToTheOwner() throws {
         let sam = try owner(.league)
         let ana = try store.bowlers.createBowler(name: "Ana")
-        let kept = StatsFilterDraft.defaults(for: ana, owner: sam, in: store)
+        var kept = StatsFilterDraft.defaults(for: ana, owner: sam, in: store)
+        kept.isExplicit = true   // only Done picks another bowler
         #expect(StatsFilterDraft.current(kept, in: store) == kept)
         try store.bowlers.deleteBowler(ana.id)
         let current = try #require(StatsFilterDraft.current(kept, in: store))
@@ -102,5 +103,20 @@ import Testing
     @Test func firstLoadIsTheOwnersDefault() throws {
         let sam = try owner(.casual)
         #expect(StatsFilterDraft.current(nil, in: store) == StatsFilterDraft.defaults(for: sam, owner: sam, in: store))
+    }
+    @Test func untouchedDefaultFollowsNewCompetitionGames() throws {
+        let sam = try owner(.league)
+        let first = try #require(StatsFilterDraft.current(nil, in: store))
+        #expect(first.scope == .allGames)
+        try game(.league, for: sam.id)
+        #expect(StatsFilterDraft.current(first, in: store)?.scope == .competition)
+    }
+
+    @Test func appliedFilterIsKept() throws {
+        let sam = try owner(.league)
+        var applied = try #require(StatsFilterDraft.current(nil, in: store))
+        applied.isExplicit = true
+        try game(.league, for: sam.id)
+        #expect(StatsFilterDraft.current(applied, in: store) == applied)
     }
 }

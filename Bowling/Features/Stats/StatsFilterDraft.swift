@@ -9,6 +9,9 @@ struct StatsFilterDraft: Hashable {
 
     var filter: StatsFilter
     var bowlerName: String
+    /// Set when the user applies the filter. Until then it follows the owner's default, so
+    /// a league owner's first competition game moves Stats to "Competition" as on Home.
+    var isExplicit = false
 
     /// The owner's default for `bowler`: all time, and the default event types with the
     /// owner's scope and bowling style preference, since they are the owner's settings.
@@ -18,11 +21,11 @@ struct StatsFilterDraft: Hashable {
         return StatsFilterDraft(filter: StatsFilter(eventTypes: eventTypes, bowlerID: bowler.id), bowlerName: bowler.name)
     }
 
-    /// The kept filter with its bowler's current name, or the owner's default when nil or
-    /// its bowler is gone. Nil only when there is no owner.
+    /// The applied filter with its bowler's current name, or the owner's default when nil,
+    /// never applied, or its bowler is gone. Nil only when there is no owner.
     static func current(_ kept: StatsFilterDraft?, in store: BowlingStore) -> StatsFilterDraft? {
         guard let owner = store.bowlers.owner() else { return nil }
-        if var kept, let bowler = store.bowlers.bowlers().first(where: { $0.id == kept.filter.bowlerID }) {
+        if var kept, kept.isExplicit, let bowler = store.bowlers.bowlers().first(where: { $0.id == kept.filter.bowlerID }) {
             kept.bowlerName = bowler.name
             return kept
         }
