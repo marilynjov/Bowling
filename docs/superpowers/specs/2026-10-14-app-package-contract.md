@@ -769,8 +769,9 @@ public struct RollEditOutcome: Sendable, Hashable {
     /// finalOnly only, 0...300 (§4). Marks the game complete. Throws .notFinalOnly on
     /// a game scored from rolls, .invalidGame([.finalScoreOutOfRange]) outside 0...300.
     public func setFinalScore(_ score: Int, for game: GameID) throws
-    /// §7 "Next game": game gameIndex + 1 for every bowler, with the entry mode and
-    /// default ball of that bowler's latest game, in lineup order.
+    /// §7 "Next game": one new game for every bowler who still has a game in the
+    /// session, all numbered the session's highest gameIndex + 1, with the entry mode
+    /// and default ball of that bowler's latest game, in lineup order.
     public func startNextGame(in session: SessionID) throws -> [GameID]
     public func deleteGame(_ id: GameID) throws
 }
