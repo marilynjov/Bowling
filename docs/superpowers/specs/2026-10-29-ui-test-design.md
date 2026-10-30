@@ -35,7 +35,7 @@ it passes on CI.
   | `scoring.next` | Next (records the ball) |
   | `scoring.strike` | Strike shortcut |
   | `scoring.spare` | Spare shortcut |
-| `scoring.miss` | Miss shortcut |
+  | `scoring.miss` | Miss shortcut |
   | `summary.score` | Final score on the game summary sheet |
 
   The sheet's Scoring picker defaults to Pin by pin, so the test does not touch it.
