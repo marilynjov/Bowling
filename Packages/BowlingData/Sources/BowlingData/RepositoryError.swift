@@ -13,6 +13,7 @@ public enum RepositoryError: Error, Sendable, Hashable {
     /// override rolls to the game's default ball, so the user can retire it instead.
     case ballHasGames(count: Int)
     case cannotDeleteOwner
+    case cannotArchiveOwner
     /// One owner per user; a second device's owner is merged after sync instead.
     case ownerAlreadyExists
     case invalidBall(BallFieldError)

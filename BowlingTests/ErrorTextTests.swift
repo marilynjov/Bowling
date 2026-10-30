@@ -9,6 +9,7 @@ import Testing
         (.invalidGame([]), "That roll doesn't fit this frame."),
         (.entryModeLocked, "The entry mode can't change after the first roll. Clear the game's rolls first."),
         (.cannotDeleteOwner, "You can't delete your own profile."),
+        (.cannotArchiveOwner, "You can't archive your own profile."),
         (.ownerAlreadyExists, "Your profile already exists."),
         (.invalidBall(.emptyName), "Give the ball a name."),
         (.invalidBall(.weightOutOfRange), "Ball weight must be 6 to 16 pounds."),
