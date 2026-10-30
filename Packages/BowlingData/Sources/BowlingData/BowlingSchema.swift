@@ -43,7 +43,7 @@ public final class BowlingStore {
         sessions = SessionRepository(context: context)
         games = GameRepository(context: context)
         stats = StatsRepository(context: context)
-        try backfillSyncFields()
+        try backfillSyncFields(rememberingIn: inMemory ? nil : .standard)
     }
 
     /// Builds the container for user data. Sync stays off until phase 2 turns on CloudKit.
