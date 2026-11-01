@@ -32,13 +32,20 @@ struct Available: Hashable {
 
 /// What Add bowler shows.
 struct AddBowlerChoices {
-    /// Everyone not in the lineup (so never the owner).
+    /// Everyone not in the lineup and not archived (so never the owner).
     var candidates: [BowlerRecord]
-    /// Every bowler's name, for the Add row.
+    /// Every bowler's name, archived friends included, for the Add row.
     var names: [String]
+    /// Archived friends, offered back by name instead of Add making a second one.
+    var archived: [BowlerRecord] = []
 
     func addName(for text: String) -> String? {
         NameSearch.addName(for: text, existing: names)
+    }
+
+    /// The archived friend whose name is `text`, for the Unarchive row.
+    func archivedMatch(for text: String) -> BowlerRecord? {
+        NameSearch.exactMatch(archived, for: text, name: \.name)
     }
 }
 
@@ -60,12 +67,16 @@ struct NewSessionDraft {
         lineup.append(LineupEntry(bowlerID: bowler.id, name: bowler.name, isOwner: bowler.isOwner))
     }
 
-    /// Add bowler's rows and Add "<name>" check, from every bowler. Names are checked
-    /// against everyone, not just the listed ones, so someone already in the lineup can't
-    /// be created twice.
+    /// Add bowler's rows and Add "<name>" check, from every bowler, archived friends
+    /// included. Names are checked against everyone, not just the listed ones, so someone
+    /// already in the lineup or archived can't be created twice.
     func addBowlerChoices(from bowlers: [BowlerRecord]) -> AddBowlerChoices {
-        let candidates = bowlers.filter { bowler in !lineup.contains { $0.bowlerID == bowler.id } }
-        return AddBowlerChoices(candidates: candidates, names: bowlers.map(\.name))
+        let candidates = bowlers.filter { bowler in
+            !bowler.isArchived && !lineup.contains { $0.bowlerID == bowler.id }
+        }
+        return AddBowlerChoices(
+            candidates: candidates, names: bowlers.map(\.name), archived: bowlers.filter(\.isArchived)
+        )
     }
 
     /// Removes friends; the owner stays.
