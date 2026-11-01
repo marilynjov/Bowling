@@ -75,7 +75,7 @@ extension BowlingStore {
                 .init("oilPatternID") { $0.oilPattern?.id }, .init("lanes", \.lanes), .init("notes", \.notes),
             ]),
             CSVTable("games.csv", games, [
-                .init("sessionID") { $0.session?.id }, .init("bowlerID") { $0.bowler?.id },
+                .init("sessionID") { $0.session?.id }, .init("bowlerID") { $0.bowlerID },
                 .init("gameIndex", \.gameIndex), .init("lineupIndex", \.lineupIndex),
                 .init("entryMode", \.entryMode), .init("defaultBallID") { $0.defaultBall?.id },
                 .init("finalScore", \.finalScore), .init("isComplete", \.isComplete),

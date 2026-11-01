@@ -22,39 +22,11 @@ enum HomeTiles {
     }
 
     private static func tile(_ card: StatsCardID, _ report: StatsReport, _ allGames: StatsReport?) -> HomeTile? {
-        let games = StatFormat.sample(report.scoreGames, .games)
-        switch card {
-        case .average:
-            var sample = StatFormat.sample(report.average.count, .games)
-            if let allGames {
-                sample += " · " + String(localized: "All games \(StatFormat.average(allGames.average))")
-            }
-            return HomeTile(card: card, title: String(localized: "Average"),
-                            value: StatFormat.average(report.average), sample: sample)
-        case .highGame:
-            return HomeTile(card: card, title: String(localized: "High game"),
-                            value: report.highGame.map { "\($0.score)" } ?? "–", sample: games)
-        case .highSeries:
-            // TODO: once #91's `LeagueRecord.gamesPerSession` lands, use the league's length
-            // for a league bowler instead of a fixed 3-game series.
-            let series = report.highSeries.first { $0.gameCount == 3 }
-            return HomeTile(card: card, title: String(localized: "High series"),
-                            value: series.map { "\($0.total)" } ?? "–", sample: games)
-        case .strikePct:
-            return rate(card, String(localized: "Strike %"), report.strikes, .frames)
-        case .sparePct:
-            return rate(card, String(localized: "Spare %"), report.spares, .chances)
-        case .fouls:
-            return HomeTile(card: card, title: String(localized: "Fouls"),
-                            value: StatFormat.average(report.fouls),
-                            sample: StatFormat.sample(report.fouls.count, .games))
-        default:
-            return nil
+        guard var content = StatTileContent.make(card, report) else { return nil }
+        if card == .average, let allGames {
+            content.sample = (content.sample ?? "") + " · " + String(localized: "All games \(StatFormat.average(allGames.average))")
         }
-    }
-
-    private static func rate(_ card: StatsCardID, _ title: String, _ rate: Rate, _ unit: StatFormat.Unit) -> HomeTile {
-        HomeTile(card: card, title: title, value: StatFormat.percent(rate),
-                 sample: StatFormat.sample(rate.attempts, unit), progress: rate.value)
+        return HomeTile(card: card, title: content.title, value: content.value,
+                        sample: content.sample, progress: content.progress)
     }
 }

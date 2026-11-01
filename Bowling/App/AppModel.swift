@@ -32,6 +32,8 @@ import Observation
     var error: (any Error)?
     /// The game summary sheet is up over Scoring, so its alert shows errors.
     var isShowingGameSummary = false
+    /// The Stats filter while the app runs; nil until Stats first loads.
+    var statsFilter: StatsFilterDraft?
 
     init(
         store: BowlingStore,

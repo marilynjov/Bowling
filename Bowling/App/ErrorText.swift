@@ -22,6 +22,8 @@ enum ErrorText {
                 : String(localized: "This ball was used in \(count) games. Retire it instead.")
         case .cannotDeleteOwner:
             String(localized: "You can't delete your own profile.")
+        case .cannotArchiveOwner:
+            String(localized: "You can't archive your own profile.")
         case .ownerAlreadyExists:
             String(localized: "Your profile already exists.")
         case .invalidBall(.emptyName):

@@ -55,6 +55,27 @@ import Testing
         #expect(!context.hasChanges)
     }
 
+    @Test func aRememberedBackfillIsSkipped() throws {
+        let defaults = try #require(UserDefaults(suiteName: "SyncFieldBackfillTests.\(UUID())"))
+        let (game, _) = try legacyGame(rolls: [7, 2])
+        defaults.set(true, forKey: BowlingStore.backfillDoneKey)
+
+        try store.backfillSyncFields(rememberingIn: defaults)
+
+        #expect(game.bowlerID == nil)
+        #expect(game.recordedRollCount == 0)
+    }
+
+    @Test func aFinishedBackfillIsRemembered() throws {
+        let defaults = try #require(UserDefaults(suiteName: "SyncFieldBackfillTests.\(UUID())"))
+        let (game, _) = try legacyGame(rolls: [7, 2])
+
+        try store.backfillSyncFields(rememberingIn: defaults)
+
+        #expect(game.recordedRollCount == 2)
+        #expect(defaults.bool(forKey: BowlingStore.backfillDoneKey))
+    }
+
     @Test func gamesWithoutRollsOrBowlerAreLeftAlone() throws {
         let game = Game(gameIndex: 1, entryMode: .finalOnly)
         context.insert(game)
