@@ -125,6 +125,7 @@ import Observation
         selectedTab = .home
         historyPath = []
         editingSessionDetails = nil
+        statsFilter = nil
     }
 
     /// The banner's Undo: deletes the last quick score's session. Does nothing once it has

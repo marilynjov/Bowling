@@ -19,7 +19,8 @@ import Testing
         let suite = UserDefaults(suiteName: "test.\(UUID())")!
         let app = AppModel(store: try BowlingStore(inMemory: true),
                            sessionDefaults: SessionDefaultsStore(suite), scoringSettings: ScoringSettings(suite))
-        _ = try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
+        let sam = try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
+        app.statsFilter = StatsFilterDraft(filter: StatsFilter(bowlerID: sam.id), bowlerName: sam.name)
         app.isQuickScoring = true
         try app.quickScore(200)
         app.sessionDefaults.save(SessionDefaults(centerID: UUID()), for: .league)
@@ -38,6 +39,7 @@ import Testing
         #expect(app.savedQuickScore == nil)
         #expect(app.selectedTab == .home)
         #expect(app.historyPath.isEmpty)
+        #expect(app.statsFilter == nil)
     }
 
     @Test func writeBumpsRevision() throws {
