@@ -64,6 +64,24 @@ enum AccessibilityText {
         return ([title, spoken] + [sample].compactMap { $0 }).joined(separator: ", ")
     }
 
+    /// The Stats trend card as one element: "Trend, 12 sessions, latest session 201,
+    /// rolling average 195".
+    static func trend(sessions: Int, latest: String, rolling: String) -> String {
+        let count = sessions == 1 ? String(localized: "1 session") : String(localized: "\(sessions) sessions")
+        return String(localized: "Trend, \(count), latest session \(latest), rolling average \(rolling)")
+    }
+
+    /// A Stats card that explains instead of showing a number: "Strike %, Enter frames to
+    /// see strikes and spares."
+    static func explainedCard(title: String, text: String) -> String {
+        "\(title), \(text)"
+    }
+
+    /// A Stats leaves row: "Leave 7, 10, split, made 2 of 9".
+    static func leaveRow(_ leave: Leave, made: Int, of count: Int) -> String {
+        self.leave(leave) + ", " + String(localized: "made \(made) of \(count)")
+    }
+
     /// A session row read as one line: "October 21, League, AMF Bowl, Tuesday Mixed, 3 bowlers,
     /// 201, 189, in progress".
     static func sessionRow(_ row: RecentRow) -> String {

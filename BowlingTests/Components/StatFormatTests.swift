@@ -33,4 +33,12 @@ import Testing
         #expect(StatFormat.sample(0, .frames) == "No frames yet")
         #expect(StatFormat.sample(0, .chances) == "No chances yet")
     }
+    @Test func firstBallsAndLeavesSamples() {
+        #expect(StatFormat.sample(0, .firstBalls) == "No first balls yet")
+        #expect(StatFormat.sample(1, .firstBalls) == "1 first ball")
+        #expect(StatFormat.sample(210, .firstBalls) == "210 first balls")
+        #expect(StatFormat.sample(0, .leaves) == "No leaves yet")
+        #expect(StatFormat.sample(1, .leaves) == "1 leave")
+        #expect(StatFormat.sample(9, .leaves) == "9 leaves")
+    }
 }
