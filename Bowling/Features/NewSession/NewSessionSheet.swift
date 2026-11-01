@@ -31,6 +31,7 @@ struct NewSessionSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Start", action: start)
                         .disabled(draft == nil)
+                        .accessibilityIdentifier("newSession.start")
                 }
             }
         }
