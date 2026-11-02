@@ -71,6 +71,8 @@ struct BallDetailScreen: View {
             BallThumbnail(id: id, hasPhoto: data.hasPhoto,
                           placeholder: BallThumbnail.Placeholder(id: id, name: header.name), size: 96)
                 .saturation(header.isRetired ? 0 : 1)
+                // An image, so capping its growth hides no text; uncapped it reaches ~300 pt at AX5.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(header.name).font(.title2.weight(.bold))
@@ -151,10 +153,17 @@ struct BallDetailScreen: View {
         } else {
             ForEach(data.performance, id: \.title) { block in
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(block.title).monoLabel()
-                        Spacer()
-                        Text(block.sample).font(.figure).foregroundStyle(.inkMuted)
+                    // Side by side when they fit; stacked at large text sizes.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(block.title).monoLabel().fixedSize()
+                            Spacer()
+                            Text(block.sample).font(.figure).foregroundStyle(.inkMuted).fixedSize()
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(block.title).monoLabel()
+                            Text(block.sample).font(.figure).foregroundStyle(.inkMuted)
+                        }
                     }
                     LazyVGrid(columns: Self.tileColumns(isAccessibilitySize: typeSize.isAccessibilitySize), spacing: 8) {
                         ForEach(block.tiles, id: \.title) { StatTile($0) }
@@ -168,18 +177,24 @@ struct BallDetailScreen: View {
     }
 
     /// The Stats filter, read-only until #33 makes the chips editable.
-    private func chips(_ chips: [String]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
-                    Text(chip)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.ink)
-                        .lineLimit(1)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.surface, in: .capsule)
-                        .overlay(Capsule().stroke(.hairline))
+    /// Scrolls sideways at regular sizes; stacked at accessibility sizes, where a chip
+    /// alone can be wider than the screen.
+    @ViewBuilder private func chips(_ chips: [String]) -> some View {
+        let row = ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
+            Text(chip)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.ink)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.surface, in: .capsule)
+                .overlay(Capsule().stroke(.hairline))
+        }
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) { row }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) { row.lineLimit(1) }
                 }
             }
         }
