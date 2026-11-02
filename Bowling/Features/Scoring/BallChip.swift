@@ -10,7 +10,7 @@ struct BallChip: View {
     var body: some View {
         Menu {
             if model.offersNoBall {
-                pick("No ball", id: nil)
+                pick(String(localized: "No ball"), id: nil)
             }
             ForEach(model.balls) { ball in
                 pick(BallPicker.label(ball), id: ball.id)
@@ -27,7 +27,7 @@ struct BallChip: View {
 
     /// The ball's name, or "No ball" (also for a ball no longer active).
     private var name: String {
-        model.balls.first { $0.id == model.rollBallID }?.name ?? "No ball"
+        model.balls.first { $0.id == model.rollBallID }?.name ?? String(localized: "No ball")
     }
 
     private func pick(_ title: String, id: BallID?) -> some View {

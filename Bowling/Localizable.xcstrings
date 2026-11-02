@@ -1,0 +1,911 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ · %@ · %lld open" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$lld open"
+          }
+        }
+      }
+    },
+    "%@ · frame %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · frame %2$@"
+          }
+        }
+      }
+    },
+    "%@ · frames %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · frames %2$@"
+          }
+        }
+      }
+    },
+    "%@'s turn" : {
+
+    },
+    "%@, %lld, current turn" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$lld, current turn"
+          }
+        }
+      }
+    },
+    "%@, %lld, finished" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$lld, finished"
+          }
+        }
+      }
+    },
+    "%@, default" : {
+
+    },
+    "%@, frame %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, frame %2$@"
+          }
+        }
+      }
+    },
+    "%@, frames %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, frames %2$@"
+          }
+        }
+      }
+    },
+    "%@, series %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, series %2$lld"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld bowlers" : {
+
+    },
+    "%lld chances" : {
+
+    },
+    "%lld first balls" : {
+
+    },
+    "%lld frames" : {
+
+    },
+    "%lld games" : {
+
+    },
+    "%lld lb" : {
+
+    },
+    "%lld leaves" : {
+
+    },
+    "%lld pins standing: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld pins standing: %2$@"
+          }
+        }
+      }
+    },
+    "%lld pounds" : {
+
+    },
+    "%lld sessions" : {
+
+    },
+    "%lld spares" : {
+
+    },
+    "%lld strikes" : {
+
+    },
+    "/ SPARE" : {
+
+    },
+    "0" : {
+
+    },
+    "1 chance" : {
+
+    },
+    "1 first ball" : {
+
+    },
+    "1 frame" : {
+
+    },
+    "1 game" : {
+
+    },
+    "1 leave" : {
+
+    },
+    "1 pin standing: %@" : {
+
+    },
+    "1 session" : {
+
+    },
+    "1 spare" : {
+
+    },
+    "1 strike" : {
+
+    },
+    "10" : {
+
+    },
+    "105" : {
+
+    },
+    "13–14" : {
+
+    },
+    "5" : {
+
+    },
+    "6" : {
+
+    },
+    "68.5%" : {
+
+    },
+    "7-10" : {
+
+    },
+    "87 / 127 chances" : {
+
+    },
+    "Add ball" : {
+
+    },
+    "Add bowler" : {
+
+    },
+    "Add “%@”" : {
+
+    },
+    "All 10 pins standing" : {
+
+    },
+    "All games" : {
+
+    },
+    "All games %@" : {
+
+    },
+    "All spares" : {
+
+    },
+    "All time" : {
+
+    },
+    "Arsenal" : {
+
+    },
+    "Average" : {
+
+    },
+    "Average by frame" : {
+
+    },
+    "Back to History" : {
+
+    },
+    "Ball" : {
+
+    },
+    "Ball weight must be 6 to 16 pounds." : {
+
+    },
+    "Ball, %@" : {
+
+    },
+    "Balls used" : {
+
+    },
+    "Both" : {
+
+    },
+    "Bowler" : {
+
+    },
+    "Bowlers" : {
+
+    },
+    "Bowling" : {
+
+    },
+    "Brand" : {
+
+    },
+    "Buttons and pins" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Casual" : {
+
+    },
+    "Center" : {
+
+    },
+    "Change score" : {
+
+    },
+    "Choose" : {
+
+    },
+    "Choose a maintenance type." : {
+
+    },
+    "Clean games %" : {
+
+    },
+    "Clear all rolls in this game?" : {
+
+    },
+    "Clear rolls" : {
+
+    },
+    "Clear rolls…" : {
+
+    },
+    "Close" : {
+
+    },
+    "Colors" : {
+
+    },
+    "Coming in #13" : {
+
+    },
+    "Coming soon." : {
+
+    },
+    "Competition" : {
+
+    },
+    "Continue" : {
+
+    },
+    "Count" : {
+
+    },
+    "Custom" : {
+
+    },
+    "Date" : {
+
+    },
+    "Default" : {
+
+    },
+    "Default · %@" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete %@'s game %lld?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete %1$@'s game %2$lld?"
+          }
+        }
+      }
+    },
+    "Delete game" : {
+
+    },
+    "Delete this session? It has no other games." : {
+
+    },
+    "Delete this session? Its %lld games will be deleted." : {
+
+    },
+    "Delete this session? Its 1 game will be deleted." : {
+
+    },
+    "Deleted ball" : {
+
+    },
+    "Discard" : {
+
+    },
+    "Discard the score of %lld?" : {
+
+    },
+    "Done" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit filters" : {
+
+    },
+    "Editing frame %lld · ball %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Editing frame %1$lld · ball %2$lld"
+          }
+        }
+      }
+    },
+    "End session" : {
+
+    },
+    "Enter a name." : {
+
+    },
+    "Enter frames to see strikes and spares." : {
+
+    },
+    "Enter pins to see leaves" : {
+
+    },
+    "Enter pins to see leaves." : {
+
+    },
+    "Entry mode" : {
+
+    },
+    "Event" : {
+
+    },
+    "Filters" : {
+
+    },
+    "Final score" : {
+
+    },
+    "First-ball average" : {
+
+    },
+    "Foul" : {
+
+    },
+    "Fouls" : {
+
+    },
+    "Frame %lld" : {
+
+    },
+    "Frame %lld was cleared. Enter it again." : {
+
+    },
+    "Frame %lld: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "Frame %lld: not bowled" : {
+
+    },
+    "Frame total 98" : {
+
+    },
+    "Frames %@ and %lld were cleared. Enter them again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frames %1$@ and %2$lld were cleared. Enter them again."
+          }
+        }
+      }
+    },
+    "Game %lld" : {
+
+    },
+    "Game %lld · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Game %1$lld · %2$@"
+          }
+        }
+      }
+    },
+    "Game %lld · frame %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Game %1$lld · frame %2$lld"
+          }
+        }
+      }
+    },
+    "Game %lld, %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Game %1$lld, %2$lld"
+          }
+        }
+      }
+    },
+    "Game complete" : {
+
+    },
+    "Games" : {
+
+    },
+    "Give the ball a name." : {
+
+    },
+    "Head pin %" : {
+
+    },
+    "High game" : {
+
+    },
+    "High series" : {
+
+    },
+    "History" : {
+
+    },
+    "Home" : {
+
+    },
+    "How do you bowl?" : {
+
+    },
+    "In progress" : {
+
+    },
+    "Lanes" : {
+
+    },
+    "Lanes %@" : {
+
+    },
+    "Last 10 %@" : {
+
+    },
+    "Last 30 %@" : {
+
+    },
+    "Last 30 days" : {
+
+    },
+    "League" : {
+
+    },
+    "Leave %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Leave %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Leaves" : {
+
+    },
+    "Left most, made least" : {
+
+    },
+    "Line" : {
+
+    },
+    "Made %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Made %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Makeable conversion %" : {
+
+    },
+    "Marks" : {
+
+    },
+    "Miss" : {
+
+    },
+    "Name" : {
+
+    },
+    "New session" : {
+
+    },
+    "Next" : {
+
+    },
+    "Next game" : {
+
+    },
+    "No ball" : {
+
+    },
+    "No balls yet." : {
+
+    },
+    "No balls yet. Add them in Arsenal." : {
+
+    },
+    "No chances yet" : {
+
+    },
+    "No complete games yet." : {
+
+    },
+    "No first balls yet" : {
+
+    },
+    "No frames yet" : {
+
+    },
+    "No games yet" : {
+
+    },
+    "No leave seen 3 times yet." : {
+
+    },
+    "No leave, strike" : {
+
+    },
+    "No leaves" : {
+
+    },
+    "No leaves yet" : {
+
+    },
+    "No pins standing" : {
+
+    },
+    "Notes" : {
+
+    },
+    "OK" : {
+
+    },
+    "Oil pattern" : {
+
+    },
+    "Open %" : {
+
+    },
+    "Other" : {
+
+    },
+    "Perfect game" : {
+
+    },
+    "Pin %lld, down" : {
+
+    },
+    "Pin %lld, standing" : {
+
+    },
+    "Pin by pin" : {
+
+    },
+    "Practice" : {
+
+    },
+    "Quick score" : {
+
+    },
+    "RG and differentials can't be negative." : {
+
+    },
+    "Recent sessions" : {
+
+    },
+    "Replace" : {
+
+    },
+    "Resume" : {
+
+    },
+    "Retry" : {
+
+    },
+    "Role" : {
+
+    },
+    "Rotate bowlers" : {
+
+    },
+    "STRIKE" : {
+
+    },
+    "Save" : {
+
+    },
+    "Saved %lld" : {
+
+    },
+    "Saved %lld. Undo available." : {
+
+    },
+    "Saved as a casual game today. You can change it in History." : {
+
+    },
+    "Score" : {
+
+    },
+    "Scoring" : {
+
+    },
+    "Series %lld" : {
+
+    },
+    "Session details" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Show all %lld leaves" : {
+
+    },
+    "Single-pin conversion %" : {
+
+    },
+    "Something went wrong" : {
+
+    },
+    "Spare" : {
+
+    },
+    "Spare %" : {
+
+    },
+    "Split" : {
+
+    },
+    "Split conversion %" : {
+
+    },
+    "Start" : {
+
+    },
+    "Start session" : {
+
+    },
+    "Stats" : {
+
+    },
+    "Strike" : {
+
+    },
+    "Strike %" : {
+
+    },
+    "Strikes by frame" : {
+
+    },
+    "Summary" : {
+
+    },
+    "Text styles" : {
+
+    },
+    "That item no longer exists. It may have been deleted." : {
+
+    },
+    "That photo is too large. Choose a smaller one." : {
+
+    },
+    "That roll doesn't fit this frame." : {
+
+    },
+    "The entry mode can't change after the first roll. Clear the game's rolls first." : {
+
+    },
+    "The maintenance date can't be in the future." : {
+
+    },
+    "The purchase date can't be in the future." : {
+
+    },
+    "The resurface interval must be at least 1 game." : {
+
+    },
+    "This ball was used in %lld games. Retire it instead." : {
+
+    },
+    "This ball was used in 1 game. Retire it instead." : {
+
+    },
+    "This bowler has %lld games. Delete them first." : {
+
+    },
+    "This bowler has 1 game. Delete it first." : {
+
+    },
+    "This decides which stats you see. You can change it anytime in Settings." : {
+
+    },
+    "This game couldn't be opened." : {
+
+    },
+    "This game is scored from its rolls, so its score can't be typed." : {
+
+    },
+    "This game was deleted." : {
+
+    },
+    "This month" : {
+
+    },
+    "This season" : {
+
+    },
+    "This session was deleted." : {
+
+    },
+    "This week" : {
+
+    },
+    "Tournament" : {
+
+    },
+    "Trend" : {
+
+    },
+    "Trend, %@, latest session %@, rolling average %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Trend, %1$@, latest session %2$@, rolling average %3$@"
+          }
+        }
+      }
+    },
+    "Undo" : {
+
+    },
+    "Washout" : {
+
+    },
+    "Ways to score" : {
+
+    },
+    "Weight" : {
+
+    },
+    "Welcome" : {
+
+    },
+    "What if" : {
+
+    },
+    "You bowl" : {
+
+    },
+    "You can switch before the first roll." : {
+
+    },
+    "You can't archive your own profile." : {
+
+    },
+    "You can't delete your own profile." : {
+
+    },
+    "You pick one for each session." : {
+
+    },
+    "Your bowling data couldn't be opened" : {
+
+    },
+    "Your name" : {
+
+    },
+    "Your profile already exists." : {
+
+    },
+    "Your sessions show up here." : {
+
+    },
+    "both" : {
+
+    },
+    "foul" : {
+
+    },
+    "gutter" : {
+
+    },
+    "in progress" : {
+
+    },
+    "made %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "made %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "makeable" : {
+
+    },
+    "no data" : {
+
+    },
+    "no games yet" : {
+
+    },
+    "single pin" : {
+
+    },
+    "spare" : {
+
+    },
+    "split" : {
+
+    },
+    "strike" : {
+
+    },
+    "total %lld" : {
+
+    },
+    "washout" : {
+
+    }
+  },
+  "version" : "1.0"
+}

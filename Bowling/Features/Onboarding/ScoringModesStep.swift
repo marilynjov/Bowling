@@ -37,7 +37,7 @@ struct ScoringModesStep: View {
         .navigationTitle("Ways to score")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
-            OnboardingButton(title: "Start", action: onStart)
+            OnboardingButton(title: String(localized: "Start"), action: onStart)
                 .disabled(isSaving)
         }
     }

@@ -52,7 +52,7 @@ struct ProfileStep: View {
         .navigationTitle("Welcome")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
-            OnboardingButton(title: "Continue", action: onContinue)
+            OnboardingButton(title: String(localized: "Continue"), action: onContinue)
                 .disabled(!draft.canLeaveProfile)
         }
         .onAppear { nameFocused = true }

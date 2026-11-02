@@ -32,7 +32,7 @@ struct BowlingStyleStep: View {
         .navigationTitle("How do you bowl?")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
-            OnboardingButton(title: "Continue", action: onContinue)
+            OnboardingButton(title: String(localized: "Continue"), action: onContinue)
                 .disabled(draft.style == nil)
         }
     }

@@ -107,7 +107,7 @@ private struct NamedRefPickerPreview: View {
     var body: some View {
         NavigationStack {
             let _ = app.revision
-            NamedRefPicker(title: "Center", items: app.store.sessions.centers(), selection: $selection) { name in
+            NamedRefPicker(title: String(localized: "Center"), items: app.store.sessions.centers(), selection: $selection) { name in
                 try app.write { try $0.sessions.createCenter(name: name) }
             }
         }

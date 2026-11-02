@@ -23,21 +23,22 @@ struct ShortcutBar: View {
     }
 
     @ViewBuilder private var marks: some View {
-        if pad.offersStrike { shortcut("Strike", action: model.strike) }
-        if pad.offersSpare { shortcut("Spare", action: model.spare) }
-        shortcut("Miss", action: model.miss)
-        shortcut("Foul", action: model.foul)
+        if pad.offersStrike { shortcut(String(localized: "Strike"), id: "scoring.strike", action: model.strike) }
+        if pad.offersSpare { shortcut(String(localized: "Spare"), id: "scoring.spare", action: model.spare) }
+        shortcut(String(localized: "Miss"), id: "scoring.miss", action: model.miss)
+        shortcut(String(localized: "Foul"), id: "scoring.foul", action: model.foul)
     }
 
     @ViewBuilder private var tools: some View {
         if model.edit == nil {
-            shortcut("Undo", action: model.undo)
+            shortcut(String(localized: "Undo"), id: "scoring.undo", action: model.undo)
                 .disabled(!model.canUndo)
         }
         BallChip(model: model)
     }
 
-    private func shortcut(_ title: String, action: @escaping () -> Void) -> some View {
+    /// `id` is the UI tests' fixed identifier, so it never changes with the title's language.
+    private func shortcut(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .lineLimit(1)
@@ -45,5 +46,6 @@ struct ShortcutBar: View {
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier(id)
     }
 }
