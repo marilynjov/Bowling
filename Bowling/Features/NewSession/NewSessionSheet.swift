@@ -73,7 +73,10 @@ struct NewSessionSheet: View {
                 NavigationLink {
                     AddBowlerPicker(
                         choices: draft.wrappedValue.addBowlerChoices(from: bowlers),
-                        onPick: { draft.wrappedValue.add($0) }
+                        onPick: { draft.wrappedValue.add($0) },
+                        unarchive: { bowler in
+                            try app.write { try $0.bowlers.setArchived(false, for: bowler.id) }
+                        }
                     ) { name in
                         try app.write { try $0.bowlers.createBowler(name: name) }
                     }
@@ -128,7 +131,7 @@ struct NewSessionSheet: View {
         leagues = store.sessions.leagueRecords()
         oilPatterns = store.sessions.oilPatterns()
         balls = store.balls.activeBalls()
-        bowlers = store.bowlers.bowlers()
+        bowlers = store.bowlers.bowlers(includingArchived: true)
         guard draft == nil, let owner = store.bowlers.owner() else { return }
         let type = app.sessionDefaults.lastEventType
         draft = NewSessionDraft(owner: owner, date: .now, eventType: type)

@@ -110,6 +110,26 @@ import Testing
         #expect(choices.addName(for: "Luz") == "Luz")
     }
 
+    @Test func archivedFriendIsOfferedForUnarchiveNotAdd() throws {
+        let alex = try store.bowlers.createBowler(name: "Álex")
+        try store.bowlers.setArchived(true, for: alex.id)
+        let d = NewSessionDraft(owner: owner, date: .now)
+        let choices = d.addBowlerChoices(from: store.bowlers.bowlers(includingArchived: true))
+        #expect(choices.candidates.map(\.id) == [friend.id])
+        #expect(choices.addName(for: " alex ") == nil)
+        #expect(choices.archivedMatch(for: " alex ")?.id == alex.id)
+        #expect(choices.archivedMatch(for: "Al") == nil)
+        #expect(choices.archivedMatch(for: "Ana") == nil)
+        #expect(choices.addName(for: "Luz") == "Luz")
+    }
+
+    @Test func unarchivedFriendKeepsTheirID() throws {
+        let alex = try store.bowlers.createBowler(name: "Alex")
+        try store.bowlers.setArchived(true, for: alex.id)
+        try store.bowlers.setArchived(false, for: alex.id)
+        #expect(store.bowlers.bowlers().map(\.id).contains(alex.id))
+    }
+
     @Test func leaguesFollowThePickedCenter() throws {
         let a = try store.sessions.createCenter(name: "AMF Bowl")
         let b = try store.sessions.createCenter(name: "Sunset Lanes")
