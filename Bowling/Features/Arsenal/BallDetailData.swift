@@ -40,10 +40,60 @@ struct BallDetailData: Hashable {
         var log: [LogRow]
     }
 
+    struct PerformanceBlock: Hashable {
+        var title: String
+        var tiles: [StatTileContent]
+        var sample: String
+    }
+
+    struct ConditionRowText: Hashable {
+        var name: String
+        var strikes: String
+        var firstBallAverage: String
+    }
+
+    struct TrendPoint: Hashable {
+        var date: Date
+        /// 0...100.
+        var percent: Double
+    }
+
+    struct Marker: Hashable {
+        var date: Date
+        var isResurface: Bool
+    }
+
+    struct Trend: Hashable {
+        /// Oldest first.
+        var points: [TrendPoint]
+        /// Maintenance events inside the points' date range.
+        var markers: [Marker]
+        var accessibilityLabel: String
+    }
+
+    struct RecentGame: Hashable, Identifiable {
+        var id: GameID
+        var date: String
+        var score: String
+        var eventType: String
+    }
+
     var header: Header
     /// Only the values that are set; the section hides when empty.
     var specs: [SpecRow]
     var maintenance: Maintenance
+    /// The Stats filter's chips, read-only until #33.
+    var chips: [String]
+    /// Strike and spare blocks, the spare block first for a spare ball; empty when the
+    /// ball has no games in the filter.
+    var performance: [PerformanceBlock]
+    var leaves: [LeaveRowContent]
+    var byPattern: [ConditionRowText]
+    var byCenter: [ConditionRowText]
+    /// Nil with fewer than 2 sessions.
+    var trend: Trend?
+    /// In the order given: newest first.
+    var recent: [RecentGame]
 
     init(fields: BallFields, isRetired: Bool, report: BallReport, recentGames: [GameRecord],
          filterChips: [String], centerNames: [CenterID: String], patternNames: [OilPatternID: String],
@@ -52,6 +102,69 @@ struct BallDetailData: Hashable {
         header = Self.header(fields, isRetired: isRetired)
         specs = Self.specs(fields, format)
         maintenance = Self.maintenance(report.maintenance, format)
+        chips = filterChips
+        performance = Self.performance(report, role: fields.intendedRole)
+        leaves = report.leaves.map(LeaveRowContent.init)
+        byPattern = Self.conditions(report.byOilPattern, names: patternNames)
+        byCenter = Self.conditions(report.byCenter, names: centerNames)
+        trend = Self.trend(report)
+        recent = recentGames.map {
+            RecentGame(id: $0.id, date: format.day($0.sessionDate), score: "\($0.finalScore)", eventType: $0.eventType.title)
+        }
+    }
+
+    // MARK: Performance
+
+    private static func performance(_ report: BallReport, role: BallRole) -> [PerformanceBlock] {
+        guard report.gamesBowled > 0 else { return [] }
+        let strike = PerformanceBlock(
+            title: String(localized: "As a strike ball"),
+            tiles: [
+                .rate(String(localized: "Strikes"), report.strikes, .firstBalls),
+                .mean(String(localized: "First ball average"), report.firstBallAverage, .firstBalls),
+                .rate(String(localized: "Head pin"), report.headPin, .firstBalls),
+                .mean(String(localized: "Average as main ball"), report.averageAsMainBall, .games),
+            ],
+            sample: StatFormat.sample(report.firstBalls, .firstBalls)
+        )
+        let spare = PerformanceBlock(
+            title: String(localized: "As a spare ball"),
+            tiles: [
+                .rate(String(localized: "Spares"), report.spares, .spareAttempts),
+                .rate(String(localized: "Single pins"), report.singlePinConversion, .spareAttempts),
+                .rate(String(localized: "Splits"), report.splitConversion, .spareAttempts),
+            ],
+            sample: StatFormat.sample(report.spareAttempts, .spareAttempts)
+        )
+        return role == .spare ? [spare, strike] : [strike, spare]
+    }
+
+    /// Report order; a nil or unknown ID reads "Other".
+    private static func conditions<ID: Hashable>(_ rows: [ConditionRow], names: [ID: String]) -> [ConditionRowText] {
+        rows.map { row in
+            ConditionRowText(
+                name: (row.id as? ID).flatMap { names[$0] } ?? String(localized: "Other"),
+                strikes: StatFormat.percent(row.strikes),
+                firstBallAverage: StatFormat.average(row.firstBallAverage)
+            )
+        }
+    }
+
+    private static func trend(_ report: BallReport) -> Trend? {
+        let points = report.overTime.compactMap { point in
+            point.strikes.value.map { TrendPoint(date: point.date, percent: $0 * 100) }
+        }
+        guard points.count >= 2, let first = points.first?.date, let last = points.last?.date,
+              let latest = report.overTime.last(where: { $0.strikes.value != nil })
+        else { return nil }
+        let markers = report.maintenance.events
+            .filter { (first...last).contains($0.date) }
+            .sorted { $0.date < $1.date }
+            .map { Marker(date: $0.date, isResurface: $0.kind == .resurface) }
+        return Trend(
+            points: points, markers: markers,
+            accessibilityLabel: String(localized: "Strike rate over \(points.count) sessions, latest \(StatFormat.percent(latest.strikes)).")
+        )
     }
 
     // MARK: Header and specs

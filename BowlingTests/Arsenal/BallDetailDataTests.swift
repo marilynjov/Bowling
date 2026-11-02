@@ -121,4 +121,125 @@ import Testing
         #expect(log.map(\.detail) == ["Shine", "2000 Abralon"])
         #expect(data(BallFields(name: "P", weightPounds: 15)).maintenance.log.isEmpty)
     }
+
+    // MARK: Task 2
+
+    private let strikeBall = DemoBall.ownerStrike.id
+    private let spareBall = DemoBall.ownerSpare.id
+
+    /// The mixed-ball fixture's report for `id`, and the data built from it.
+    private func mixed(_ id: BallID, role: BallRole) -> (BallReport, BallDetailData) {
+        let games = MixedBallFixture.games(relativeTo: now)
+        let events = id == strikeBall ? MixedBallFixture.strikeBallMaintenance(relativeTo: now) : []
+        let maintenance = BallMaintenance(ball: id, games: games, events: events,
+                                          resurfaceIntervalGames: MixedBallFixture.strikeBallResurfaceInterval)
+        let report = StatsEngine.ballReport(for: id, games: games, maintenance: maintenance)
+        let data = BallDetailData(
+            fields: BallFields(name: "Ball", weightPounds: 15, intendedRole: role), isRetired: false,
+            report: report, recentGames: [], filterChips: ["All time"], centerNames: [:], patternNames: [:],
+            calendar: calendar, locale: Locale(identifier: "en_US")
+        )
+        return (report, data)
+    }
+
+    /// A report over `games` with `trend` session dates and `events`.
+    private func built(games: [GameRecord], events: [MaintenanceRecord] = [], role: BallRole = .strike,
+                       recent: [GameRecord] = [], centers: [CenterID: String] = [:],
+                       patterns: [OilPatternID: String] = [:]) -> BallDetailData {
+        let report = StatsEngine.ballReport(for: ball, games: games, maintenance: maintenance(games: games, events: events))
+        return BallDetailData(
+            fields: BallFields(name: "Ball", weightPounds: 15, intendedRole: role), isRetired: false,
+            report: report, recentGames: recent, filterChips: ["All time"], centerNames: centers,
+            patternNames: patterns, calendar: calendar, locale: Locale(identifier: "en_US")
+        )
+    }
+
+    /// Complete pinByPin strike games with `ball`, one session per day.
+    private func strikeGames(days: [Int], center: CenterID? = nil, pattern: OilPatternID? = nil) -> [GameRecord] {
+        days.map { day in
+            let frames = (1...9).map { FrameRecord(frameIndex: $0, rolls: [RollRecord(rollIndex: 1, pinsDown: .all, pinCount: 10, pinsKnown: true)]) }
+                + [FrameRecord(frameIndex: 10, rolls: (1...3).map { RollRecord(rollIndex: $0, pinsDown: .all, pinCount: 10, pinsKnown: true) })]
+            return GameRecord(gameIndex: 1, entryMode: .pinByPin, defaultBallID: ball, finalScore: 300, isComplete: true,
+                              frames: frames, sessionID: SessionID(),
+                              sessionDate: now.addingTimeInterval(-86_400 * Double(day)), eventType: .league,
+                              centerID: center, oilPatternID: pattern)
+        }
+    }
+
+    @Test func mixedBallStrikeBlock() throws {
+        let (report, data) = mixed(strikeBall, role: .strike)
+        #expect(report.firstBalls > 0)
+        let block = try #require(data.performance.first)
+        #expect(block.title == "As a strike ball")
+        #expect(block.tiles.map(\.title) == ["Strikes", "First ball average", "Head pin", "Average as main ball"])
+        #expect(block.tiles[0].value == StatFormat.percent(report.strikes))
+        #expect(block.tiles[1].value == StatFormat.average(report.firstBallAverage))
+        #expect(block.sample == "\(report.firstBalls) first balls")
+        #expect(data.performance.last?.sample == StatFormat.sample(report.spareAttempts, .spareAttempts))
+    }
+
+    @Test func mixedBallSpareBlock() throws {
+        let (report, data) = mixed(spareBall, role: .spare)
+        #expect(report.spareAttempts > 0)
+        let block = try #require(data.performance.first)
+        #expect(block.title == "As a spare ball")
+        #expect(block.tiles.map(\.title) == ["Spares", "Single pins", "Splits"])
+        #expect(block.tiles[0].value == StatFormat.percent(report.spares))
+        #expect(block.sample == "\(report.spareAttempts) spare attempts")
+    }
+
+    @Test func blockOrderFollowsRole() {
+        let games = strikeGames(days: [1, 2])
+        #expect(built(games: games, role: .strike).performance.map(\.title) == ["As a strike ball", "As a spare ball"])
+        #expect(built(games: games, role: .both).performance.map(\.title) == ["As a strike ball", "As a spare ball"])
+        #expect(built(games: games, role: .spare).performance.map(\.title) == ["As a spare ball", "As a strike ball"])
+    }
+
+    @Test func noGamesHasNoBlocks() {
+        let data = built(games: [])
+        #expect(data.performance.isEmpty)
+        #expect(data.chips == ["All time"])
+    }
+
+    @Test func conditionNames() {
+        let home = CenterID(), gone = CenterID(), pattern = OilPatternID()
+        // Home has more first balls, so it leads; the report breaks ties by UUID.
+        let games = strikeGames(days: Array(1...15), center: home, pattern: pattern)
+            + strikeGames(days: Array(16...25), center: gone)
+        let data = built(games: games, centers: [home: "Home Lanes"], patterns: [pattern: "House"])
+        #expect(data.byCenter.map(\.name) == ["Home Lanes", "Other"])
+        #expect(data.byPattern.map(\.name) == ["House", "Other"])
+        #expect(data.byCenter.first?.strikes == StatFormat.percent(Rate(hits: 1, attempts: 1)))
+    }
+
+    @Test func markersStayInsideTheChart() throws {
+        let events = [
+            MaintenanceRecord(date: now.addingTimeInterval(-86_400 * 30), kind: .resurface),
+            MaintenanceRecord(date: now.addingTimeInterval(-86_400 * 4), kind: .resurface),
+            MaintenanceRecord(date: now.addingTimeInterval(-86_400 * 2.5), kind: .polish),
+        ]
+        let trend = try #require(built(games: strikeGames(days: [1, 3, 5]), events: events).trend)
+        #expect(trend.points.count == 3)
+        #expect(trend.markers.map(\.isResurface) == [true, false])
+    }
+
+    @Test func oneSessionIsNotEnough() {
+        #expect(built(games: strikeGames(days: [1])).trend == nil)
+    }
+
+    @Test func trendAccessibility() throws {
+        let trend = try #require(built(games: strikeGames(days: [1, 2])).trend)
+        #expect(trend.accessibilityLabel == "Strike rate over 2 sessions, latest \(StatFormat.percent(Rate(hits: 12, attempts: 12))).")
+        #expect(trend.points.map(\.percent) == [100, 100])
+    }
+
+    @Test func recentRowsText() throws {
+        let game = GameRecord(gameIndex: 1, entryMode: .finalOnly, defaultBallID: ball, finalScore: 213, isComplete: true,
+                              sessionDate: now, eventType: .league)
+        let row = try #require(built(games: [], recent: [game]).recent.first)
+        #expect(row.id == game.id)
+        #expect(row.score == "213")
+        #expect(row.eventType == EventType.league.title)
+        #expect(row.date == BallDetailData.Format(calendar: calendar, locale: Locale(identifier: "en_US")).day(now))
+    }
 }
