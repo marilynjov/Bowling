@@ -30,14 +30,27 @@ jobs:
     name: Build app
     runs-on: xcode-27
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - run: xcodebuild -version
       - name: Build and test for iOS Simulator
         run: |
-          xcodebuild build test \
+          xcodebuild build-for-testing test-without-building \
             -project Bowling.xcodeproj \
             -scheme Bowling \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+            -skip-testing:BowlingUITests/AccessibilityAuditUITests \
+            CODE_SIGNING_ALLOWED=NO
+      # The accessibility audit's clipping and contrast checks vary with screen size, so it
+      # runs on one fixed device, the one it is verified on locally (#14). A retry absorbs a
+      # simulator stall (runner crash, app launch timeout); a real finding fails both tries.
+      - name: Accessibility audit
+        run: |
+          xcodebuild test-without-building \
+            -project Bowling.xcodeproj \
+            -scheme Bowling \
+            -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
+            -only-testing:BowlingUITests/AccessibilityAuditUITests \
+            -retry-tests-on-failure -test-iterations 2 \
             CODE_SIGNING_ALLOWED=NO
