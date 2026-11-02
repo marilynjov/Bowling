@@ -105,7 +105,9 @@ enum AccessibilityText {
     }
 
     /// An Arsenal row: "Phaze, 15 pounds, strike, 12 games"; an unknown role is left out.
-    static func ballRow(name: String, weightPounds: Int, role: BallRole, gamesBowled: Int) -> String {
+    /// A blank brand is left out; "resurface due" and "retired" follow the game count.
+    static func ballRow(name: String, brand: String = "", weightPounds: Int, role: BallRole, gamesBowled: Int,
+                        isResurfaceDue: Bool = false, isRetired: Bool = false) -> String {
         let roleWord: String? = switch role {
         case .strike: String(localized: "strike")
         case .spare: String(localized: "spare")
@@ -117,7 +119,16 @@ enum AccessibilityText {
         case 1: String(localized: "1 game")
         default: String(localized: "\(gamesBowled) games")
         }
-        return ([name, String(localized: "\(weightPounds) pounds"), roleWord, games].compactMap { $0 })
+        let brand = brand.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ([
+            name,
+            brand.isEmpty ? nil : brand,
+            String(localized: "\(weightPounds) pounds"),
+            roleWord,
+            games,
+            isResurfaceDue ? String(localized: "resurface due") : nil,
+            isRetired ? String(localized: "retired") : nil,
+        ].compactMap { $0 })
             .joined(separator: ", ")
     }
 
