@@ -1,6 +1,7 @@
 import BowlingCore
 import BowlingData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Settings (spec §1), pushed from Home's toolbar. The style and default games save as soon
 /// as they are picked; the scoring toggles stay on this phone.
@@ -10,6 +11,8 @@ struct SettingsScreen: View {
     @State private var scoring = ScoringValues()
     @State private var isConfirmingDelete: Bool
     @State private var isConfirmingAgain = false
+    @State private var export: ExportedZip?
+    @State private var isExporting = false
 
     /// UserDefaults isn't observable, so the toggles read from and write through this copy.
     private struct ScoringValues: Hashable {
@@ -37,9 +40,7 @@ struct SettingsScreen: View {
             Section("About") {
                 LabeledContent("Version", value: Self.version)
             }
-            Section {
-                Button("Delete all data", role: .destructive) { isConfirmingDelete = true }
-            }
+            dataSection
         }
         .navigationTitle("Settings")
         .task(id: app.revision) {
@@ -48,6 +49,13 @@ struct SettingsScreen: View {
             scoring = ScoringValues(tapWhatFell: settings.tapWhatFell,
                                     autoAdvanceOnSpare: settings.autoAdvanceOnSpare,
                                     rotateBowlers: settings.rotateBowlers)
+        }
+        .fileExporter(isPresented: $isExporting, item: export, contentTypes: [.zip],
+                      defaultFilename: export?.url.lastPathComponent) { result in
+            if case .failure(let error) = result { app.error = error }
+            finishExport()
+        } onCancellation: {
+            finishExport()
         }
         .confirmationDialog("Delete all data?", isPresented: $isConfirmingDelete, titleVisibility: .visible) {
             Button("Delete all data", role: .destructive) { isConfirmingAgain = true }
@@ -109,6 +117,32 @@ struct SettingsScreen: View {
                 Text("Each night starts with this. You can still switch it in Scoring.")
             }
         }
+    }
+
+    private var dataSection: some View {
+        Section {
+            Button("Export CSV", action: startExport)
+            Button("Delete all data", role: .destructive) { isConfirmingDelete = true }
+        } header: {
+            Text("Data")
+        } footer: {
+            Text("Exports a zip with one CSV per table. Photos aren't included.")
+        }
+    }
+
+    private func startExport() {
+        do {
+            export = try ExportedZip(store: app.store)
+            isExporting = true
+        } catch {
+            app.error = error
+        }
+    }
+
+    /// The zip is copied out by now, saved or not, so its temporary folder can go.
+    private func finishExport() {
+        export?.discard()
+        export = nil
     }
 
     /// Writes the copy and the stored setting together.
