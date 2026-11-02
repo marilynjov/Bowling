@@ -17,7 +17,7 @@ struct BallChip: View {
             }
         } label: {
             Text(name)
-                .lineLimit(1)
+                .lineLimit(1...2)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, minHeight: 48)
         }

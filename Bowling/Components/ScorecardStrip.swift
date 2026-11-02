@@ -79,11 +79,17 @@ private struct FrameCell: View {
             .background(.surface)
             .overlay(alignment: .top) { Rectangle().fill(.hairline).frame(height: 1) }
             .overlay(alignment: .bottom) { Rectangle().fill(.hairline).frame(height: 1) }
-            Text(FrameText.total(for: frame).isEmpty ? " " : FrameText.total(for: frame))
-                .font(.frameTotal)
-                .monospacedDigit()
-                .foregroundStyle(.ink)
-                .padding(.vertical, 5)
+            // An empty total keeps its height with a hidden "0": a blank Text(" ") reads to the
+            // accessibility audit as text with no contrast (#14). `.hidden()`, not opacity,
+            // takes it out of what the audit checks.
+            let total = FrameText.total(for: frame)
+            Group {
+                if total.isEmpty { Text("0").hidden() } else { Text(total) }
+            }
+            .font(.frameTotal)
+            .monospacedDigit()
+            .foregroundStyle(.ink)
+            .padding(.vertical, 5)
         }
         .frame(width: width)
         .background(.inset, in: .rect(cornerRadius: 8))
@@ -102,7 +108,10 @@ private struct MarkBox: View {
     var isSplit: Bool
 
     var body: some View {
-        Text(mark.map(FrameText.symbol(for:)) ?? " ")
+        // An empty box keeps its height with a hidden "0", as the total does.
+        Group {
+            if let mark { Text(FrameText.symbol(for: mark)) } else { Text("0").hidden() }
+        }
             .font(.frameMark)
             .foregroundStyle(mark.map { Color(Theme.color(for: $0)) } ?? Color(.ink))
             .lineLimit(1)
