@@ -8,6 +8,7 @@ struct ArsenalScreen: View {
     @Environment(AppModel.self) private var app
     @State private var list: ArsenalList?
     @State private var showsRetired = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         @Bindable var app = app
@@ -57,7 +58,12 @@ struct ArsenalScreen: View {
     }
 
     private func row(_ row: ArsenalList.Row) -> some View {
-        HStack(spacing: 12) {
+        // At accessibility sizes the photo goes above the text, so names and the badge get
+        // the full width instead of breaking mid-word beside it.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
             BallThumbnail(id: row.id, hasPhoto: row.hasPhoto, placeholder: row.placeholder)
                 .saturation(row.isRetired ? 0 : 1)
             VStack(alignment: .leading, spacing: 2) {
