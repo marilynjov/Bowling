@@ -15,11 +15,12 @@ import Testing
     /// A ball with every `BallFields` value set.
     private func fullDetail() throws -> BallDetail {
         let day = Calendar.current.startOfDay(for: .now).addingTimeInterval(-86_400 * 30)
+        let month = BallForm.month(of: day, in: .current)
         return try store.balls.addBall(BallFields(
             name: "Phaze II", brand: "Storm", weightPounds: 15, coverstock: .reactiveSolid,
             coverstockName: "TX-16", coreType: .asymmetric, coreName: "Velocity",
             rg: 2.48, differential: 0.051, intermediateDifferential: 0.015, intendedRole: .strike,
-            serialNumber: "SN123", colorDescription: "Pine/Silver", releaseDate: day, purchaseDate: day,
+            serialNumber: "SN123", colorDescription: "Pine/Silver", releaseDate: month, purchaseDate: day,
             factoryFinish: "1500 Polished", surfaceGrit: "2000 Abralon", resurfaceIntervalGames: 60,
             notes: "Benchmark"
         ))
@@ -171,8 +172,9 @@ import Testing
     @Test func photoFailureKeepsTheBall() {
         var draft = form()
         draft.photo = .set(Data(count: BallRepository.maxPhotoBytes + 1))
-        #expect(throws: RepositoryError.invalidBall(.photoTooLarge)) { try draft.save(to: store) }
-        #expect(store.balls.activeBalls().map(\.name) == ["Phaze"])
+        let error = #expect(throws: BallForm.PhotoNotSaved.self) { try draft.save(to: store) }
+        #expect(error?.error as? RepositoryError == .invalidBall(.photoTooLarge))
+        #expect(store.balls.activeBalls().map(\.id) == [error?.ballID])
     }
 
     @Test func noWeightRefusesToSave() {
@@ -189,5 +191,35 @@ import Testing
             "Plastic", "Urethane", "Reactive solid", "Reactive pearl", "Reactive hybrid", "Other", "Not set",
         ])
         #expect(CoreType.allCases.map(BallForm.title) == ["Symmetric", "Asymmetric", "Pancake", "Not set"])
+    }
+
+    @Test func hugeIntervalIsAnErrorNotACrash() {
+        var draft = form()
+        draft.resurfaceInterval = "9223372036854775807"
+        #expect(draft.fieldError(.resurfaceInterval) == "Enter a whole number of at least 1")
+        #expect(!draft.canSave)
+    }
+
+    @Test func groupingSeparatorIsRejected() {
+        var spain = BallForm(locale: Locale(identifier: "es_ES"))
+        spain.rg = "2.52"
+        #expect(spain.fieldError(.rg) == "Enter a number")
+        var draft = form()
+        draft.rg = "2,52"
+        #expect(draft.fieldError(.rg) == "Enter a number")
+        draft.resurfaceInterval = "1,000"
+        #expect(draft.fieldError(.resurfaceInterval) == "Enter a whole number of at least 1")
+    }
+
+    @Test func releaseDateIsMonthPrecision() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Bogota"))
+        let picked = try #require(calendar.date(from: DateComponents(year: 2025, month: 1, day: 17, hour: 15, minute: 30)))
+        let month = try #require(calendar.date(from: DateComponents(year: 2025, month: 1, day: 1, hour: 12)))
+        #expect(BallForm.month(of: picked, in: calendar) == month)
+        var draft = form()
+        draft.calendar = calendar
+        draft.releaseDate = picked
+        #expect(draft.fields()?.releaseDate == month)
     }
 }

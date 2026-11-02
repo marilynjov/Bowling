@@ -63,6 +63,16 @@ import Testing
         #expect(app.ballForm == .add)
     }
 
+    @Test func failedPhotoOnAddClosesTheSheet() throws {
+        app.ballForm = .add
+        var form = ballForm()
+        form.photo = .set(Data(count: BallRepository.maxPhotoBytes + 1))
+        #expect(throws: RepositoryError.invalidBall(.photoTooLarge)) { try app.saveBall(form) }
+        #expect(app.ballForm == nil)
+        try app.saveBall(form)
+        #expect(app.store.balls.activeBalls().count == 1)
+    }
+
     @Test func retireClosesAndMovesTheBall() throws {
         let id = try addBall()
         app.ballForm = .edit(id)

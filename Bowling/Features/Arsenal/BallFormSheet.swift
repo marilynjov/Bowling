@@ -120,8 +120,7 @@ struct BallFormSheet: View {
                 number("Intermediate differential", text: $form.intermediateDifferential, field: .intermediateDifferential)
             }
             TextField("Factory finish", text: $form.factoryFinish)
-            optionalDate(String(localized: "Release date"), add: String(localized: "Add release date"),
-                         date: $form.releaseDate, range: nil)
+            releaseMonth
         }
         .listRowBackground(Color.surface)
     }
@@ -241,25 +240,57 @@ struct BallFormSheet: View {
         }
     }
 
+    /// Month and year only (spec §2): "Add release date" until set, then month and year
+    /// menus and a clear button. `BallForm` saves the 1st of the month at noon.
+    @ViewBuilder private var releaseMonth: some View {
+        let calendar = form.calendar
+        if let date = form.releaseDate {
+            let parts = calendar.dateComponents([.year, .month], from: date)
+            let set = { (year: Int, month: Int) in
+                form.releaseDate = calendar.date(from: DateComponents(year: year, month: month, day: 1, hour: 12))
+            }
+            let thisYear = calendar.component(.year, from: .now)
+            LabeledContent("Release date") {
+                HStack(spacing: 4) {
+                    Picker("Month", selection: Binding(get: { parts.month ?? 1 }, set: { set(parts.year ?? thisYear, $0) })) {
+                        ForEach(1...12, id: \.self) { Text(calendar.monthSymbols[$0 - 1]).tag($0) }
+                    }
+                    Picker("Year", selection: Binding(get: { parts.year ?? thisYear }, set: { set($0, parts.month ?? 1) })) {
+                        ForEach((1960...max(thisYear, parts.year ?? thisYear)).reversed(), id: \.self) {
+                            Text(verbatim: "\($0)").tag($0)
+                        }
+                    }
+                    Button {
+                        form.releaseDate = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "Clear release date"))
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+        } else {
+            Button("Add release date") { form.releaseDate = BallForm.month(of: .now, in: calendar) }
+        }
+    }
+
     /// "Add …" until set; then the picker and a clear button.
     @ViewBuilder
     private func optionalDate(_ title: String, add: String, date: Binding<Date?>,
-                              range: PartialRangeThrough<Date>?) -> some View {
+                              range: PartialRangeThrough<Date>) -> some View {
         if let value = date.wrappedValue {
             let binding = Binding(get: { value }, set: { date.wrappedValue = $0 })
             HStack {
-                if let range {
-                    DatePicker(title, selection: binding, in: range, displayedComponents: .date)
-                } else {
-                    DatePicker(title, selection: binding, displayedComponents: .date)
-                }
+                DatePicker(title, selection: binding, in: range, displayedComponents: .date)
                 Button {
                     date.wrappedValue = nil
                 } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel(String(localized: "Clear \(title)"))
+                .accessibilityLabel(String(localized: "Clear purchase date"))
             }
         } else {
             Button(add) { date.wrappedValue = Calendar.current.startOfDay(for: .now) }

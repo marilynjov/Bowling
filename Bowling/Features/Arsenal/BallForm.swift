@@ -16,6 +16,12 @@ struct BallForm: Hashable {
     /// `save` was called with a number field that doesn't parse.
     struct InvalidNumber: Error {}
 
+    /// The ball saved but its photo didn't; `error` is what the repository threw.
+    struct PhotoNotSaved: Error {
+        var ballID: BallID
+        var error: any Error
+    }
+
     /// Nil on add.
     var editing: BallID?
     var isRetired = false
@@ -45,6 +51,8 @@ struct BallForm: Hashable {
     var notes = ""
     var photo: PhotoChange = .unchanged
     var locale: Locale
+    /// Turns the release date into its month; tests pass one.
+    var calendar: Calendar = .current
 
     init(locale: Locale = .current) {
         self.locale = locale
@@ -118,7 +126,7 @@ struct BallForm: Hashable {
             rg: rg, differential: differential,
             intermediateDifferential: intermediate,
             intendedRole: intendedRole, serialNumber: serialNumber, colorDescription: colorDescription,
-            releaseDate: releaseDate, purchaseDate: purchaseDate, factoryFinish: factoryFinish,
+            releaseDate: releaseDate.map { Self.month(of: $0, in: calendar) }, purchaseDate: purchaseDate, factoryFinish: factoryFinish,
             surfaceGrit: surfaceGrit, resurfaceIntervalGames: interval, notes: notes
         )
     }
@@ -137,10 +145,21 @@ struct BallForm: Hashable {
         }
         switch photo {
         case .unchanged: break
-        case .set(let data): try store.balls.setPhoto(data, for: id)
-        case .removed: try store.balls.removePhoto(for: id)
+        case .set(let data):
+            do { try store.balls.setPhoto(data, for: id) } catch { throw PhotoNotSaved(ballID: id, error: error) }
+        case .removed:
+            do { try store.balls.removePhoto(for: id) } catch { throw PhotoNotSaved(ballID: id, error: error) }
         }
         return id
+    }
+
+    /// The release date's month (spec §2: month and year): the 1st at noon, so time zones
+    /// up to 12 hours away read the same month.
+    static func month(of date: Date, in calendar: Calendar) -> Date {
+        var parts = calendar.dateComponents([.year, .month], from: date)
+        parts.day = 1
+        parts.hour = 12
+        return calendar.date(from: parts) ?? date
     }
 
     /// The coverstock picker's titles; `.unknown` reads "Not set".
@@ -181,14 +200,20 @@ struct BallForm: Hashable {
     private func decimal(_ text: String) throws -> Double? {
         let text = text.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return nil }
+        // Parsing is lenient about grouping, so "2.52" in es_ES would read as 252. No ball
+        // spec needs a thousands separator, so text with one is refused.
+        if let grouping = locale.groupingSeparator, !grouping.isEmpty, text.contains(grouping) {
+            throw ParseFailure()
+        }
         return try Double(text, format: .number.locale(locale))
     }
 
     /// Nil for blank text; throws unless it's a whole number of at least 1.
     private func interval() throws -> Int? {
         guard let value = try decimal(resurfaceInterval) else { return nil }
-        guard value >= 1, value.rounded() == value, value <= Double(Int.max) else { throw ParseFailure() }
-        return Int(value)
+        // Int(exactly:), not Int(_:): Double(Int.max) rounds up to 2^63, which traps.
+        guard let whole = Int(exactly: value), whole >= 1 else { throw ParseFailure() }
+        return whole
     }
 
     private func text(_ value: Double?) -> String {

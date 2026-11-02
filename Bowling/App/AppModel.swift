@@ -91,10 +91,17 @@ import Observation
 
     /// The ball form's Save: adds or updates the ball and closes the sheet. Does nothing once
     /// the sheet is closed, so a second tap on Save can't add the ball twice.
-    /// - Throws: whatever `BallForm.save` throws; the sheet stays with its values.
+    /// - Throws: whatever `BallForm.save` throws; the sheet stays with its values. When only
+    ///   the photo failed, the ball exists, so the sheet closes (another Save would add it
+    ///   again) and the repository's error shows at the root.
     func saveBall(_ form: BallForm) throws {
         guard ballForm != nil else { return }
-        _ = try write { try form.save(to: $0) }
+        do {
+            _ = try write { try form.save(to: $0) }
+        } catch let failure as BallForm.PhotoNotSaved {
+            ballForm = nil
+            throw failure.error
+        }
         ballForm = nil
     }
 
