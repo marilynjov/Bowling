@@ -11,12 +11,6 @@
         }
       }
     },
-    "%@ · Left-handed" : {
-
-    },
-    "%@ · Right-handed" : {
-
-    },
     "%@ · frame %@" : {
       "localizations" : {
         "en" : {
@@ -37,7 +31,10 @@
         }
       }
     },
-    "%@'s turn" : {
+    "%@ · Left-handed" : {
+
+    },
+    "%@ · Right-handed" : {
 
     },
     "%@, %lld, current turn" : {
@@ -92,6 +89,9 @@
           }
         }
       }
+    },
+    "%@'s turn" : {
+
     },
     "%lld" : {
 
@@ -341,9 +341,6 @@
         }
       }
     },
-    "/ SPARE" : {
-
-    },
     "1 chance" : {
 
     },
@@ -371,28 +368,7 @@
     "1 strike" : {
 
     },
-    "10" : {
-
-    },
-    "105" : {
-
-    },
     "13–14" : {
-
-    },
-    "5" : {
-
-    },
-    "6" : {
-
-    },
-    "68.5%" : {
-
-    },
-    "7-10" : {
-
-    },
-    "87 / 127 chances" : {
 
     },
     "A regular league night, and you want your league average." : {
@@ -401,13 +377,13 @@
     "About" : {
 
     },
+    "Add “%@”" : {
+
+    },
     "Add ball" : {
 
     },
     "Add bowler" : {
-
-    },
-    "Add “%@”" : {
 
     },
     "All 10 pins standing" : {
@@ -417,9 +393,6 @@
 
     },
     "All games %@" : {
-
-    },
-    "All spares" : {
 
     },
     "All time" : {
@@ -452,6 +425,9 @@
     "Balls used" : {
 
     },
+    "both" : {
+
+    },
     "Both" : {
 
     },
@@ -468,9 +444,6 @@
 
     },
     "Brand" : {
-
-    },
-    "Buttons and pins" : {
 
     },
     "Cancel" : {
@@ -509,9 +482,6 @@
     "Close" : {
 
     },
-    "Colors" : {
-
-    },
     "Coming soon" : {
 
     },
@@ -548,10 +518,10 @@
     "Default" : {
 
     },
-    "Default games" : {
+    "Default · %@" : {
 
     },
-    "Default · %@" : {
+    "Default games" : {
 
     },
     "Delete" : {
@@ -677,6 +647,9 @@
     "Follow bowling style (Competition)" : {
 
     },
+    "foul" : {
+
+    },
     "Foul" : {
 
     },
@@ -700,9 +673,6 @@
       }
     },
     "Frame %lld: not bowled" : {
-
-    },
-    "Frame total 98" : {
 
     },
     "Frames %@ and %lld were cleared. Enter them again." : {
@@ -757,6 +727,9 @@
     "Give the ball a name." : {
 
     },
+    "gutter" : {
+
+    },
     "Hand" : {
 
     },
@@ -778,7 +751,13 @@
     "How do you bowl?" : {
 
     },
+    "iCloud sync" : {
+
+    },
     "In a league" : {
+
+    },
+    "in progress" : {
 
     },
     "In progress" : {
@@ -830,6 +809,16 @@
     "Line" : {
 
     },
+    "made %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "made %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Made %lld of %lld" : {
       "localizations" : {
         "en" : {
@@ -840,10 +829,10 @@
         }
       }
     },
-    "Makeable conversion %" : {
+    "makeable" : {
 
     },
-    "Marks" : {
+    "Makeable conversion %" : {
 
     },
     "Miss" : {
@@ -876,10 +865,16 @@
     "No complete games yet." : {
 
     },
+    "no data" : {
+
+    },
     "No first balls yet" : {
 
     },
     "No frames yet" : {
+
+    },
+    "no games yet" : {
 
     },
     "No games yet" : {
@@ -909,19 +904,16 @@
     "Now and then, for fun." : {
 
     },
-    "OK" : {
+    "Oil pattern" : {
 
     },
-    "Oil pattern" : {
+    "OK" : {
 
     },
     "Open %" : {
 
     },
     "Other" : {
-
-    },
-    "Perfect game" : {
 
     },
     "Pin %lld, down" : {
@@ -945,9 +937,6 @@
     "Quick score" : {
 
     },
-    "RG and differentials can't be negative." : {
-
-    },
     "Recent sessions" : {
 
     },
@@ -960,13 +949,22 @@
     "Resume" : {
 
     },
+    "resurface due" : {
+
+    },
     "Resurface due" : {
+
+    },
+    "retired" : {
 
     },
     "Retired (%lld)" : {
 
     },
     "Retry" : {
+
+    },
+    "RG and differentials can't be negative." : {
 
     },
     "Right" : {
@@ -976,9 +974,6 @@
 
     },
     "Rotate bowlers" : {
-
-    },
-    "STRIKE" : {
 
     },
     "Save" : {
@@ -1030,16 +1025,25 @@
         }
       }
     },
+    "single pin" : {
+
+    },
     "Single-pin conversion %" : {
 
     },
     "Something went wrong" : {
 
     },
+    "spare" : {
+
+    },
     "Spare" : {
 
     },
     "Spare %" : {
+
+    },
+    "split" : {
 
     },
     "Split" : {
@@ -1055,6 +1059,9 @@
 
     },
     "Stats" : {
+
+    },
+    "strike" : {
 
     },
     "Strike" : {
@@ -1076,9 +1083,6 @@
 
     },
     "Tap what fell" : {
-
-    },
-    "Text styles" : {
 
     },
     "That item no longer exists. It may have been deleted." : {
@@ -1182,6 +1186,9 @@
     "This week" : {
 
     },
+    "total %lld" : {
+
+    },
     "Tournament" : {
 
     },
@@ -1205,6 +1212,9 @@
 
     },
     "Version" : {
+
+    },
+    "washout" : {
 
     },
     "Washout" : {
@@ -1250,64 +1260,6 @@
 
     },
     "Your sessions show up here." : {
-
-    },
-    "both" : {
-
-    },
-    "foul" : {
-
-    },
-    "gutter" : {
-
-    },
-    "iCloud sync" : {
-
-    },
-    "in progress" : {
-
-    },
-    "made %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "made %1$lld of %2$lld"
-          }
-        }
-      }
-    },
-    "makeable" : {
-
-    },
-    "no data" : {
-
-    },
-    "no games yet" : {
-
-    },
-    "resurface due" : {
-
-    },
-    "retired" : {
-
-    },
-    "single pin" : {
-
-    },
-    "spare" : {
-
-    },
-    "split" : {
-
-    },
-    "strike" : {
-
-    },
-    "total %lld" : {
-
-    },
-    "washout" : {
 
     }
   },

@@ -35,9 +35,11 @@ If either test's wording changes, update this page in the same PR.
   "Pin 7, standing".
 - The deck reads its summary, for example "3 pins standing: 4, 7, 10". With nothing
   marked it reads "No pins standing".
-- A finished frame reads like "Frame 1: strike, total 20".
+- A frame reads its marks, then its total once the total is known, like "Frame 1: strike,
+  total 20". A strike waits for the next two balls and a spare for the next one: frame 1
+  reads "Frame 1: strike" until frame 2's spare is in.
 
-| Frame | Rolls | What to do | What to hear afterwards on the scorecard |
+| Frame | Rolls | What to do | What the frame reads once its total is known |
 |---|---|---|---|
 | 1 | X | Double-tap **Strike** | "Frame 1: strike, total 20" |
 | 2 | 7 / | Mark pins 4, 7 and 10, hear "3 pins standing: 4, 7, 10", double-tap **Next**, then **Spare** | "Frame 2: 7, spare, total 39" |
