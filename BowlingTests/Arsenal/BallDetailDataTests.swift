@@ -243,3 +243,84 @@ import Testing
         #expect(row.date == BallDetailData.Format(calendar: calendar, locale: Locale(identifier: "en_US")).day(now))
     }
 }
+
+@Suite struct BallDetailLoadTests {
+    let store: BowlingStore
+    let owner: BowlerRecord
+    let ball: BallID
+
+    init() throws {
+        store = try BowlingStore(inMemory: true)
+        owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        ball = try store.balls.addBall(BallFields(name: "Phaze", weightPounds: 15)).id
+    }
+
+    /// One final-only game of `type` with `ball` as default, `daysAgo` days back; complete
+    /// unless `complete` is false. Returns the game's ID.
+    @discardableResult
+    func game(_ type: EventType = .league, ball: BallID? = nil, daysAgo: Int = 1, score: Int = 200,
+              complete: Bool = true) throws -> GameID {
+        let id = try store.sessions.startSession(
+            SessionMetadata(date: .now.addingTimeInterval(-86_400 * Double(daysAgo)), eventType: type),
+            bowlers: [(bowlerID: owner.id, defaultBallID: ball ?? self.ball)], entryMode: .finalOnly
+        )
+        let game = try #require(try store.sessions.session(id).bowlers.first?.games.first?.id)
+        if complete { try store.games.setFinalScore(score, for: game) }
+        return game
+    }
+
+    func filter(_ types: Set<EventType> = Set(EventType.allCases), bowler: BowlerID? = nil, name: String = "Sam") -> StatsFilterDraft {
+        StatsFilterDraft(filter: StatsFilter(eventTypes: types, bowlerID: bowler ?? owner.id), bowlerName: name)
+    }
+
+    @Test func unknownBallThrows() {
+        #expect(throws: RepositoryError.notFound) {
+            try BallDetailData.load(id: BallID(), store: store, filter: filter())
+        }
+    }
+
+    @Test func recentGamesNewestFirstAtMostTen() throws {
+        let ids = try (1...12).map { try game(daysAgo: $0, score: 150 + $0) }
+        let recent = try BallDetailData.load(id: ball, store: store, filter: filter()).recent
+        #expect(recent.count == 10)
+        #expect(recent.map(\.id) == Array(ids.prefix(10)))
+    }
+
+    @Test func recentGamesOnlyUseTheBall() throws {
+        let other = try store.balls.addBall(BallFields(name: "Pearl", weightPounds: 15)).id
+        let mine = try game()
+        try game(ball: other, daysAgo: 2)
+        #expect(try BallDetailData.load(id: ball, store: store, filter: filter()).recent.map(\.id) == [mine])
+    }
+
+    @Test func incompleteGamesAreLeftOut() throws {
+        let done = try game(daysAgo: 2)
+        try game(daysAgo: 1, complete: false)
+        #expect(try BallDetailData.load(id: ball, store: store, filter: filter()).recent.map(\.id) == [done])
+    }
+
+    @Test func recentGamesFollowTheFilter() throws {
+        let league = try game(.league, daysAgo: 2)
+        try game(.practice, daysAgo: 1)
+        let data = try BallDetailData.load(id: ball, store: store, filter: filter(EventType.competition))
+        #expect(data.recent.map(\.id) == [league])
+    }
+
+    @Test func noGamesInFilterKeepsMaintenance() throws {
+        try game(.practice, daysAgo: 2)
+        try game(.practice, daysAgo: 1)
+        let data = try BallDetailData.load(id: ball, store: store, filter: filter(EventType.competition))
+        #expect(data.performance.isEmpty)
+        #expect(data.recent.isEmpty)
+        #expect(data.maintenance.summary == "Never resurfaced · 2 games")
+    }
+
+    @Test func friendFilterStillShowsOwnersGames() throws {
+        let friend = try store.bowlers.createBowler(name: "Alex")
+        let mine = try game()
+        let data = try BallDetailData.load(id: ball, store: store, filter: filter(bowler: friend.id, name: "Alex"))
+        #expect(data.recent.map(\.id) == [mine])
+        #expect(data.chips.contains("Sam"))
+        #expect(!data.chips.contains("Alex"))
+    }
+}

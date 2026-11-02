@@ -113,6 +113,30 @@ struct BallDetailData: Hashable {
         }
     }
 
+    /// Reads the ball, its games under `filter`, and the names the screen shows.
+    /// The filter's dates and event types apply, but always to the owner's games: balls are
+    /// the owner's, so a friend in the Stats filter would empty every ball's page.
+    /// - Throws: `.notFound` for an unknown ball.
+    static func load(id: BallID, store: BowlingStore, filter: StatsFilterDraft, now: Date = .now,
+                     calendar: Calendar = .current, locale: Locale = .current) throws -> BallDetailData {
+        let detail = try store.balls.detail(for: id)
+        var draft = filter
+        if let owner = store.bowlers.owner() {
+            draft.filter.bowlerID = owner.id
+            draft.bowlerName = owner.name
+        }
+        let games = store.stats.games(matching: draft.filter, now: now, calendar: calendar)
+        let report = StatsEngine.ballReport(for: id, games: games, maintenance: try store.balls.maintenance(for: id))
+        let recent = games.filter { $0.isComplete && $0.uses(id) }.suffix(10).reversed()
+        return BallDetailData(
+            fields: detail.fields, isRetired: detail.isRetired, report: report, recentGames: Array(recent),
+            filterChips: draft.chips,
+            centerNames: Dictionary(store.sessions.centers().map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a }),
+            patternNames: Dictionary(store.sessions.oilPatterns().map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a }),
+            calendar: calendar, locale: locale
+        )
+    }
+
     // MARK: Performance
 
     private static func performance(_ report: BallReport, role: BallRole) -> [PerformanceBlock] {
