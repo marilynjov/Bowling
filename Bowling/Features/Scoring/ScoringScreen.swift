@@ -147,6 +147,7 @@ private struct ScoringContent: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .accessibilityIdentifier("scoring.next")
             }
         }
     }
