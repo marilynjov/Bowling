@@ -91,47 +91,249 @@
 
     },
     "%lld bowlers" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bowler"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bowlers"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld chances" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld chance"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld chances"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld first balls" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld first ball"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld first balls"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld frames" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld games" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld game"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld games"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld lb" : {
 
     },
     "%lld leaves" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld leave"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld leaves"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld pins standing: %@" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld pins standing: %2$@"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld pin standing: %2$@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld pins standing: %2$@"
+                }
+              }
+            }
           }
         }
       }
     },
     "%lld pounds" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pound"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pounds"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld sessions" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld session"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld sessions"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld spares" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld spare"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld spares"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld strikes" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld strike"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld strikes"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/ SPARE" : {
 
@@ -339,7 +541,26 @@
 
     },
     "Delete this session? Its %lld games will be deleted." : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete this session? Its %lld game will be deleted."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete this session? Its %lld games will be deleted."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Delete this session? Its 1 game will be deleted." : {
 
@@ -695,7 +916,26 @@
 
     },
     "Show all %lld leaves" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Show %lld leave"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Show all %lld leaves"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Single-pin conversion %" : {
 
@@ -761,13 +1001,51 @@
 
     },
     "This ball was used in %lld games. Retire it instead." : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This ball was used in %lld game. Retire it instead."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This ball was used in %lld games. Retire it instead."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "This ball was used in 1 game. Retire it instead." : {
 
     },
     "This bowler has %lld games. Delete them first." : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This bowler has %lld game. Delete it first."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This bowler has %lld games. Delete them first."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "This bowler has 1 game. Delete it first." : {
 

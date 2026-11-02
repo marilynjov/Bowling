@@ -1,5 +1,7 @@
+import BowlingCore
 import Foundation
 import Testing
+@testable import Bowling
 
 /// The source String Catalog. The app bundle carries only the compiled `.strings`, so the
 /// tests read the committed file next to the sources.
@@ -53,5 +55,25 @@ enum StringCatalog {
     @Test(arguments: ["Start session", "New session", "Game complete", "Pin %lld, standing"])
     func appCopyIsInTheCatalog(key: String) throws {
         #expect(try StringCatalog.load().strings[key] != nil)
+    }
+
+    /// Every string that counts something reads "1 game", not "1 games".
+    @Test(arguments: [
+        "%lld bowlers", "%lld chances", "%lld first balls", "%lld frames", "%lld games", "%lld leaves",
+        "%lld pins standing: %@", "%lld pounds", "%lld sessions", "%lld spares", "%lld strikes",
+        "Show all %lld leaves", "Delete this session? Its %lld games will be deleted.",
+        "This ball was used in %lld games. Retire it instead.",
+        "This bowler has %lld games. Delete them first.",
+    ])
+    func countedStringsHavePluralForms(key: String) throws {
+        let entry = try #require(try StringCatalog.load().strings[key])
+        #expect(entry.hasPluralVariants)
+    }
+
+    /// The compiled catalog is what the app reads: one game is "1 game".
+    @Test func appReadsThePluralForms() {
+        #expect(String(localized: "\(1) games") == "1 game")
+        #expect(String(localized: "\(3) games") == "3 games")
+        #expect(AccessibilityText.deckSummary(standing: PinSet(pins: [4, 7, 10])) == "3 pins standing: 4, 7, 10")
     }
 }
