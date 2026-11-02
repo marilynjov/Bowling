@@ -25,9 +25,9 @@ struct BallChip: View {
         .accessibilityLabel("Ball, \(name)")
     }
 
-    /// The ball's name, or "No ball" (also for a ball no longer active).
+    /// The ball's name, active or retired, or "No ball" (also for a deleted ball).
     private var name: String {
-        model.balls.first { $0.id == model.rollBallID }?.name ?? "No ball"
+        model.rollBallName ?? String(localized: "No ball")
     }
 
     private func pick(_ title: String, id: BallID?) -> some View {

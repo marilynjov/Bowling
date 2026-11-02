@@ -116,7 +116,7 @@ struct BallFormSheet: View {
             TextField("Core name", text: $form.coreName)
             number("RG", text: $form.rg, field: .rg)
             number("Differential", text: $form.differential, field: .differential)
-            if form.coreType == .asymmetric {
+            if form.showsIntermediateDifferential {
                 number("Intermediate differential", text: $form.intermediateDifferential, field: .intermediateDifferential)
             }
             TextField("Factory finish", text: $form.factoryFinish)

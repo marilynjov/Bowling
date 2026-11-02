@@ -38,7 +38,7 @@ struct BallForm: Hashable {
     var coreName = ""
     var rg = ""
     var differential = ""
-    /// Saved only for an asymmetric core.
+    /// Dropped on save for a symmetric or pancake core.
     var intermediateDifferential = ""
     var factoryFinish = ""
     var releaseDate: Date?
@@ -84,6 +84,19 @@ struct BallForm: Hashable {
         notes = fields.notes
     }
 
+    /// Shown for an asymmetric core, and for an unset or unrecognized one (`.unknown`) that
+    /// has a value, so a value stored by a newer version stays visible.
+    var showsIntermediateDifferential: Bool {
+        coreType == .asymmetric || (coreType == .unknown && !intermediateDifferential.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+
+    /// Only a known non-asymmetric core drops the intermediate differential. `.unknown`
+    /// keeps it: `updateBall` keeps such a ball's stored core type, so dropping it here
+    /// would erase a real value on any edit.
+    private var dropsIntermediateDifferential: Bool {
+        coreType == .symmetric || coreType == .pancake
+    }
+
     /// A name that isn't blank, a picked weight, and every number field valid.
     var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && fields() != nil
@@ -92,7 +105,7 @@ struct BallForm: Hashable {
     /// The message under a number field, or nil when it's blank or valid.
     func fieldError(_ field: NumberField) -> String? {
         // The field is hidden for other cores, so it never blocks Save there.
-        if field == .intermediateDifferential, coreType != .asymmetric { return nil }
+        if field == .intermediateDifferential, dropsIntermediateDifferential { return nil }
         // `try?` would read a blank field's nil as a failure, so catch instead.
         do {
             switch field {
@@ -115,7 +128,7 @@ struct BallForm: Hashable {
         do {
             rg = try decimal(self.rg)
             differential = try decimal(self.differential)
-            intermediate = coreType == .asymmetric ? try decimal(intermediateDifferential) : nil
+            intermediate = dropsIntermediateDifferential ? nil : try decimal(intermediateDifferential)
             interval = try self.interval()
         } catch {
             return nil

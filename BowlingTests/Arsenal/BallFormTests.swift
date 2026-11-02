@@ -108,6 +108,30 @@ import Testing
         #expect(draft.fieldError(.intermediateDifferential) == nil)
     }
 
+    @Test func unknownCoreKeepsIntermediateDifferentialOnEdit() throws {
+        let before = try store.balls.addBall(BallFields(name: "Phaze", weightPounds: 15, intermediateDifferential: 0.015))
+        #expect(before.fields.coreType == .unknown)
+        var draft = BallForm(editing: before.id, detail: before, locale: us)
+        #expect(draft.showsIntermediateDifferential)
+        draft.name = "Phaze II"
+        _ = try draft.save(to: store)
+        #expect(try store.balls.detail(for: before.id).fields.intermediateDifferential == 0.015)
+    }
+
+    @Test func intermediateDifferentialVisibility() {
+        var draft = form()
+        #expect(!draft.showsIntermediateDifferential)       // unknown core, nothing stored
+        draft.intermediateDifferential = "abc"
+        #expect(draft.showsIntermediateDifferential)        // unknown core with a value: shown and checked
+        #expect(draft.fieldError(.intermediateDifferential) == "Enter a number")
+        draft.coreType = .pancake
+        #expect(!draft.showsIntermediateDifferential)
+        #expect(draft.fieldError(.intermediateDifferential) == nil)
+        draft.coreType = .asymmetric
+        draft.intermediateDifferential = ""
+        #expect(draft.showsIntermediateDifferential)
+    }
+
     @Test func factoryFinishSeedsTheSurfaceOnAdd() throws {
         var draft = form()
         draft.factoryFinish = "1500 Abralon"
