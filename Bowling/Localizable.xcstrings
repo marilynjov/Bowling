@@ -11,6 +11,12 @@
         }
       }
     },
+    "%@ · Left-handed" : {
+
+    },
+    "%@ · Right-handed" : {
+
+    },
     "%@ · frame %@" : {
       "localizations" : {
         "en" : {
@@ -392,6 +398,9 @@
     "87 / 127 chances" : {
 
     },
+    "About" : {
+
+    },
     "Add ball" : {
 
     },
@@ -417,6 +426,9 @@
 
     },
     "Arsenal" : {
+
+    },
+    "Auto-advance on spares" : {
 
     },
     "Average" : {
@@ -450,6 +462,9 @@
 
     },
     "Bowling" : {
+
+    },
+    "Bowling style" : {
 
     },
     "Brand" : {
@@ -494,13 +509,16 @@
     "Colors" : {
 
     },
-    "Coming in #13" : {
+    "Coming soon" : {
 
     },
     "Coming soon." : {
 
     },
     "Competition" : {
+
+    },
+    "Competitive" : {
 
     },
     "Continue" : {
@@ -515,7 +533,13 @@
     "Date" : {
 
     },
+    "Decides which stats you see first." : {
+
+    },
     "Default" : {
+
+    },
+    "Default games" : {
 
     },
     "Default · %@" : {
@@ -533,6 +557,15 @@
           }
         }
       }
+    },
+    "Delete all data" : {
+
+    },
+    "Delete all data?" : {
+
+    },
+    "Delete everything" : {
+
     },
     "Delete game" : {
 
@@ -575,6 +608,9 @@
 
     },
     "Done" : {
+
+    },
+    "Each night starts with this. You can still switch it in Scoring." : {
 
     },
     "Edit" : {
@@ -621,6 +657,12 @@
 
     },
     "First-ball average" : {
+
+    },
+    "Follow bowling style (All games)" : {
+
+    },
+    "Follow bowling style (Competition)" : {
 
     },
     "Foul" : {
@@ -703,6 +745,9 @@
     "Give the ball a name." : {
 
     },
+    "Hand" : {
+
+    },
     "Head pin %" : {
 
     },
@@ -753,6 +798,9 @@
       }
     },
     "Leaves" : {
+
+    },
+    "Left" : {
 
     },
     "Left most, made least" : {
@@ -831,6 +879,9 @@
     "No pins standing" : {
 
     },
+    "None" : {
+
+    },
     "Notes" : {
 
     },
@@ -858,7 +909,13 @@
     "Pin by pin" : {
 
     },
+    "Pin entry" : {
+
+    },
     "Practice" : {
+
+    },
+    "Profile" : {
 
     },
     "Quick score" : {
@@ -870,13 +927,25 @@
     "Recent sessions" : {
 
     },
+    "Records the second ball once it makes a spare." : {
+
+    },
     "Replace" : {
 
     },
     "Resume" : {
 
     },
+    "Resurface due" : {
+
+    },
+    "Retired (%lld)" : {
+
+    },
     "Retry" : {
+
+    },
+    "Right" : {
 
     },
     "Role" : {
@@ -976,6 +1045,12 @@
     "Summary" : {
 
     },
+    "Tap standing" : {
+
+    },
+    "Tap what fell" : {
+
+    },
     "Text styles" : {
 
     },
@@ -1050,7 +1125,13 @@
     "This bowler has 1 game. Delete it first." : {
 
     },
+    "This can't be undone." : {
+
+    },
     "This decides which stats you see. You can change it anytime in Settings." : {
+
+    },
+    "This deletes every session, game, ball and your profile from this iPhone." : {
 
     },
     "This game couldn't be opened." : {
@@ -1090,7 +1171,13 @@
         }
       }
     },
+    "Unarchive “%@”" : {
+
+    },
     "Undo" : {
+
+    },
+    "Version" : {
 
     },
     "Washout" : {
@@ -1106,6 +1193,9 @@
 
     },
     "What if" : {
+
+    },
+    "Where Stats and Home start. You can still change it on Stats." : {
 
     },
     "You bowl" : {
@@ -1144,6 +1234,9 @@
     "gutter" : {
 
     },
+    "iCloud sync" : {
+
+    },
     "in progress" : {
 
     },
@@ -1164,6 +1257,12 @@
 
     },
     "no games yet" : {
+
+    },
+    "resurface due" : {
+
+    },
+    "retired" : {
 
     },
     "single pin" : {

@@ -47,7 +47,7 @@ enum StringCatalog {
     }
 
     @Test(arguments: ["Strike", "Spare", "Miss", "Foul", "Undo", "Next", "No ball", "Center", "League",
-                      "Oil pattern", "Continue"])
+                      "Oil pattern", "Continue", "None"])
     func catalogHasTheFixedTitles(key: String) throws {
         #expect(try StringCatalog.load().strings[key] != nil)
     }
