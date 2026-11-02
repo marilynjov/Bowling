@@ -79,6 +79,8 @@ struct BallDetailData: Hashable {
     }
 
     var header: Header
+    /// The header shows the photo or the #28 placeholder.
+    var hasPhoto: Bool
     /// Only the values that are set; the section hides when empty.
     var specs: [SpecRow]
     var maintenance: Maintenance
@@ -95,11 +97,12 @@ struct BallDetailData: Hashable {
     /// In the order given: newest first.
     var recent: [RecentGame]
 
-    init(fields: BallFields, isRetired: Bool, report: BallReport, recentGames: [GameRecord],
+    init(fields: BallFields, isRetired: Bool, hasPhoto: Bool = false, report: BallReport, recentGames: [GameRecord],
          filterChips: [String], centerNames: [CenterID: String], patternNames: [OilPatternID: String],
          calendar: Calendar = .current, locale: Locale = .current) {
         let format = Format(calendar: calendar, locale: locale)
         header = Self.header(fields, isRetired: isRetired)
+        self.hasPhoto = hasPhoto
         specs = Self.specs(fields, format)
         maintenance = Self.maintenance(report.maintenance, format)
         chips = filterChips
@@ -129,7 +132,7 @@ struct BallDetailData: Hashable {
         let report = StatsEngine.ballReport(for: id, games: games, maintenance: try store.balls.maintenance(for: id))
         let recent = games.filter { $0.isComplete && $0.uses(id) }.suffix(10).reversed()
         return BallDetailData(
-            fields: detail.fields, isRetired: detail.isRetired, report: report, recentGames: Array(recent),
+            fields: detail.fields, isRetired: detail.isRetired, hasPhoto: detail.hasPhoto, report: report, recentGames: Array(recent),
             filterChips: draft.chips,
             centerNames: Dictionary(store.sessions.centers().map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a }),
             patternNames: Dictionary(store.sessions.oilPatterns().map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a }),
