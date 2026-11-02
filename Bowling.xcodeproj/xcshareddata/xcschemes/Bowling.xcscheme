@@ -39,6 +39,16 @@
                ReferencedContainer = "container:Bowling.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "8F8012763094E3E800B83201"
+               BuildableName = "BowlingUITests.xctest"
+               ReferencedContainer = "container:Bowling.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -78,6 +78,7 @@ struct PinDeckView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(AccessibilityText.pin(pin, standing: isStanding))
             .accessibilityAddTraits(isAvailable ? .isButton : [])
+            .accessibilityIdentifier("pin.\(pin)")
             .accessibilityAction {
                 guard isAvailable else { return }
                 var marking = PinMarking(available: available, standing: standing)

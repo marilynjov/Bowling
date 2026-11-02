@@ -4,7 +4,13 @@ import SwiftUI
     @State private var loader: StoreLoader
 
     init() {
+        #if DEBUG
+        let loader = UITestLaunch.isActive()
+            ? StoreLoader(open: UITestLaunch.openStore, defaults: UITestLaunch.defaults())
+            : StoreLoader()
+        #else
         let loader = StoreLoader()
+        #endif
         loader.load()
         _loader = State(initialValue: loader)
     }

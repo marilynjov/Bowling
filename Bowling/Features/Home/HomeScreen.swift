@@ -45,6 +45,7 @@ struct HomeScreen: View {
             Button { app.isStartingSession = true } label: {
                 Text("Start session").frame(maxWidth: .infinity)
             }
+            .accessibilityIdentifier("home.startSession")
             .buttonStyle(.borderedProminent)
             .tint(.accent)
             Button { app.isQuickScoring = true } label: {
