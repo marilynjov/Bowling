@@ -20,7 +20,7 @@ struct GameCompletePanel: View {
                 Button(action: session.showSummary) {
                     Text("Summary").frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .controlSize(.large)
             }
             if model.game.entryMode == .finalOnly {

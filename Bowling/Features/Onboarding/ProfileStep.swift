@@ -40,8 +40,8 @@ struct ProfileStep: View {
                         .font(.headline)
                         .foregroundStyle(.ink)
                     handLayout {
-                        hand("Right", .right)
-                        hand("Left", .left)
+                        hand(String(localized: "Right"), .right)
+                        hand(String(localized: "Left"), .left)
                     }
                 }
             }

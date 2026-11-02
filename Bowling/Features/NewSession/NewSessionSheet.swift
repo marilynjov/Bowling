@@ -125,7 +125,7 @@ struct NewSessionSheet: View {
     }
 
     private func ballName(_ id: BallID?) -> String {
-        balls.first { $0.id == id }.map(BallPicker.label) ?? "No ball"
+        balls.first { $0.id == id }.map(BallPicker.label) ?? String(localized: "No ball")
     }
 
     /// Lists reload after every write; the draft is made once, from the remembered values.

@@ -45,7 +45,7 @@ struct SessionDetailScreen: View {
                     Button { app.resume(target) } label: {
                         Text("Resume").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .prominentButton()
                     .tint(.accent)
                     .controlSize(.large)
                 }

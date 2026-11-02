@@ -344,9 +344,6 @@
     "/ SPARE" : {
 
     },
-    "0" : {
-
-    },
     "1 chance" : {
 
     },
@@ -396,6 +393,9 @@
 
     },
     "87 / 127 chances" : {
+
+    },
+    "A regular league night, and you want your league average." : {
 
     },
     "About" : {
@@ -479,6 +479,9 @@
     "Casual" : {
 
     },
+    "Casually" : {
+
+    },
     "Center" : {
 
     },
@@ -521,10 +524,16 @@
     "Competitive" : {
 
     },
+    "Competitively" : {
+
+    },
     "Continue" : {
 
     },
     "Count" : {
+
+    },
+    "Count only" : {
 
     },
     "Custom" : {
@@ -636,6 +645,9 @@
 
     },
     "Enter frames to see strikes and spares." : {
+
+    },
+    "Enter how many pins fell on each ball." : {
 
     },
     "Enter pins to see leaves" : {
@@ -766,7 +778,13 @@
     "How do you bowl?" : {
 
     },
+    "In a league" : {
+
+    },
     "In progress" : {
+
+    },
+    "Just type the game's score." : {
 
     },
     "Lanes" : {
@@ -785,6 +803,9 @@
 
     },
     "League" : {
+
+    },
+    "Leagues and tournaments, and you want every number." : {
 
     },
     "Leave %@, %@" : {
@@ -883,6 +904,9 @@
 
     },
     "Notes" : {
+
+    },
+    "Now and then, for fun." : {
 
     },
     "OK" : {
@@ -1046,6 +1070,9 @@
 
     },
     "Tap standing" : {
+
+    },
+    "Tap the pins on each ball. Unlocks leaves, splits, and spare stats." : {
 
     },
     "Tap what fell" : {

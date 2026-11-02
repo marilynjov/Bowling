@@ -4,9 +4,13 @@ Run once on an iPhone before merging an accessibility change (#14), and after ch
 Scoring, the pin deck or the scorecard. The pass condition: a full game can be scored by
 ear, without looking at the screen.
 
-The phrases below come from `AccessibilityText` and are checked by
-`BowlingTests/Components/AccessibilityTextTests.swift`. If a test's wording changes,
-update this page in the same PR.
+The phrases below come from `AccessibilityText`:
+- `BowlingTests/Scoring/UITestGameTests.swift` asserts every frame phrase and deck summary
+  quoted for this game.
+- `BowlingTests/Components/AccessibilityTextTests.swift` checks the general formats
+  ("Pin 7, standing", "Frame 8: not bowled").
+
+If either test's wording changes, update this page in the same PR.
 
 ## Setup
 

@@ -14,11 +14,14 @@ struct ScoringModesStep: View {
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
     }
 
-    private static let modes: [(title: String, detail: String, isDefault: Bool)] = [
-        ("Pin by pin", "Tap the pins on each ball. Unlocks leaves, splits, and spare stats.", true),
-        ("Count only", "Enter how many pins fell on each ball.", false),
-        ("Final score", "Just type the game's score.", false),
-    ]
+    private static var modes: [(title: String, detail: String, isDefault: Bool)] {
+        [
+            (String(localized: "Pin by pin"),
+             String(localized: "Tap the pins on each ball. Unlocks leaves, splits, and spare stats."), true),
+            (String(localized: "Count only"), String(localized: "Enter how many pins fell on each ball."), false),
+            (String(localized: "Final score"), String(localized: "Just type the game's score."), false),
+        ]
+    }
 
     var body: some View {
         ScrollView {

@@ -46,6 +46,6 @@ struct SessionPlaceSection: View {
     }
 
     private func name(of id: UUID?, in items: [some NamedItem]) -> String {
-        items.first { $0.id == id }?.name ?? "None"
+        items.first { $0.id == id }?.name ?? String(localized: "None")
     }
 }

@@ -9,6 +9,11 @@ final class AccessibilityAuditUITests: XCTestCase {
         continueAfterFailure = true
     }
 
+    override func tearDown() {
+        XCUIDevice.shared.appearance = .light
+        super.tearDown()
+    }
+
     @MainActor
     func testGameFlowAtDefaultSize() throws {
         try walk(arguments: ["-uiTesting"])
@@ -17,6 +22,14 @@ final class AccessibilityAuditUITests: XCTestCase {
     @MainActor
     func testGameFlowAtAX5() throws {
         try walk(arguments: ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+    }
+
+    /// Dark mode at the default size: the theme has its own dark pairs (OnAccent on
+    /// AccentColor, and so on) that the light runs never see.
+    @MainActor
+    func testGameFlowInDarkMode() throws {
+        XCUIDevice.shared.appearance = .dark
+        try walk(arguments: ["-uiTesting"])
     }
 
     /// The #15 game, auditing each screen on the way.
@@ -81,10 +94,14 @@ final class AccessibilityAuditUITests: XCTestCase {
         let element = issue.element
         let frame = element?.frame ?? .zero
         let type = issue.auditType
-        let isPinNumber = screen == "Scoring" && (1...10).map(String.init).contains(element?.label ?? "")
-        let isToolbarButton = element?.elementType == .button && app.navigationBars.firstMatch.frame.contains(frame)
-        let isUnderTabBar = app.tabBars.firstMatch.exists && app.tabBars.firstMatch.frame.intersects(frame)
+        // The number inside a pin, not a scorecard digit with the same text.
+        let isPinNumber = screen == "Scoring" && element?.elementType == .staticText
+            && (1...10).contains { app.buttons["pin.\($0)"].frame.contains(frame) }
+        let isToolbarButton = screen == "New session" && element?.elementType == .button
+            && (element?.identifier == "newSession.start" || element?.label == "Cancel")
+        let isUnderTabBar = screen == "Home" && app.tabBars.firstMatch.frame.intersects(frame)
         let isCutByScreenEdge = screen == "Scoring" && frame.maxX > app.windows.firstMatch.frame.maxX
+        let isEmptyStatValue = element?.elementType == .staticText && element?.label == "–"
         let isNewSessionFormText = screen == "New session" && element?.elementType == .staticText
             && ["Bowlers", "Sam", "You can switch before the first roll."].contains(element?.label ?? "")
         // A pin's number stops growing at AX2 so it fits its circle while the deck still fits
@@ -98,6 +115,9 @@ final class AccessibilityAuditUITests: XCTestCase {
             || (type == .contrast && isUnderTabBar)
             // A scorecard frame cut by the screen edge of the sideways-scrolling strip.
             || (type == .contrast && isCutByScreenEdge)
+            // A tile's "no data" dash: Ink on Surface, a pair ThemeTests checks in both modes;
+            // the audit samples too few pixels of one thin glyph. VoiceOver reads "no data".
+            || (type == .contrast && isEmptyStatValue)
             // Plain Form text in the New session sheet, flagged at the default size only. The
             // AX5 audit of the same sheet doesn't flag it while it does flag the toolbar, so
             // it does grow; nothing in the app caps it ("Sam" is the -uiTesting owner).

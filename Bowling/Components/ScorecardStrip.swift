@@ -84,7 +84,7 @@ private struct FrameCell: View {
             // takes it out of what the audit checks.
             let total = FrameText.total(for: frame)
             Group {
-                if total.isEmpty { Text("0").hidden() } else { Text(total) }
+                if total.isEmpty { Text(verbatim: "0").hidden() } else { Text(total) }
             }
             .font(.frameTotal)
             .monospacedDigit()
@@ -110,7 +110,7 @@ private struct MarkBox: View {
     var body: some View {
         // An empty box keeps its height with a hidden "0", as the total does.
         Group {
-            if let mark { Text(FrameText.symbol(for: mark)) } else { Text("0").hidden() }
+            if let mark { Text(FrameText.symbol(for: mark)) } else { Text(verbatim: "0").hidden() }
         }
             .font(.frameMark)
             .foregroundStyle(mark.map { Color(Theme.color(for: $0)) } ?? Color(.ink))

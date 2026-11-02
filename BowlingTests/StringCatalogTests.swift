@@ -41,6 +41,11 @@ enum StringCatalog {
         #expect(catalog.strings.count > 100)
     }
 
+    @Test func noPlaceholderKeys() throws {
+        // Layout placeholders such as the scorecard's hidden "0" aren't copy.
+        #expect(try StringCatalog.load().strings["0"] == nil)
+    }
+
     @Test func noKeyIsStale() throws {
         let stale = try StringCatalog.load().strings.filter { $0.value.extractionState == "stale" }.keys
         #expect(stale.isEmpty, "Stale keys: \(stale.sorted())")
@@ -52,7 +57,11 @@ enum StringCatalog {
         #expect(try StringCatalog.load().strings[key] != nil)
     }
 
-    @Test(arguments: ["Start session", "New session", "Game complete", "Pin %lld, standing"])
+    @Test(arguments: ["Start session", "New session", "Game complete", "Pin %lld, standing",
+                      // Copy kept in String-typed tables and properties (#14 final review).
+                      "Count only", "Just type the game's score.", "Enter how many pins fell on each ball.",
+                      "Casually", "In a league", "Competitively", "Now and then, for fun.",
+                      "Game %lld · %@"])
     func appCopyIsInTheCatalog(key: String) throws {
         #expect(try StringCatalog.load().strings[key] != nil)
     }
