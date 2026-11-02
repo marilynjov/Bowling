@@ -15,6 +15,33 @@ import Testing
         try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
     }
 
+    @Test func deleteAllDataReturnsToFirstLaunch() throws {
+        let suite = UserDefaults(suiteName: "test.\(UUID())")!
+        let app = AppModel(store: try BowlingStore(inMemory: true),
+                           sessionDefaults: SessionDefaultsStore(suite), scoringSettings: ScoringSettings(suite))
+        let sam = try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
+        app.statsFilter = StatsFilterDraft(filter: StatsFilter(bowlerID: sam.id), bowlerName: sam.name)
+        app.isQuickScoring = true
+        try app.quickScore(200)
+        app.sessionDefaults.save(SessionDefaults(centerID: UUID()), for: .league)
+        app.scoringSettings.tapWhatFell = true
+        app.selectedTab = .stats
+        app.historyPath = [.session(try #require(app.savedQuickScore).sessionID)]
+        #expect(app.savedQuickScore != nil)
+
+        try app.deleteAllData()
+
+        #expect(app.needsOnboarding)
+        #expect(app.store.sessions.sessions().isEmpty)
+        #expect(app.sessionDefaults.lastEventType == .practice)
+        #expect(app.sessionDefaults.defaults(for: .league) == SessionDefaults())
+        #expect(!app.scoringSettings.tapWhatFell)
+        #expect(app.savedQuickScore == nil)
+        #expect(app.selectedTab == .home)
+        #expect(app.historyPath.isEmpty)
+        #expect(app.statsFilter == nil)
+    }
+
     @Test func writeBumpsRevision() throws {
         #expect(app.revision == 0)
         let owner = try createOwner()

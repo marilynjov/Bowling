@@ -21,4 +21,16 @@ import Testing
         #expect(settings.autoAdvanceOnSpare)
         #expect(settings.rotateBowlers == false)
     }
+
+    @Test func resetRestoresDefaults() {
+        let settings = ScoringSettings(suite)
+        settings.tapWhatFell = true
+        settings.autoAdvanceOnSpare = true
+        settings.rotateBowlers = false
+        settings.reset()
+        let fresh = ScoringSettings(suite)
+        #expect(fresh.tapWhatFell == false)
+        #expect(fresh.autoAdvanceOnSpare == false)
+        #expect(fresh.rotateBowlers == true)
+    }
 }
