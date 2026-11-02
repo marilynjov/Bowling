@@ -323,4 +323,32 @@ import Testing
         #expect(data.chips.contains("Sam"))
         #expect(!data.chips.contains("Alex"))
     }
+
+    @Test func friendFilterUsesOwnersDefaultScope() throws {
+        let friend = try store.bowlers.createBowler(name: "Alex")
+        let league = try store.sessions.startSession(
+            SessionMetadata(date: .now, eventType: .league),
+            bowlers: [(bowlerID: friend.id, defaultBallID: nil)], entryMode: .finalOnly
+        )
+        try store.games.setFinalScore(190, for: try #require(try store.sessions.session(league).bowlers.first?.games.first?.id))
+        let practice = try game(.practice)
+        let friendDraft = StatsFilterDraft.defaults(for: friend, owner: owner, in: store)
+        #expect(friendDraft.scope == .competition)
+        let data = try BallDetailData.load(id: ball, store: store, filter: friendDraft)
+        #expect(data.recent.map(\.id) == [practice])
+        #expect(data.chips.contains("All games"))
+    }
+
+    @Test func friendCustomScopeIsKept() throws {
+        let friend = try store.bowlers.createBowler(name: "Alex")
+        let practice = try game(.practice)
+        try game(.league, daysAgo: 2)
+        let data = try BallDetailData.load(id: ball, store: store, filter: filter([.practice], bowler: friend.id, name: "Alex"))
+        #expect(data.recent.map(\.id) == [practice])
+    }
+
+    @Test func tilesStackAtAccessibilitySizes() {
+        #expect(BallDetailScreen.tileColumns(isAccessibilitySize: true).count == 1)
+        #expect(BallDetailScreen.tileColumns(isAccessibilitySize: false).count == 2)
+    }
 }

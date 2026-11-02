@@ -124,7 +124,11 @@ struct BallDetailData: Hashable {
                      calendar: Calendar = .current, locale: Locale = .current) throws -> BallDetailData {
         let detail = try store.balls.detail(for: id)
         var draft = filter
-        if let owner = store.bowlers.owner() {
+        if let owner = store.bowlers.owner(), filter.filter.bowlerID != owner.id {
+            // A friend's default scope came from the friend's games; use the owner's,
+            // keeping the dates and any event types the user picked by hand.
+            let ownerDraft = filter.changingBowler(to: owner, owner: owner, in: store)
+            if filter.scope != .custom { draft.filter.eventTypes = ownerDraft.filter.eventTypes }
             draft.filter.bowlerID = owner.id
             draft.bowlerName = owner.name
         }

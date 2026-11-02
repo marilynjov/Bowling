@@ -12,6 +12,7 @@ import BowlingFixtures
 struct BallDetailScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var data: BallDetailData?
 
     var id: BallID
@@ -43,6 +44,11 @@ struct BallDetailScreen: View {
             }
         }
         .task(id: app.revision) { load() }
+    }
+
+    /// One column at accessibility sizes, so long tile titles don't break up, as on Home.
+    static func tileColumns(isAccessibilitySize: Bool) -> [GridItem] {
+        isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible(), spacing: 8), GridItem(.flexible())]
     }
 
     private func load() {
@@ -150,7 +156,7 @@ struct BallDetailScreen: View {
                         Spacer()
                         Text(block.sample).font(.figure).foregroundStyle(.inkMuted)
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: Self.tileColumns(isAccessibilitySize: typeSize.isAccessibilitySize), spacing: 8) {
                         ForEach(block.tiles, id: \.title) { StatTile($0) }
                     }
                 }
