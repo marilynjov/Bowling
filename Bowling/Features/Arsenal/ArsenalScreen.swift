@@ -2,11 +2,13 @@ import BowlingCore
 import BowlingData
 import SwiftUI
 
-/// The Arsenal tab, 1a (spec §1): active balls and Add ball. Rows are display only until
-/// ball detail (#30).
+/// The Arsenal tab (spec §7, Arsenal 1b): active balls, a collapsed Retired group, and Add
+/// ball. Rows are display only until ball detail (#30); Compare arrives with its table (#31).
 struct ArsenalScreen: View {
     @Environment(AppModel.self) private var app
     @State private var list: ArsenalList?
+    @State private var showsRetired = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         @Bindable var app = app
@@ -14,10 +16,10 @@ struct ArsenalScreen: View {
         ZStack {
             Color.canvas.ignoresSafeArea()
             if let list {
-                if list.rows.isEmpty {
+                if list.isEmpty {
                     empty
                 } else {
-                    rows(list.rows)
+                    rows(list)
                 }
             }
         }
@@ -38,8 +40,32 @@ struct ArsenalScreen: View {
         }
     }
 
-    private func rows(_ rows: [ArsenalList.Row]) -> some View {
-        List(rows) { row in
+    private func rows(_ list: ArsenalList) -> some View {
+        List {
+            Section {
+                ForEach(list.active, content: row)
+            }
+            if !list.retired.isEmpty {
+                Section(isExpanded: $showsRetired) {
+                    ForEach(list.retired, content: row)
+                } header: {
+                    Text("Retired (\(list.retired.count))")
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+    }
+
+    private func row(_ row: ArsenalList.Row) -> some View {
+        // At accessibility sizes the photo goes above the text, so names and the badge get
+        // the full width instead of breaking mid-word beside it.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            BallThumbnail(id: row.id, hasPhoto: row.hasPhoto, placeholder: row.placeholder)
+                .saturation(row.isRetired ? 0 : 1)
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.name).font(.headline)
                 Group {
@@ -48,12 +74,14 @@ struct ArsenalScreen: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                if row.isResurfaceDue {
+                    ResurfaceDueBadge()
+                }
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(row.accessibilityLabel)
-            .listRowBackground(Color.surface)
         }
-        .scrollContentBackground(.hidden)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.accessibilityLabel)
+        .listRowBackground(Color.surface)
     }
 
     private var empty: some View {
@@ -66,13 +94,38 @@ struct ArsenalScreen: View {
     }
 }
 
+/// "Resurface due" on an Arsenal row (spec §7).
+private struct ResurfaceDueBadge: View {
+    var body: some View {
+        Text("Resurface due")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.cautionText)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(.cautionSoft, in: .capsule)
+    }
+}
+
 #if DEBUG
 private struct ArsenalScreenPreview: View {
     @State private var app: AppModel
 
-    /// `empty`: an owner with no balls yet.
+    /// `empty`: an owner with no balls yet. Otherwise the demo arsenal, with its most-used
+    /// ball due for a resurface and a retired ball.
     init(empty: Bool = false) {
-        guard empty else { _app = State(initialValue: .preview()); return }
+        guard empty else {
+            let app = AppModel.preview()
+            let balls = app.store.balls
+            if let used = balls.activeBalls().max(by: { $0.gamesBowled < $1.gamesBowled }) {
+                var fields = try! balls.detail(for: used.id).fields
+                fields.resurfaceIntervalGames = 1
+                _ = try! balls.updateBall(used.id, with: fields)
+            }
+            let old = try! balls.addBall(name: "Hammer Black Widow", weightPounds: 15, intendedRole: .strike, brand: "Hammer")
+            try! balls.setRetired(true, for: old.id)
+            _app = State(initialValue: app)
+            return
+        }
         let store = try! BowlingStore(inMemory: true)
         _ = try! store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
         _app = State(initialValue: AppModel(store: store))

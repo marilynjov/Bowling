@@ -37,6 +37,11 @@ import Testing
         try ScoringModel(target: try target(mode, ball: ball), app: app, now: clock.tick)
     }
 
+    @Test func retiredBallIsNotInTheRollPicker() throws {
+        try app.write { try $0.balls.setRetired(true, for: ballB.id) }
+        #expect(try start(.pinByPin).balls.map(\.id) == [ballA.id])
+    }
+
     @Test func strikeAdvancesToFrame2() throws {
         let model = try start(.pinByPin)
         let before = app.revision

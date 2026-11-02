@@ -84,4 +84,10 @@ import Testing
         #expect(AccessibilityText.ballRow(name: "Phaze", weightPounds: 15, role: .unknown, gamesBowled: 1)
             == "Phaze, 15 pounds, 1 game")
     }
+
+    @Test func ballRowReadsBrandBadgeAndRetired() {
+        #expect(AccessibilityText.ballRow(name: "Phaze", brand: "Storm", weightPounds: 15, role: .strike,
+                                          gamesBowled: 12, isResurfaceDue: true, isRetired: true)
+            == "Phaze, Storm, 15 pounds, strike, 12 games, resurface due, retired")
+    }
 }
