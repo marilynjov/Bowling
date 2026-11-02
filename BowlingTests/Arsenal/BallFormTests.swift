@@ -183,4 +183,11 @@ import Testing
         let id = try form().save(to: store)
         #expect(Available.current(in: store).balls.contains(id))
     }
+
+    @Test func pickerTitles() {
+        #expect(Coverstock.allCases.map(BallForm.title) == [
+            "Plastic", "Urethane", "Reactive solid", "Reactive pearl", "Reactive hybrid", "Other", "Not set",
+        ])
+        #expect(CoreType.allCases.map(BallForm.title) == ["Symmetric", "Asymmetric", "Pancake", "Not set"])
+    }
 }

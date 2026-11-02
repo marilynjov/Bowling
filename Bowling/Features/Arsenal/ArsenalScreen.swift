@@ -31,8 +31,8 @@ struct ArsenalScreen: View {
                 }
             }
         }
-        .sheet(item: $app.ballForm) { _ in
-            AddBallSheet()
+        .sheet(item: $app.ballForm) { target in
+            BallFormSheet(target: target, store: app.store)
                 .sharedErrorAlert(in: .ballForm)
         }
         .task(id: app.revision) {
@@ -63,24 +63,31 @@ struct ArsenalScreen: View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(spacing: 12))
-        return layout {
-            BallThumbnail(id: row.id, hasPhoto: row.hasPhoto, placeholder: row.placeholder)
-                .saturation(row.isRetired ? 0 : 1)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.name).font(.headline)
-                Group {
-                    Text(row.detail)
-                    Text(row.games)
+        // Opens Edit until ball detail (#30) takes the tap.
+        return Button { app.ballForm = .edit(row.id) } label: {
+            layout {
+                BallThumbnail(id: row.id, hasPhoto: row.hasPhoto, placeholder: row.placeholder)
+                    .saturation(row.isRetired ? 0 : 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.name).font(.headline)
+                    Group {
+                        Text(row.detail)
+                        Text(row.games)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    if row.isResurfaceDue {
+                        ResurfaceDueBadge()
+                    }
                 }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                if row.isResurfaceDue {
-                    ResurfaceDueBadge()
-                }
+                Spacer(minLength: 0)
             }
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel)
+        .accessibilityAddTraits(.isButton)
         .listRowBackground(Color.surface)
     }
 

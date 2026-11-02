@@ -143,6 +143,29 @@ struct BallForm: Hashable {
         return id
     }
 
+    /// The coverstock picker's titles; `.unknown` reads "Not set".
+    static func title(for coverstock: Coverstock) -> String {
+        switch coverstock {
+        case .plastic: String(localized: "Plastic")
+        case .urethane: String(localized: "Urethane")
+        case .reactiveSolid: String(localized: "Reactive solid")
+        case .reactivePearl: String(localized: "Reactive pearl")
+        case .reactiveHybrid: String(localized: "Reactive hybrid")
+        case .other: String(localized: "Other")
+        case .unknown: String(localized: "Not set")
+        }
+    }
+
+    /// The core type picker's titles; `.unknown` reads "Not set".
+    static func title(for coreType: CoreType) -> String {
+        switch coreType {
+        case .symmetric: String(localized: "Symmetric")
+        case .asymmetric: String(localized: "Asymmetric")
+        case .pancake: String(localized: "Pancake")
+        case .unknown: String(localized: "Not set")
+        }
+    }
+
     private subscript(field: NumberField) -> String {
         switch field {
         case .rg: rg
