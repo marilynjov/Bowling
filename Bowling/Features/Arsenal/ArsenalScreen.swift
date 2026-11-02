@@ -26,14 +26,14 @@ struct ArsenalScreen: View {
         .navigationTitle("Arsenal")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { app.isAddingBall = true } label: {
+                Button { app.ballForm = .add } label: {
                     Label("Add ball", systemImage: "plus")
                 }
             }
         }
-        .sheet(isPresented: $app.isAddingBall) {
+        .sheet(item: $app.ballForm) { _ in
             AddBallSheet()
-                .sharedErrorAlert(in: .addBall)
+                .sharedErrorAlert(in: .ballForm)
         }
         .task(id: app.revision) {
             list = ArsenalList.load(from: app.store)
@@ -88,7 +88,7 @@ struct ArsenalScreen: View {
         ContentUnavailableView {
             Label("No balls yet.", systemImage: "circle.circle")
         } actions: {
-            Button("Add ball") { app.isAddingBall = true }
+            Button("Add ball") { app.ballForm = .add }
                 .buttonStyle(.borderedProminent)
         }
     }

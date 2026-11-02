@@ -5,7 +5,7 @@ import SwiftUI
 /// name and a weight are set; a refused save keeps the sheet and its values.
 struct AddBallSheet: View {
     @Environment(AppModel.self) private var app
-    @State private var draft = BallDraft()
+    @State private var draft = BallForm()
 
     var body: some View {
         NavigationStack {
@@ -25,7 +25,7 @@ struct AddBallSheet: View {
                             Text("\(pounds) lb").tag(Int?.some(pounds))
                         }
                     }
-                    Picker("Role", selection: $draft.role) {
+                    Picker("Role", selection: $draft.intendedRole) {
                         ForEach([BallRole.strike, .spare, .both], id: \.self) { role in
                             Text(ArsenalList.roleTitle(role) ?? "").tag(role)
                         }
@@ -40,7 +40,7 @@ struct AddBallSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { app.isAddingBall = false }
+                    Button("Cancel") { app.ballForm = nil }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save)
@@ -52,7 +52,7 @@ struct AddBallSheet: View {
 
     private func save() {
         do {
-            try app.addBall(draft)
+            try app.saveBall(draft)
         } catch {
             app.error = error
         }

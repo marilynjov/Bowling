@@ -29,27 +29,74 @@ import Testing
         #expect(app.revision == 1)
     }
 
-    @Test func addBallSavesAndClosesTheSheet() throws {
-        app.isAddingBall = true
-        try app.addBall(BallDraft(name: "Phaze", weightPounds: 15))
-        #expect(!app.isAddingBall)
+    private func ballForm(_ name: String = "Phaze", weight: Int? = 15) -> BallForm {
+        var form = BallForm()
+        form.name = name
+        form.weightPounds = weight
+        return form
+    }
+
+    private func addBall() throws -> BallID {
+        try app.write { try $0.balls.addBall(BallFields(name: "Phaze", weightPounds: 15)).id }
+    }
+
+    @Test func saveBallSavesAndClosesTheSheet() throws {
+        app.ballForm = .add
+        try app.saveBall(ballForm())
+        #expect(app.ballForm == nil)
         #expect(app.store.balls.activeBalls().map(\.name) == ["Phaze"])
     }
 
-    @Test func secondAddBallTapAddsNothing() throws {
-        app.isAddingBall = true
-        let draft = BallDraft(name: "Phaze", weightPounds: 15)
-        try app.addBall(draft)
-        try app.addBall(draft)
+    @Test func secondSaveBallTapAddsNothing() throws {
+        app.ballForm = .add
+        let form = ballForm()
+        try app.saveBall(form)
+        try app.saveBall(form)
         #expect(app.store.balls.activeBalls().count == 1)
     }
 
-    @Test func refusedAddBallKeepsTheSheet() {
-        app.isAddingBall = true
+    @Test func refusedSaveBallKeepsTheSheet() {
+        app.ballForm = .add
         #expect(throws: RepositoryError.invalidBall(.weightOutOfRange)) {
-            try app.addBall(BallDraft(name: "Phaze"))
+            try app.saveBall(ballForm(weight: nil))
         }
-        #expect(app.isAddingBall)
+        #expect(app.ballForm == .add)
+    }
+
+    @Test func retireClosesAndMovesTheBall() throws {
+        let id = try addBall()
+        app.ballForm = .edit(id)
+        try app.setBallRetired(id, true)
+        #expect(app.ballForm == nil)
+        #expect(app.store.balls.retiredBalls().map(\.id) == [id])
+    }
+
+    @Test func deleteUnusedBallCloses() throws {
+        let id = try addBall()
+        app.ballForm = .edit(id)
+        try app.deleteBall(id)
+        #expect(app.ballForm == nil)
+        #expect(app.store.balls.activeBalls().isEmpty)
+    }
+
+    @Test func deleteUsedBallKeepsTheSheet() throws {
+        let owner = try createOwner()
+        let id = try addBall()
+        _ = try app.write {
+            try $0.sessions.startSession(
+                SessionMetadata(date: .now, eventType: .practice), bowlers: [(owner.id, id)], entryMode: .pinByPin
+            )
+        }
+        app.ballForm = .edit(id)
+        #expect(throws: RepositoryError.ballHasGames(count: 1)) { try app.deleteBall(id) }
+        #expect(app.ballForm == .edit(id))
+    }
+
+    @Test func ballFormIsTopmostForErrors() {
+        app.ballForm = .add
+        app.error = RepositoryError.notFound
+        #expect(app.showsError(in: .ballForm))
+        #expect(!app.showsError(in: .root))
     }
 
     @Test func needsOnboardingUntilOwnerExists() throws {
@@ -125,13 +172,6 @@ import Testing
         app.error = Boom()
         #expect(app.showsError(in: .root))
         #expect(!app.showsError(in: .scoring))
-    }
-
-    @Test func errorWhileAddingABallShowsOnTheSheet() {
-        app.isAddingBall = true
-        app.error = Boom()
-        #expect(app.showsError(in: .addBall))
-        #expect(!app.showsError(in: .root))
     }
 
     @Test func errorWhileScoringShowsOnTheCover() {
