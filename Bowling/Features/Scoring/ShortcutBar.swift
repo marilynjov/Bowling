@@ -45,5 +45,6 @@ struct ShortcutBar: View {
                 .frame(maxWidth: .infinity, minHeight: 48)
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier("scoring.\(title.lowercased())")
     }
 }

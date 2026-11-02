@@ -1,4 +1,5 @@
 import BowlingData
+import Foundation
 import Testing
 @testable import Bowling
 
@@ -32,5 +33,13 @@ import Testing
         #expect(loader.app != nil)
         #expect(loader.failure == nil)
         #expect(attempts == 2)
+    }
+
+    @Test func loadUsesTheGivenDefaults() throws {
+        let suite = UserDefaults(suiteName: "test.\(UUID())")!
+        ScoringSettings(suite).tapWhatFell = true
+        let loader = StoreLoader(open: { try BowlingStore(inMemory: true) }, defaults: suite)
+        loader.load()
+        #expect(try #require(loader.app).scoringSettings.tapWhatFell)
     }
 }

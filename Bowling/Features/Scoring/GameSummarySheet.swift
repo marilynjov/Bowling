@@ -63,6 +63,7 @@ private struct SummaryCard: View {
                     .font(.scoreHero)
                     .monospacedDigit()
                     .foregroundStyle(Color.accentText)
+                    .accessibilityIdentifier("summary.score")
             }
             if let counts = summary.countsText {
                 Text(counts).font(.subheadline).foregroundStyle(Color.inkMuted)

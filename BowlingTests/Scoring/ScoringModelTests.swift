@@ -37,6 +37,14 @@ import Testing
         try ScoringModel(target: try target(mode, ball: ball), app: app, now: clock.tick)
     }
 
+    @Test func retiredDefaultBallStillNamesTheChip() throws {
+        let model = try start(.pinByPin, ball: ballB.id)
+        try app.write { try $0.balls.setRetired(true, for: ballB.id) }
+        let reopened = try ScoringModel(target: model.target, app: app, now: clock.tick)
+        #expect(reopened.rollBallName == "Pearl")
+        #expect(!reopened.balls.contains { $0.id == ballB.id })
+    }
+
     @Test func retiredBallIsNotInTheRollPicker() throws {
         try app.write { try $0.balls.setRetired(true, for: ballB.id) }
         #expect(try start(.pinByPin).balls.map(\.id) == [ballA.id])

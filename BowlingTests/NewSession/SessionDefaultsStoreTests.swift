@@ -37,4 +37,13 @@ import Testing
         suite.set("bogus", forKey: "newSession.lastEventType")
         #expect(store.lastEventType == .practice)
     }
+
+    @Test func resetForgetsEveryEventType() {
+        store.save(SessionDefaults(centerID: UUID()), for: .league)
+        store.save(SessionDefaults(entryMode: .finalOnly), for: .casual)
+        store.reset()
+        #expect(store.defaults(for: .league) == SessionDefaults())
+        #expect(store.defaults(for: .casual) == SessionDefaults())
+        #expect(store.lastEventType == .practice)
+    }
 }
