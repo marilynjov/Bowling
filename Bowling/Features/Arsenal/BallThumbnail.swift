@@ -23,7 +23,7 @@ struct BallThumbnail: View {
         }
 
         /// Fill and initial color. Each pair is a contrast-tested pair in ThemeTests.
-        fileprivate var colors: (fill: ColorResource, ink: ColorResource) {
+        var colors: (fill: ColorResource, ink: ColorResource) {
             [(.accent, .onAccent), (.strike, .onStrike), (.accentSoft, .accentText),
              (.strikeSoft, .strikeText), (.cautionSoft, .cautionText)][style]
         }
