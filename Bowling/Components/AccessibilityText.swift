@@ -71,6 +71,26 @@ enum AccessibilityText {
         return String(localized: "Trend, \(count), latest session \(latest), rolling average \(rolling)")
     }
 
+    /// A by-frame bar: "Frame 1, 25%".
+    static func byFrameBar(_ frame: Int, _ rate: String) -> String {
+        String(localized: "Frame \(frame), \(rate)")
+    }
+
+    /// A by-frame average bar: "Frame 1, 7.5 pins".
+    static func byFrameBar(_ frame: Int, pins: String) -> String {
+        String(localized: "Frame \(frame), \(pins) pins")
+    }
+
+    /// "What if, your average 196, 205.3 with every single-pin spare made, 9.3 more pins a game".
+    static func whatIf(actual: String, allMade: String, gain: String) -> String {
+        String(localized: "What if, your average \(actual), \(allMade) with every single-pin spare made, \(gain) more pins a game")
+    }
+
+    /// "What if, your average 196, you made every single-pin spare."
+    static func whatIf(actual: String) -> String {
+        String(localized: "What if, your average \(actual), you made every single-pin spare.")
+    }
+
     /// A Stats card that explains instead of showing a number: "Strike %, Enter frames to
     /// see strikes and spares."
     static func explainedCard(title: String, text: String) -> String {

@@ -5,7 +5,6 @@ import Testing
 
 @Suite struct StatsCardsTests {
     let bowler = BowlerID()
-    let later: [StatsCardID] = [.byFrameStrike, .byFrameAverage, .whatIfSinglePins]
 
     func finalOnly(_ scores: [Int]) -> [GameRecord] {
         let session = SessionID()
@@ -22,7 +21,7 @@ import Testing
     }
 
     func card(_ id: StatsCardID, _ report: StatsReport) throws -> StatsCard {
-        try #require(StatsCards.make(cards: [id], report: report).first)
+        try #require(StatsCards.make(cards: [id], report: report, locale: Locale(identifier: "en_US")).first)
     }
 
     @Test(arguments: [StatsProfile.casual, .league, .competitive])
@@ -30,16 +29,16 @@ import Testing
         let preset = StatsPreset.statsCards(for: profile)
         let cards = StatsCards.make(cards: preset, report: PreviewData.report)
         #expect(cards.map(\.id) == preset)
-        for card in cards where !later.contains(card.id) {
+        for card in cards {
             switch card.body {
-            case .notApplicable, .comingSoon: Issue.record("\(card.id) does not render: \(card.body)")
+            case .notApplicable: Issue.record("\(card.id) does not render: \(card.body)")
             default: break
             }
         }
     }
 
     @Test func emptyReportExplainsEveryCard() throws {
-        let ids = StatsCardID.allCases.filter { !later.contains($0) }
+        let ids = StatsCardID.allCases
         let cards = StatsCards.make(cards: ids, report: report([]))
         #expect(cards.map(\.id) == ids)
         for card in cards {
@@ -55,7 +54,10 @@ import Testing
             "Average", "High game", "High series", "Trend", "Strike %", "Spare %", "Fouls", "Open %",
             "Clean games %", "First-ball average", "Head pin %", "Leaves", "Left most, made least",
             "Split conversion %", "Makeable conversion %", "Single-pin conversion %",
+            "Strikes by frame", "Average by frame", "What if",
         ])
+        #expect(try card(.byFrameAverage, report([])).body == .notApplicable("Enter frames to see strikes and spares."))
+        #expect(try card(.whatIfSinglePins, report([])).body == .notApplicable("Enter pins to see leaves."))
     }
 
     @Test func finalOnlyGamesShowOverviewOnly() throws {
@@ -69,10 +71,77 @@ import Testing
         #expect(try card(.leavesTable, report).body == .notApplicable("Enter pins to see leaves."))
     }
 
-    @Test func laterCardsAreComingSoon() {
-        let cards = StatsCards.make(cards: later, report: PreviewData.report)
-        #expect(cards.map(\.body) == [.comingSoon, .comingSoon, .comingSoon])
-        #expect(cards.map(\.title) == ["Strikes by frame", "Average by frame", "What if"])
+    @Test func everyCardRendersFromTheDemoFixture() {
+        for card in StatsCards.make(cards: StatsCardID.allCases, report: PreviewData.report) {
+            switch card.body {
+            case .notApplicable: Issue.record("\(card.id) does not render: \(card.body)")
+            default: break
+            }
+        }
+    }
+
+    /// Four games with frames entered: frame 1 struck once and averaged 7.5 pins, the rest empty.
+    func byFrameReport() -> StatsReport {
+        var report = report([])
+        report.rollGames = 4
+        report.byFrame = (1...10).map {
+            FrameStats(frameIndex: $0, strikes: Rate(hits: $0 == 1 ? 1 : 0, attempts: 4),
+                       pins: Mean(total: $0 == 1 ? 30 : 0, count: 4))
+        }
+        return report
+    }
+
+    @Test func strikesByFrameBars() throws {
+        guard case .byFrame(let content) = try card(.byFrameStrike, byFrameReport()).body else {
+            Issue.record("byFrameStrike is not a by-frame chart")
+            return
+        }
+        #expect(content.kind == .strikes)
+        #expect(content.bars.map(\.frame) == Array(1...10))
+        #expect(content.bars[0].value == 0.25)
+        #expect(content.bars[0].text == "25%")
+        #expect(content.bars[0].accessibilityLabel == "Frame 1, 25%")
+        #expect(content.bars[1].value == 0)
+        #expect(content.sample == "4 games")
+    }
+
+    @Test func averageByFrameBars() throws {
+        guard case .byFrame(let content) = try card(.byFrameAverage, byFrameReport()).body else {
+            Issue.record("byFrameAverage is not a by-frame chart")
+            return
+        }
+        #expect(content.kind == .average)
+        #expect(content.bars[0].value == 7.5)
+        #expect(content.bars[0].text == "7.5")
+        #expect(content.bars[0].accessibilityLabel == "Frame 1, 7.5 pins")
+        #expect(content.sample == "4 games")
+    }
+
+    func whatIfReport(rewritten: Int, allMade: Int = 1232) -> StatsReport {
+        var report = report([])
+        report.pinGames = 6
+        report.whatIfSinglePins = WhatIfSinglePins(actual: Mean(total: 1176, count: 6),
+                                                   allMade: Mean(total: allMade, count: 6), rewritten: rewritten)
+        return report
+    }
+
+    @Test func whatIfShowsTheGain() throws {
+        #expect(try card(.whatIfSinglePins, whatIfReport(rewritten: 12)).body == .whatIf(WhatIfContent(
+            actual: "196", allMade: "205.3", detail: "+9.3 pins a game · 12 missed single pins",
+            accessibilityLabel: "What if, your average 196, 205.3 with every single-pin spare made, 9.3 more pins a game"
+        )))
+        guard case .whatIf(let one) = try card(.whatIfSinglePins, whatIfReport(rewritten: 1, allMade: 1185)).body else {
+            Issue.record("whatIfSinglePins is not a what-if")
+            return
+        }
+        #expect(one.detail == "+1.5 pins a game · 1 missed single pin")
+    }
+
+    @Test func whatIfWithNothingMissed() throws {
+        #expect(try card(.whatIfSinglePins, whatIfReport(rewritten: 0, allMade: 1176)).body == .whatIf(WhatIfContent(
+            actual: "196", allMade: "196", detail: "You made every single-pin spare.",
+            accessibilityLabel: "What if, your average 196, you made every single-pin spare."
+        )))
     }
 
     @Test func averageFootnoteNeedsMoreThanTenGames() throws {
