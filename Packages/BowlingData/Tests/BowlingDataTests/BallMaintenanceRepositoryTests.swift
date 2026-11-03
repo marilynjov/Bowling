@@ -89,7 +89,8 @@ import Testing
         #expect(maintenance.isResurfaceDue)
     }
 
-    /// The Arsenal badge's shortcut must agree with the full calculation at every step.
+    /// The Arsenal badge's shortcut must agree with the full calculation at every step,
+    /// active or retired.
     @Test func summaryResurfaceDueAgreesWithMaintenance() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
@@ -118,6 +119,11 @@ import Testing
         ball.resurfaceIntervalGames = 1
         try check()
         #expect(balls.activeBalls().first { $0.id == ballID }?.isResurfaceDue == true)
+        // Retiring turns both off together.
+        try balls.setRetired(true, for: ballID)
+        let retired = try #require(balls.retiredBalls().first { $0.id == ballID })
+        #expect(!retired.isResurfaceDue)
+        #expect(retired.isResurfaceDue == (try balls.maintenance(for: ballID).isResurfaceDue))
     }
 
     @Test func logMaintenanceSnapshotsGamesAndCopiesTheGrit() throws {

@@ -62,12 +62,15 @@ import Testing
         )
         _ = try insertGame(record, into: store.context)
         #expect(balls.activeBalls().first?.isResurfaceDue == true)
+        #expect(try balls.maintenance(for: id).isResurfaceDue)
 
         try balls.setRetired(true, for: id)
         #expect(balls.retiredBalls().first?.isResurfaceDue == false)
+        #expect(try !balls.maintenance(for: id).isResurfaceDue)
 
         try balls.setRetired(false, for: id)
         #expect(balls.activeBalls().first?.isResurfaceDue == true)
+        #expect(try balls.maintenance(for: id).isResurfaceDue)
     }
 
     @Test func settingTheSameStateLeavesUpdatedAtAlone() throws {
