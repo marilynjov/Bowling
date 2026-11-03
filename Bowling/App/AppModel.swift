@@ -16,8 +16,8 @@ import Observation
     var isStartingSession = false
     /// The Quick score sheet is up, shown by the root.
     var isQuickScoring = false
-    /// The Add ball sheet is up, shown by Arsenal.
-    var isAddingBall = false
+    /// The ball form sheet, add or edit, shown by Arsenal.
+    var ballForm: BallFormTarget?
     /// The last quick score, which Home's banner can undo; nil hides the banner.
     var savedQuickScore: SavedQuickScore?
     /// The root's tab.
@@ -58,7 +58,7 @@ import Observation
         guard error != nil else { return false }
         let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
-            : isAddingBall ? .addBall
+            : ballForm != nil ? .ballForm
             : isQuickScoring ? .quickScore
             : editingSessionDetails != nil ? .sessionDetails
             : .root
@@ -89,13 +89,34 @@ import Observation
         scoring = target
     }
 
-    /// Arsenal's Add ball Save: adds the ball and closes the sheet. Does nothing once the
-    /// sheet is closed, so a second tap on Save can't add the ball twice.
-    /// - Throws: whatever `BallDraft.save` throws; the sheet stays with its values.
-    func addBall(_ draft: BallDraft) throws {
-        guard isAddingBall else { return }
-        _ = try write { try draft.save(to: $0) }
-        isAddingBall = false
+    /// The ball form's Save: adds or updates the ball and closes the sheet. Does nothing once
+    /// the sheet is closed, so a second tap on Save can't add the ball twice.
+    /// - Throws: whatever `BallForm.save` throws; the sheet stays with its values. When only
+    ///   the photo failed, the ball exists, so the sheet closes (another Save would add it
+    ///   again) and the repository's error shows at the root.
+    func saveBall(_ form: BallForm) throws {
+        guard ballForm != nil else { return }
+        do {
+            _ = try write { try form.save(to: $0) }
+        } catch let failure as BallForm.PhotoNotSaved {
+            ballForm = nil
+            throw failure.error
+        }
+        ballForm = nil
+    }
+
+    /// The ball form's Retire ball or Return to arsenal; closes the sheet.
+    func setBallRetired(_ id: BallID, _ retired: Bool) throws {
+        try write { try $0.balls.setRetired(retired, for: id) }
+        ballForm = nil
+    }
+
+    /// The ball form's Delete ball; closes the sheet.
+    /// - Throws: `.ballHasGames(count:)` for a used ball, keeping the sheet so it can offer
+    ///   Retire instead.
+    func deleteBall(_ id: BallID) throws {
+        try write { try $0.balls.deleteBall(id) }
+        ballForm = nil
     }
 
     /// Home's Resume: opens Scoring on the unfinished game.
@@ -197,7 +218,15 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, addBall
+    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, ballForm
+}
+
+/// What the ball form sheet opens on.
+enum BallFormTarget: Hashable, Identifiable {
+    case add
+    case edit(BallID)
+
+    var id: Self { self }
 }
 
 /// The root's tabs.

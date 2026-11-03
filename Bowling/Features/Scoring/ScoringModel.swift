@@ -13,6 +13,9 @@ import Observation
     /// The next roll's entry rules; nil when the game is complete or final-only.
     var pad: RollPad?
     private(set) var balls: [BallSummary]
+    /// Retired balls' names: an old game opened from History still names its retired
+    /// ball, though the menu only offers active ones (contract §3.6).
+    private var retiredNames: [BallID: String] = [:]
     private(set) var bowlerName: String
     /// This roll's ball when one was picked; see `rollBallID`.
     private(set) var ballOverride: BallID?
@@ -47,6 +50,7 @@ import Observation
         }
         bowlerName = bowler.bowler.name
         balls = app.store.balls.activeBalls()
+        retiredNames = Dictionary(app.store.balls.retiredBalls().map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
         let game = try app.store.games.game(target.gameID)
         self.game = game
         scorecard = Scorer.scorecard(for: game)
@@ -83,6 +87,12 @@ import Observation
     /// the menu asks first.
     var discardsTypedScore: Bool {
         game.entryMode == .finalOnly && game.isComplete
+    }
+
+    /// The chip's name for `rollBallID`, active or retired; nil for no ball or a deleted one.
+    var rollBallName: String? {
+        guard let id = rollBallID else { return nil }
+        return balls.first { $0.id == id }?.name ?? retiredNames[id]
     }
 
     /// The ball the next roll is thrown with, for the chip: the picked one, else the edited

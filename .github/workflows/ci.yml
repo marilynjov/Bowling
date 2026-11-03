@@ -30,24 +30,37 @@ jobs:
     name: Build app
     runs-on: xcode-27
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
+    # Room for the build plus two tries of the tests and of the audit.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - run: xcodebuild -version
-      - name: Build and test for iOS Simulator
+      - name: Build for testing
         run: |
-          xcodebuild build-for-testing test-without-building \
+          xcodebuild build-for-testing \
             -project Bowling.xcodeproj \
             -scheme Bowling \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
-            -skip-testing:BowlingUITests/AccessibilityAuditUITests \
             CODE_SIGNING_ALLOWED=NO
+      # The simulator has stalled before any test ran: the test runner crashed while
+      # bootstrapping on a cold device, or the app launch timed out (#130). Boot the device
+      # first, and run the step a second time if it fails; a real failure fails both tries.
+      - name: Test on iOS Simulator
+        run: |
+          xcrun simctl boot 'iPhone 18 Pro' || true
+          xcrun simctl bootstatus 'iPhone 18 Pro' -b
+          run_tests() {
+            xcodebuild test-without-building \
+              -project Bowling.xcodeproj \
+              -scheme Bowling \
+              -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+              -skip-testing:BowlingUITests/AccessibilityAuditUITests \
+              CODE_SIGNING_ALLOWED=NO
+          }
+          run_tests || { echo "::warning::Tests failed; running them once more"; run_tests; }
       # The accessibility audit's clipping and contrast checks vary with screen size, so it
-      # runs on one fixed device, the one it is verified on locally (#14). A retry absorbs a
-      # simulator stall (runner crash, app launch timeout); a real finding fails both tries.
-      # The test runner has crashed while bootstrapping on a cold simulator, before any test
-      # ran, which -retry-tests-on-failure can't retry. So boot the device first and run the
-      # whole step a second time if it fails.
+      # runs on one fixed device, the one it is verified on locally (#14). Booted first and
+      # retried like the tests above; a real finding fails both tries.
       - name: Accessibility audit
         run: |
           xcrun simctl boot 'iPhone 18 Pro Max' || true
