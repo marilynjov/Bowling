@@ -682,7 +682,7 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
                                                    // roll override, each game once
     public var isRetired: Bool                     // 1b
     public var hasPhoto: Bool                      // 1b: photo(for:) or a placeholder
-    public var isResurfaceDue: Bool                // 1b: BallMaintenance.isResurfaceDue
+    public var isResurfaceDue: Bool                // 1b: BallMaintenance.isResurfaceDue; false when retired
 }
 ```
 

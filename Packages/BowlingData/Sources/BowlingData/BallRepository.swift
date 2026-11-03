@@ -14,7 +14,8 @@ public struct BallSummary: Sendable, Hashable, Identifiable {
     public var isRetired: Bool
     /// The row shows the photo from `photo(for:)` or a placeholder.
     public var hasPhoto: Bool
-    /// `BallMaintenance.isResurfaceDue`: the Arsenal list's "Resurface due" badge.
+    /// `BallMaintenance.isResurfaceDue` for an active ball, and always false for a retired
+    /// one, which isn't thrown: the Arsenal list's "Resurface due" badge.
     public var isResurfaceDue: Bool
 }
 
@@ -104,7 +105,7 @@ extension Ball {
             gamesBowled: games.count,
             isRetired: isRetired,
             hasPhoto: photo != nil,
-            isResurfaceDue: isResurfaceDue(games: games, calendar: calendar)
+            isResurfaceDue: !isRetired && isResurfaceDue(games: games, calendar: calendar)
         )
     }
 
