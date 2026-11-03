@@ -131,6 +131,8 @@ struct SettingsScreen: View {
     }
 
     private func startExport() {
+        // A second tap before the exporter appears replaces the first zip.
+        finishExport()
         do {
             export = try ExportedZip(store: app.store)
             isExporting = true
