@@ -161,6 +161,17 @@ import Testing
         #expect(app.historyPath == [.session(b)])
     }
 
+    @Test func openGameSelectsHistoryAndPushesSessionThenGame() {
+        let a = SessionID(), b = SessionID(), g = GameID()
+        app.selectedTab = .stats
+        app.historyPath = [.session(a)]
+        app.openGame(g, in: b)
+        #expect(app.selectedTab == .history)
+        #expect(app.historyPath == [.session(b), .game(g)])
+        app.openGame(g, in: nil)
+        #expect(app.historyPath == [.game(g)])
+    }
+
     @Test func popHistoryRemovesTheRouteAndAbove() {
         let a = SessionID(), g = GameID()
         app.historyPath = [.session(a), .game(g)]

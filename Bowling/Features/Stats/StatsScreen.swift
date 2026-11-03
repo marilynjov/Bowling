@@ -30,6 +30,11 @@ struct StatsScreen: View {
             }
         }
         .navigationTitle("Stats")
+        .navigationDestination(for: StatsRoute.self) { route in
+            switch route {
+            case .leave(let leave): LeaveOccurrencesScreen(leave: leave)
+            }
+        }
         .sheet(isPresented: $isEditingFilter) {
             if let filter = app.statsFilter {
                 StatsFilterSheet(draft: filter)
