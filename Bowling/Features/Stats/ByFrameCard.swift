@@ -6,12 +6,21 @@ import SwiftUI
 /// honestly. VoiceOver reads each bar: "Frame 1, 25%".
 struct ByFrameCard: View {
     var content: ByFrameContent
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Chart(content.bars, id: \.frame) { bar in
                 BarMark(x: .value("Frame", String(bar.frame)), y: .value("Value", bar.value))
                     .foregroundStyle(Color.accent)
+                    // The value over each bar, so 9.6 and 9.8 can be told apart on the
+                    // fixed scale.
+                    .annotation(position: .top, spacing: 2) {
+                        Text(bar.annotation)
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundStyle(.inkMuted)
+                    }
                     .accessibilityLabel(bar.accessibilityLabel)
                     .accessibilityValue("")
             }
@@ -22,7 +31,7 @@ struct ByFrameCard: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let rate = value.as(Double.self) {
-                                Text(rate.formatted(.percent.precision(.fractionLength(0))))
+                                Text(rate.formatted(.percent.precision(.fractionLength(0)).locale(locale)))
                             }
                         }
                     }
@@ -31,6 +40,8 @@ struct ByFrameCard: View {
                 }
             }
             .frame(height: 160)
+            // Room for the labels over full-height bars.
+            .padding(.top, 8)
             // Ten frame labels and the axis can't grow past this and still fit; each bar's
             // VoiceOver label carries its value at any size.
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)

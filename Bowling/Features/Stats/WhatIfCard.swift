@@ -8,21 +8,25 @@ struct WhatIfCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) { figures }
-                VStack(alignment: .leading, spacing: 8) { figures }
+                HStack(alignment: .firstTextBaseline, spacing: 12) { figures(arrow: "arrow.forward") }
+                VStack(alignment: .leading, spacing: 8) { figures(arrow: "arrow.down") }
             }
             Text(content.detail)
                 .font(.subheadline)
                 .foregroundStyle(.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(content.sample)
+                .font(.figure)
+                .foregroundStyle(.inkMuted)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(content.accessibilityLabel)
     }
 
-    @ViewBuilder private var figures: some View {
+    /// `arrow.forward` side by side, so it mirrors right to left; `arrow.down` when stacked.
+    @ViewBuilder private func figures(arrow: String) -> some View {
         figure(content.actual, caption: String(localized: "Your average"))
-        Image(systemName: "arrow.right")
+        Image(systemName: arrow)
             .foregroundStyle(.inkMuted)
         figure(content.allMade, caption: String(localized: "Every single pin made"))
     }

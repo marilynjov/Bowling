@@ -41,6 +41,8 @@ struct ByFrameContent: Hashable {
         var value: Double
         /// "25%" / "7.5".
         var text: String
+        /// Over the bar: "25" / "7.5"; the strike axis already says percent.
+        var annotation: String
         var accessibilityLabel: String
     }
 
@@ -56,6 +58,8 @@ struct WhatIfContent: Hashable {
     var allMade: String
     /// "+8.4 pins a game · 12 missed single pins", or that none were missed.
     var detail: String
+    /// "6 pin-by-pin games": the games both averages cover.
+    var sample: String
     var accessibilityLabel: String
 }
 
@@ -111,7 +115,7 @@ enum StatsCards {
         case .byFrameAverage:
             return .byFrame(byFrame(.average, report, locale))
         case .whatIfSinglePins:
-            return .whatIf(whatIf(report.whatIfSinglePins, locale))
+            return .whatIf(whatIf(report, locale))
         default:
             guard var tile = StatTileContent.make(card, report) else {
                 preconditionFailure("\(card) has no tile")
@@ -178,37 +182,61 @@ enum StatsCards {
                 let text = StatFormat.percent(frame.strikes, locale: locale)
                 return ByFrameContent.Bar(
                     frame: frame.frameIndex, value: frame.strikes.value ?? 0, text: text,
+                    annotation: StatFormat.percentNumber(frame.strikes, locale: locale),
                     accessibilityLabel: AccessibilityText.byFrameBar(frame.frameIndex, text)
                 )
             case .average:
                 let text = StatFormat.average(frame.pins, locale: locale)
                 return ByFrameContent.Bar(
-                    frame: frame.frameIndex, value: frame.pins.value ?? 0, text: text,
+                    frame: frame.frameIndex, value: frame.pins.value ?? 0, text: text, annotation: text,
                     accessibilityLabel: AccessibilityText.byFrameBar(frame.frameIndex, pins: text)
                 )
             }
         }
-        return ByFrameContent(kind: kind, bars: bars, sample: StatFormat.sample(report.rollGames, .games))
+        let games = StatFormat.sample(report.rollGames, .games)
+        // The average names its unit, so 0–10 doesn't read as score per frame.
+        let sample = kind == .average ? String(localized: "Pins on the first rack") + " · " + games : games
+        return ByFrameContent(kind: kind, bars: bars, sample: sample)
     }
 
-    private static func whatIf(_ whatIf: WhatIfSinglePins, _ locale: Locale) -> WhatIfContent {
+    private static func whatIf(_ report: StatsReport, _ locale: Locale) -> WhatIfContent {
+        let whatIf = report.whatIfSinglePins
         let actual = StatFormat.average(whatIf.actual, locale: locale)
         let allMade = StatFormat.average(whatIf.allMade, locale: locale)
+        // The averages cover pin-by-pin games only, so the card says so: the Average card
+        // also counts final-only and count-only games and can differ.
+        let games = whatIf.actual.count
+        let sample = games == 1 ? String(localized: "1 pin-by-pin game") : String(localized: "\(games) pin-by-pin games")
         guard whatIf.rewritten > 0 else {
-            return WhatIfContent(actual: actual, allMade: allMade,
-                                 detail: String(localized: "You made every single-pin spare."),
-                                 accessibilityLabel: AccessibilityText.whatIf(actual: actual))
+            // No single pin ever left is not the same as every one made.
+            let none = report.singlePinConversion.attempts == 0
+            return WhatIfContent(
+                actual: actual, allMade: allMade,
+                detail: none ? String(localized: "No single-pin leaves yet.") : String(localized: "You made every single-pin spare."),
+                sample: sample,
+                accessibilityLabel: AccessibilityText.whatIf(
+                    sample: sample, actual: actual,
+                    note: none ? String(localized: "no single-pin leaves yet.") : String(localized: "you made every single-pin spare.")
+                )
+            )
         }
         // Subtracting totals first keeps 56/6 exact (see `WhatIfSinglePins.difference`).
-        let gain = StatFormat.average(Mean(total: whatIf.allMade.total - whatIf.actual.total, count: whatIf.actual.count),
-                                     locale: locale)
+        let gainMean = Mean(total: whatIf.allMade.total - whatIf.actual.total, count: games)
+        let gainValue = gainMean.value ?? 0
+        let gain = StatFormat.average(gainMean, locale: locale)
+        let tenth = (0.1).formatted(.number.locale(locale))
+        // Under 0.05 would round to "+0"; exactly 1 is singular.
+        let (shown, spoken) = gainValue < 0.05
+            ? (String(localized: "Less than \(tenth) pins a game"), String(localized: "less than \(tenth) more pins a game"))
+            : gainValue == 1
+                ? (String(localized: "+1 pin a game"), String(localized: "1 more pin a game"))
+                : (String(localized: "+\(gain) pins a game"), String(localized: "\(gain) more pins a game"))
         let missed = whatIf.rewritten == 1
             ? String(localized: "1 missed single pin")
             : String(localized: "\(whatIf.rewritten) missed single pins")
         return WhatIfContent(
-            actual: actual, allMade: allMade,
-            detail: String(localized: "+\(gain) pins a game") + " · " + missed,
-            accessibilityLabel: AccessibilityText.whatIf(actual: actual, allMade: allMade, gain: gain)
+            actual: actual, allMade: allMade, detail: shown + " · " + missed, sample: sample,
+            accessibilityLabel: AccessibilityText.whatIf(sample: sample, actual: actual, allMade: allMade, gain: spoken)
         )
     }
 

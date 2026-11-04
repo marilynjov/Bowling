@@ -81,14 +81,15 @@ enum AccessibilityText {
         String(localized: "Frame \(frame), \(pins) pins")
     }
 
-    /// "What if, your average 196, 205.3 with every single-pin spare made, 9.3 more pins a game".
-    static func whatIf(actual: String, allMade: String, gain: String) -> String {
-        String(localized: "What if, your average \(actual), \(allMade) with every single-pin spare made, \(gain) more pins a game")
+    /// "What if, 6 pin-by-pin games, your average 196, 205.3 with every single-pin spare
+    /// made, 9.3 more pins a game". `gain` is the spoken gain, "9.3 more pins a game".
+    static func whatIf(sample: String, actual: String, allMade: String, gain: String) -> String {
+        String(localized: "What if, \(sample), your average \(actual), \(allMade) with every single-pin spare made, \(gain)")
     }
 
-    /// "What if, your average 196, you made every single-pin spare."
-    static func whatIf(actual: String) -> String {
-        String(localized: "What if, your average \(actual), you made every single-pin spare.")
+    /// "What if, 6 pin-by-pin games, your average 196, you made every single-pin spare."
+    static func whatIf(sample: String, actual: String, note: String) -> String {
+        String(localized: "What if, \(sample), your average \(actual), \(note)")
     }
 
     /// A Stats card that explains instead of showing a number: "Strike %, Enter frames to
