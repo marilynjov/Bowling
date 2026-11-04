@@ -29,7 +29,7 @@ struct BallDetailScreen: View {
                         performance(data)
                         conditions(String(localized: "By pattern"), data.byPattern)
                         conditions(String(localized: "By center"), data.byCenter)
-                        overTime(data.trend)
+                        overTime(data.trend, empty: data.overTimeEmptyText)
                         if !data.recent.isEmpty { recent(data.recent) }
                     }
                     .padding(16)
@@ -43,7 +43,14 @@ struct BallDetailScreen: View {
                 Button("Edit") { app.ballForm = .edit(id) }
             }
         }
-        .task(id: app.revision) { load() }
+        // The Stats filter changes without a write, so it is part of the key: a ball detail
+        // left open on Arsenal follows a filter changed on Stats.
+        .task(id: LoadKey(revision: app.revision, filter: app.statsFilter)) { load() }
+    }
+
+    private struct LoadKey: Hashable {
+        var revision: Int
+        var filter: StatsFilterDraft?
     }
 
     /// One column at accessibility sizes, so long tile titles don't break up, as on Home.
@@ -157,16 +164,22 @@ struct BallDetailScreen: View {
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .firstTextBaseline) {
                             Text(block.title).monoLabel().fixedSize()
+                                .accessibilityAddTraits(.isHeader)
                             Spacer()
                             Text(block.sample).font(.figure).foregroundStyle(.inkMuted).fixedSize()
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(block.title).monoLabel()
+                                .accessibilityAddTraits(.isHeader)
                             Text(block.sample).font(.figure).foregroundStyle(.inkMuted)
                         }
                     }
-                    LazyVGrid(columns: Self.tileColumns(isAccessibilitySize: typeSize.isAccessibilitySize), spacing: 8) {
-                        ForEach(block.tiles, id: \.title) { StatTile($0) }
+                    if let empty = block.emptyText {
+                        Text(empty).font(.subheadline).foregroundStyle(.inkMuted)
+                    } else {
+                        LazyVGrid(columns: Self.tileColumns(isAccessibilitySize: typeSize.isAccessibilitySize), spacing: 8) {
+                            ForEach(block.tiles, id: \.title) { StatTile($0) }
+                        }
                     }
                 }
             }
@@ -198,7 +211,9 @@ struct BallDetailScreen: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
+        // Read as one element that says what the chips are: "Filter: All time, All games, Sam".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(AccessibilityText.filterChips(chips))
     }
 
     @ViewBuilder
@@ -226,7 +241,7 @@ struct BallDetailScreen: View {
         }
     }
 
-    private func overTime(_ trend: BallDetailData.Trend?) -> some View {
+    private func overTime(_ trend: BallDetailData.Trend?, empty: String) -> some View {
         Card(String(localized: "Over time")) {
             if let trend {
                 Chart {
@@ -247,7 +262,7 @@ struct BallDetailScreen: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(trend.accessibilityLabel)
             } else {
-                Text("Not enough sessions yet.").font(.subheadline).foregroundStyle(.inkMuted)
+                Text(empty).font(.subheadline).foregroundStyle(.inkMuted)
             }
         }
     }
@@ -268,6 +283,7 @@ struct BallDetailScreen: View {
                         Spacer()
                         Text(game.score).font(.frameTotal)
                         Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.inkMuted)
+                            .accessibilityHidden(true)
                     }
                     .contentShape(.rect)
                 }
@@ -291,6 +307,7 @@ private struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).monoLabel()
+                .accessibilityAddTraits(.isHeader)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -44,6 +44,9 @@ struct BallDetailData: Hashable {
         var title: String
         var tiles: [StatTileContent]
         var sample: String
+        /// Shown instead of the tiles when the ball never threw this kind of ball here, so a
+        /// spare-only ball doesn't show four empty strike tiles.
+        var emptyText: String?
     }
 
     struct ConditionRowText: Hashable {
@@ -94,6 +97,8 @@ struct BallDetailData: Hashable {
     var byCenter: [ConditionRowText]
     /// Nil with fewer than 2 sessions.
     var trend: Trend?
+    /// Over time's text when there is no trend.
+    var overTimeEmptyText: String
     /// In the order given: newest first.
     var recent: [RecentGame]
 
@@ -111,6 +116,9 @@ struct BallDetailData: Hashable {
         byPattern = Self.conditions(report.byOilPattern, names: patternNames)
         byCenter = Self.conditions(report.byCenter, names: centerNames)
         trend = Self.trend(report)
+        overTimeEmptyText = report.firstBalls == 0
+            ? String(localized: "No first balls with this ball in these games.")
+            : String(localized: "Not enough sessions yet.")
         recent = recentGames.map {
             RecentGame(id: $0.id, date: format.day($0.sessionDate), score: "\($0.finalScore)", eventType: $0.eventType.title)
         }
@@ -125,10 +133,13 @@ struct BallDetailData: Hashable {
         let detail = try store.balls.detail(for: id)
         var draft = filter
         if let owner = store.bowlers.owner(), filter.filter.bowlerID != owner.id {
-            // A friend's default scope came from the friend's games; use the owner's,
-            // keeping the dates and any event types the user picked by hand.
-            let ownerDraft = filter.changingBowler(to: owner, owner: owner, in: store)
-            if filter.scope != .custom { draft.filter.eventTypes = ownerDraft.filter.eventTypes }
+            // A friend's default scope came from the friend's games, so it becomes the owner's.
+            // Event types picked by hand, including Competition or All games, are kept.
+            let friend = store.bowlers.bowlers().first { $0.id == filter.filter.bowlerID }
+            let friendDefault = friend.map { StatsFilterDraft.defaults(for: $0, owner: owner, in: store) }
+            if friendDefault == nil || filter.filter.eventTypes == friendDefault?.filter.eventTypes {
+                draft.filter.eventTypes = StatsFilterDraft.defaults(for: owner, owner: owner, in: store).filter.eventTypes
+            }
             draft.filter.bowlerID = owner.id
             draft.bowlerName = owner.name
         }
@@ -156,7 +167,8 @@ struct BallDetailData: Hashable {
                 .rate(String(localized: "Head pin"), report.headPin, .firstBalls),
                 .mean(String(localized: "Average as main ball"), report.averageAsMainBall, .games),
             ],
-            sample: StatFormat.sample(report.firstBalls, .firstBalls)
+            sample: StatFormat.sample(report.firstBalls, .firstBalls),
+            emptyText: report.firstBalls == 0 ? String(localized: "No first balls with this ball in these games.") : nil
         )
         let spare = PerformanceBlock(
             title: String(localized: "As a spare ball"),
@@ -165,7 +177,8 @@ struct BallDetailData: Hashable {
                 .rate(String(localized: "Single pins"), report.singlePinConversion, .spareAttempts),
                 .rate(String(localized: "Splits"), report.splitConversion, .spareAttempts),
             ],
-            sample: StatFormat.sample(report.spareAttempts, .spareAttempts)
+            sample: StatFormat.sample(report.spareAttempts, .spareAttempts),
+            emptyText: report.spareAttempts == 0 ? String(localized: "No spare attempts with this ball in these games.") : nil
         )
         return role == .spare ? [spare, strike] : [strike, spare]
     }

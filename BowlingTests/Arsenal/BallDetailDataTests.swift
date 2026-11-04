@@ -188,6 +188,58 @@ import Testing
         #expect(block.sample == "\(report.spareAttempts) spare attempts")
     }
 
+    /// Every tile against `MixedBallExpected` (BowlingCore's fixture, not importable here), so
+    /// a tile wired to the wrong report field fails, not just the first two.
+    @Test(arguments: [true, false])
+    func mixedBallEveryTile(strikeBallUnderTest: Bool) throws {
+        let id = strikeBallUnderTest ? strikeBall : spareBall
+        let (_, data) = mixed(id, role: .strike)
+        let strike = try #require(data.performance.first), spare = try #require(data.performance.last)
+        func rate(_ hits: Int, _ attempts: Int) -> String { StatFormat.percent(Rate(hits: hits, attempts: attempts)) }
+        func mean(_ total: Int, _ count: Int) -> String { StatFormat.average(Mean(total: total, count: count)) }
+        if strikeBallUnderTest {
+            #expect(strike.tiles.map(\.value) == [rate(18, 41), mean(368, 41), rate(28, 29), mean(909, 5)])
+            #expect(strike.tiles.map(\.sample) == [StatFormat.sample(41, .firstBalls), StatFormat.sample(41, .firstBalls),
+                                                   StatFormat.sample(29, .firstBalls), StatFormat.sample(5, .games)])
+            #expect(spare.tiles.map(\.value) == [rate(6, 12), rate(3, 5), rate(0, 1)])
+            #expect(spare.sample == StatFormat.sample(12, .spareAttempts))
+        } else {
+            #expect(strike.tiles.map(\.value) == [rate(1, 4), mean(36, 4), rate(4, 4), mean(150, 1)])
+            #expect(spare.tiles.map(\.value) == [rate(8, 12), rate(5, 6), rate(0, 3)])
+            #expect(spare.tiles.map(\.sample) == [StatFormat.sample(12, .spareAttempts), StatFormat.sample(6, .spareAttempts),
+                                                  StatFormat.sample(3, .spareAttempts)])
+            #expect(strike.sample == StatFormat.sample(4, .firstBalls))
+        }
+    }
+
+    /// Complete pinByPin games where `ball` only throws the second ball: 7 then a spare of 3.
+    private func spareOnlyGames(days: [Int]) -> [GameRecord] {
+        let other = BallID()
+        func spare(_ index: Int) -> FrameRecord {
+            FrameRecord(frameIndex: index, rolls: [
+                RollRecord(rollIndex: 1, pinsDown: PinSet(pins: Array(1...7)), pinCount: 7, pinsKnown: true),
+                RollRecord(rollIndex: 2, pinsDown: PinSet(pins: [8, 9, 10]), pinCount: 3, pinsKnown: true, ballID: ball),
+            ])
+        }
+        return days.map { day in
+            var tenth = spare(10)
+            tenth.rolls.append(RollRecord(rollIndex: 3, pinsDown: .all, pinCount: 10, pinsKnown: true))
+            return GameRecord(gameIndex: 1, entryMode: .pinByPin, defaultBallID: other, finalScore: 173, isComplete: true,
+                              frames: (1...9).map(spare) + [tenth], sessionID: SessionID(),
+                              sessionDate: now.addingTimeInterval(-86_400 * Double(day)), eventType: .league)
+        }
+    }
+
+    @Test func spareOnlyBallExplainsItsEmptyStrikeSide() throws {
+        let data = built(games: spareOnlyGames(days: [1, 2, 3]), role: .spare)
+        let spare = try #require(data.performance.first), strike = try #require(data.performance.last)
+        #expect(spare.emptyText == nil)
+        #expect(strike.emptyText == "No first balls with this ball in these games.")
+        #expect(data.trend == nil)
+        #expect(data.overTimeEmptyText == "No first balls with this ball in these games.")
+        #expect(built(games: strikeGames(days: [1])).overTimeEmptyText == "Not enough sessions yet.")
+    }
+
     @Test func blockOrderFollowsRole() {
         let games = strikeGames(days: [1, 2])
         #expect(built(games: games, role: .strike).performance.map(\.title) == ["As a strike ball", "As a spare ball"])
@@ -345,6 +397,23 @@ import Testing
         try game(.league, daysAgo: 2)
         let data = try BallDetailData.load(id: ball, store: store, filter: filter([.practice], bowler: friend.id, name: "Alex"))
         #expect(data.recent.map(\.id) == [practice])
+    }
+
+    @Test func friendAllGamesPickedByHandIsKept() throws {
+        let friend = try store.bowlers.createBowler(name: "Alex")
+        let friendLeague = try store.sessions.startSession(
+            SessionMetadata(date: .now, eventType: .league),
+            bowlers: [(bowlerID: friend.id, defaultBallID: nil)], entryMode: .finalOnly
+        )
+        try store.games.setFinalScore(190, for: try #require(try store.sessions.session(friendLeague).bowlers.first?.games.first?.id))
+        let league = try game(.league, daysAgo: 2)
+        let practice = try game(.practice)
+        #expect(StatsFilterDraft.defaults(for: friend, owner: owner, in: store).scope == .competition)
+        #expect(StatsFilterDraft.defaults(for: owner, owner: owner, in: store).scope == .competition)
+        // "All games" picked by hand for Alex, not Alex's Competition default.
+        let data = try BallDetailData.load(id: ball, store: store, filter: filter(bowler: friend.id, name: "Alex"))
+        #expect(data.recent.map(\.id) == [practice, league])
+        #expect(data.chips.contains("All games"))
     }
 
     @Test func tilesStackAtAccessibilitySizes() {
