@@ -39,8 +39,10 @@ extension Font {
 extension View {
     /// The app's prominent action: an AccentColor fill with OnAccent text, the pair
     /// ThemeTests checks. The system's white label falls to 2.7:1 on the dark-mode accent.
+    /// Disabled, it keeps the system's disabled colours: OnAccent on the gray fill was
+    /// barely visible.
     func prominentButton() -> some View {
-        buttonStyle(.borderedProminent).foregroundStyle(.onAccent)
+        buttonStyle(.borderedProminent).modifier(OnAccentWhenEnabled())
     }
 
     /// Uppercase monospaced card label, such as "SCORECARD" or "TOTAL LEFT".
@@ -132,3 +134,16 @@ private struct ThemePreview: View {
 #Preview("Theme, light") { ThemePreview().preferredColorScheme(.light) }
 #Preview("Theme, dark") { ThemePreview().preferredColorScheme(.dark) }
 #endif
+
+/// OnAccent text only while enabled; `.disabled` is applied outside `prominentButton()`.
+private struct OnAccentWhenEnabled: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.foregroundStyle(.onAccent)
+        } else {
+            content
+        }
+    }
+}
