@@ -13,8 +13,8 @@ struct StatsCardView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(card.title)
                     .monoLabel()
-                    // The trend's own label starts with "Trend".
-                    .accessibilityHidden(isTrend)
+                    // The trend's and the what-if's own labels start with their title.
+                    .accessibilityHidden(readsOwnTitle)
                 content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -30,7 +30,6 @@ struct StatsCardView: View {
     private var explainedLabel: String? {
         switch card.body {
         case .notApplicable(let text): AccessibilityText.explainedCard(title: card.title, text: text)
-        case .comingSoon: AccessibilityText.explainedCard(title: card.title, text: String(localized: "Coming soon."))
         case .leftMost(nil): AccessibilityText.explainedCard(title: card.title, text: String(localized: "No leave seen 3 times yet."))
         default: nil
         }
@@ -48,15 +47,20 @@ struct StatsCardView: View {
             LeaveRowView(row: row, size: .regular)
         case .leftMost(nil):
             muted(String(localized: "No leave seen 3 times yet."))
+        case .byFrame(let content):
+            ByFrameCard(content: content)
+        case .whatIf(let content):
+            WhatIfCard(content: content)
         case .notApplicable(let text):
             muted(text)
-        case .comingSoon:
-            muted(String(localized: "Coming soon."))
         }
     }
 
-    private var isTrend: Bool {
-        if case .trend = card.body { true } else { false }
+    private var readsOwnTitle: Bool {
+        switch card.body {
+        case .trend, .whatIf: true
+        default: false
+        }
     }
 
     /// The card's explanation; the card reads as one element, title first.

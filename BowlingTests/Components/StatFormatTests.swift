@@ -14,6 +14,12 @@ import Testing
         #expect(StatFormat.percent(Rate(hits: 1, attempts: 201), locale: us) == "1%")
         #expect(StatFormat.percent(Rate(hits: 0, attempts: 201), locale: us) == "0%")
     }
+    @Test func percentNumbers() {
+        #expect(StatFormat.percentNumber(Rate(hits: 89, attempts: 216), locale: us) == "41")
+        #expect(StatFormat.percentNumber(Rate(hits: 199, attempts: 200), locale: us) == "99")
+        #expect(StatFormat.percentNumber(Rate(hits: 1, attempts: 201), locale: us) == "1")
+        #expect(StatFormat.percentNumber(Rate(hits: 0, attempts: 0), locale: us) == "–")
+    }
     @Test func averages() {
         #expect(StatFormat.average(Mean(total: 4464, count: 24), locale: us) == "186")
         #expect(StatFormat.average(Mean(total: 373, count: 2), locale: us) == "186.5")

@@ -4,6 +4,17 @@ import Testing
 @testable import Bowling
 
 @Suite struct AccessibilityTextTests {
+    @Test func byFrameBars() {
+        #expect(AccessibilityText.byFrameBar(1, "25%") == "Frame 1, 25%")
+        #expect(AccessibilityText.byFrameBar(10, pins: "7.5") == "Frame 10, 7.5 pins")
+    }
+    @Test func whatIf() {
+        #expect(AccessibilityText.whatIf(sample: "6 pin-by-pin games", actual: "196", allMade: "205.3",
+                                         gain: "9.3 more pins a game")
+            == "What if, 6 pin-by-pin games, your average 196, 205.3 with every single-pin spare made, 9.3 more pins a game")
+        #expect(AccessibilityText.whatIf(sample: "6 pin-by-pin games", actual: "196", note: "you made every single-pin spare.")
+            == "What if, 6 pin-by-pin games, your average 196, you made every single-pin spare.")
+    }
     @Test func pins() {
         #expect(AccessibilityText.pin(7, standing: true) == "Pin 7, standing")
         #expect(AccessibilityText.pin(7, standing: false) == "Pin 7, down")

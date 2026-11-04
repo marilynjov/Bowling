@@ -9,11 +9,22 @@ enum StatFormat {
     /// at 1% or more once one does, so 199 of 200 isn't "100%" and 1 of 201 isn't "0%".
     /// Formatted for `locale`, so en_CO reads "41 %".
     static func percent(_ rate: Rate, locale: Locale = .current) -> String {
-        guard let value = rate.value else { return "–" }
+        guard let whole = wholePercent(rate) else { return "–" }
+        return (Double(whole) / 100).formatted(.percent.precision(.fractionLength(0)).locale(locale))
+    }
+
+    /// `percent` without the sign, "41", for a chart whose axis already says percent.
+    static func percentNumber(_ rate: Rate, locale: Locale = .current) -> String {
+        guard let whole = wholePercent(rate) else { return "–" }
+        return whole.formatted(.number.locale(locale))
+    }
+
+    private static func wholePercent(_ rate: Rate) -> Int? {
+        guard let value = rate.value else { return nil }
         var whole = Int((value * 100).rounded())
         if rate.hits < rate.attempts { whole = min(whole, 99) }
         if rate.hits > 0 { whole = max(whole, 1) }
-        return (Double(whole) / 100).formatted(.percent.precision(.fractionLength(0)).locale(locale))
+        return whole
     }
 
     /// Up to one decimal, with no trailing ".0": "186", "186.5" (or "186,5" in es_CO).
