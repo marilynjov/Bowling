@@ -393,14 +393,17 @@ public struct BallMaintenance: Sendable, Hashable {
                                                    // none, since purchase (#107 review)
     public var lastResurface: Date?                // nil: never resurfaced
     public var resurfaceIntervalGames: Int?
+    public var isRetired: Bool                     // a retired ball is never due
     public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
-    public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
+    public var isResurfaceDue: Bool { get }        // not retired, interval set and
+                                                   // gamesSinceResurface >= it
     /// The latest resurface wins: a game counts when its session date is > it. Only with
     /// no resurface logged, a game counts when its session date is >= purchaseDate, so
     /// games logged before the purchase date do not count (1b, #32). Without either,
     /// every game. BallRepository passes the start of the purchase day in its calendar.
     public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
-                resurfaceIntervalGames: Int?, purchaseDate: Date? = nil)
+                resurfaceIntervalGames: Int?, purchaseDate: Date? = nil,
+                isRetired: Bool = false)
     /// The same rule over session dates only; BallSummary.isResurfaceDue uses it.
     public static func gamesSinceResurface(sessionDates: [Date], lastResurface: Date?,
                                            purchaseDate: Date?) -> Int
@@ -682,7 +685,7 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
                                                    // roll override, each game once
     public var isRetired: Bool                     // 1b
     public var hasPhoto: Bool                      // 1b: photo(for:) or a placeholder
-    public var isResurfaceDue: Bool                // 1b: BallMaintenance.isResurfaceDue
+    public var isResurfaceDue: Bool                // 1b: equals BallMaintenance.isResurfaceDue
 }
 ```
 
@@ -880,6 +883,8 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
     // section 2.9. maintenance(for:) is also the resurface reminder's input (#32):
     // gamesSinceResurface counts from the latest resurface, else from the start of the
     // purchase day, else every game; compare isResurfaceDue before and after a save.
+    // isResurfaceDue is false for a retired ball (its wear still counts), so a retired
+    // ball never schedules the reminder; it equals BallSummary.isResurfaceDue.
 
     // 1b (#28, #29, #30, #32). Every method throws .notFound for an unknown ball.
     /// Retired balls, sorted by name: the Arsenal list's Retired group (#28).
