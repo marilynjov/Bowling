@@ -12,15 +12,16 @@ struct GameDetailScreen: View {
     @State private var pendingDelete: DeleteRequest?
 
     var body: some View {
-        Group {
+        // The canvas is always there, so `.task` runs before the first load (#134): on an
+        // empty Group SwiftUI drops the modifiers, and the screen stayed blank.
+        ZStack {
+            Color.canvas.ignoresSafeArea()
             if isDeleted {
                 RecordDeletedView(message: "This game was deleted.")
             } else if let data {
                 list(data)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.canvas)
         .navigationTitle(isDeleted ? "" : data?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
