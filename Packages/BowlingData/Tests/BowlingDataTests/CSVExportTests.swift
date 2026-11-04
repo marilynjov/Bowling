@@ -255,6 +255,17 @@ import Testing
         #expect(leagues.encoded.contains(",\"Tuesday \"\"Trios\"\"\","))
     }
 
+    @Test func aCommaDecimalExportWritesCommaDecimals() throws {
+        let store = try BowlingStore(inMemory: true)
+        _ = try store.balls.addBall(BallFields(name: "Phaze II", weightPounds: 15, rg: 2.52, differential: 0.051))
+        let balls = try #require(try store.csvTables(format: .semicolon).first { $0.fileName == "balls.csv" })
+        let row = try #require(balls.rows.first)
+        #expect(try balls.value(row, "rg") == "2,52")
+        #expect(try balls.value(row, "differential") == "0,051")
+        #expect(try balls.value(row, "weightPounds") == "15")
+        #expect(balls.encoded.hasPrefix("id;createdAt;updatedAt;remoteID;name;"))
+    }
+
     // MARK: Zip
 
     @Test func exportWritesAZipNamedForTheDay() throws {
@@ -289,8 +300,14 @@ import Testing
     }
 
     #if os(macOS)
-    @Test func zipHoldsEveryFileByteForByte() throws {
-        let url = try store.exportCSV(now: DemoFixture.referenceDate)
+    /// Each locale's zip matches `csvTables` in that locale's format, so the export follows
+    /// the device's region rather than always writing commas.
+    @Test(arguments: ["en_US", "es_CO"])
+    func zipHoldsEveryFileByteForByte(_ identifier: String) throws {
+        let locale = Locale(identifier: identifier)
+        let tables = Dictionary(uniqueKeysWithValues: try store.csvTables(format: CSVFormat(locale: locale))
+            .map { ($0.fileName, $0) })
+        let url = try store.exportCSV(now: DemoFixture.referenceDate, locale: locale)
         let unzipped = url.deletingLastPathComponent().appending(path: "unzipped")
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let unzip = Process()

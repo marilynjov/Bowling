@@ -1321,14 +1321,15 @@ starts.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
 
-### 6.1 CSV export (1b, §7 Settings, §9 "CSV export", #43)
+### 6.1 CSV export (1b, §7 Settings, §9 "CSV export", #43, #126)
 
 ```swift
 extension BowlingStore {
     /// Writes one CSV per entity into a fresh folder in the temporary directory, zips it
     /// with NSFileCoordinator `.forUploading`, and returns the zip's URL for the file
     /// exporter or share sheet. The zip is "Bowling Export yyyy-MM-dd.zip" (device time zone).
-    @MainActor public func exportCSV(now: Date = .now) throws -> URL
+    /// `locale` picks the separators (below); the app passes nothing and gets the device's.
+    @MainActor public func exportCSV(now: Date = .now, locale: Locale = .current) throws -> URL
 }
 ```
 
@@ -1348,10 +1349,15 @@ starts with `id, createdAt, updatedAt, remoteID`; the remaining columns, in orde
 | leagues.csv | name, notes, centerID, seasonLabel, seasonStart, seasonEnd, gamesPerSession |
 | oilPatterns.csv | name, notes, lengthFeet, volumeMilliliters, patternKey |
 
-Encoding: RFC 4180 (CRLF, fields with a comma, quote, CR, or LF quoted, quotes doubled),
-UTF-8 with a byte order mark for Excel. UUIDs uppercase; dates ISO 8601 UTC with
-milliseconds; booleans `true`/`false`; nil is an empty field; enums are the stored raw
-string, unknown values included. Columns are only ever appended, never renamed or
+Encoding: RFC 4180 (CRLF, fields with the separator, a quote, CR, or LF quoted, quotes
+doubled), UTF-8 with a byte order mark for Excel. The separator follows the locale (#126):
+where decimals use a comma (`Locale.decimalSeparator == ","`, for example `es_CO`, `en_CO`,
+`de_DE`), columns are separated by `;` and decimals are written `2,52`, because Excel
+there opens a comma file as one column and reads `2.52` as text; everywhere else `,` and
+`2.52`. Phase 3's import tells the two apart from the header row (the character after
+`id`). UUIDs uppercase; dates ISO 8601 UTC with milliseconds in both formats; booleans
+`true`/`false`; nil is an empty field; enums are the stored raw string, unknown values
+included. Columns are only ever appended, never renamed or
 reordered, so phase 3 can re-import by UUID. Photos are not exported.
 Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
 them as formulas; this is accepted for now and tracked in
