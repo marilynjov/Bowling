@@ -13,15 +13,16 @@ struct SessionDetailScreen: View {
     @State private var pendingDelete: DeleteRequest?
 
     var body: some View {
-        Group {
+        // The canvas is always there, so `.task` runs before the first load (#134): on an
+        // empty Group SwiftUI drops the modifiers, and the screen stayed blank.
+        ZStack {
+            Color.canvas.ignoresSafeArea()
             if isDeleted {
                 RecordDeletedView(message: "This session was deleted.")
             } else if let data {
                 list(data)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.canvas)
         .navigationTitle(isDeleted ? "" : data?.date.formatted(date: .abbreviated, time: .omitted) ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -107,7 +108,10 @@ struct SessionDetailScreen: View {
                         .monospacedDigit()
                         .foregroundStyle(Color.ink)
                 }
+                // Its horizontal scroll view took taps, so most of the row didn't open the game
+                // (#134). Game detail shows the full scorecard.
                 ScorecardStrip(scorecard: game.scorecard, currentFrame: nil)
+                    .allowsHitTesting(false)
             }
             .padding(.vertical, 4)
             .accessibilityElement(children: .ignore)
