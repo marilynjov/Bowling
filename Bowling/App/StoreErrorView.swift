@@ -12,7 +12,7 @@ struct StoreErrorView: View {
             Text(ErrorText.message(for: error))
         } actions: {
             Button("Retry", action: retry)
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
         }
     }
 }

@@ -7,11 +7,15 @@ struct BowlingStyleStep: View {
     @Binding var draft: OnboardingDraft
     var onContinue: () -> Void
 
-    private static let options: [(title: String, detail: String, style: StatsProfile)] = [
-        ("Casually", "Now and then, for fun.", .casual),
-        ("In a league", "A regular league night, and you want your league average.", .league),
-        ("Competitively", "Leagues and tournaments, and you want every number.", .competitive),
-    ]
+    private static var options: [(title: String, detail: String, style: StatsProfile)] {
+        [
+            (String(localized: "Casually"), String(localized: "Now and then, for fun."), .casual),
+            (String(localized: "In a league"),
+             String(localized: "A regular league night, and you want your league average."), .league),
+            (String(localized: "Competitively"),
+             String(localized: "Leagues and tournaments, and you want every number."), .competitive),
+        ]
+    }
 
     var body: some View {
         ScrollView {
@@ -32,7 +36,7 @@ struct BowlingStyleStep: View {
         .navigationTitle("How do you bowl?")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
-            OnboardingButton(title: "Continue", action: onContinue)
+            OnboardingButton(title: String(localized: "Continue"), action: onContinue)
                 .disabled(draft.style == nil)
         }
     }

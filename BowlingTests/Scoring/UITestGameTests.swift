@@ -46,5 +46,20 @@ import Testing
 
         #expect(model.game.isComplete)
         #expect(model.game.finalScore == 193)
+        // What VoiceOver reads for each frame: docs/accessibility-checklist.md quotes these.
+        #expect(model.scorecard.frames.map(AccessibilityText.frame) == [
+            "Frame 1: strike, total 20",
+            "Frame 2: 7, spare, total 39",
+            "Frame 3: 9, gutter, total 48",
+            "Frame 4: strike, total 76",
+            "Frame 5: strike, total 96",
+            "Frame 6: 8, spare, total 115",
+            "Frame 7: 9, spare, total 135",
+            "Frame 8: strike, total 154",
+            "Frame 9: 7, 2, total 163",
+            "Frame 10: strike, strike, strike, total 193",
+        ])
+        #expect(AccessibilityText.deckSummary(standing: PinSet(pins: [4, 7, 10])) == "3 pins standing: 4, 7, 10")
+        #expect(AccessibilityText.deckSummary(standing: PinSet(pins: [10])) == "1 pin standing: 10")
     }
 }

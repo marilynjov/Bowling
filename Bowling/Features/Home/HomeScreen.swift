@@ -46,7 +46,7 @@ struct HomeScreen: View {
                 Text("Start session").frame(maxWidth: .infinity)
             }
             .accessibilityIdentifier("home.startSession")
-            .buttonStyle(.borderedProminent)
+            .prominentButton()
             .tint(.accent)
             Button { app.isQuickScoring = true } label: {
                 Text("Quick score").frame(maxWidth: .infinity)

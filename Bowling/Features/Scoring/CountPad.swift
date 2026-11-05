@@ -31,7 +31,7 @@ struct CountPad: View {
         }
         .disabled(!pad.countChoices.contains(pins))
         if model.editedCount == pins {
-            button.buttonStyle(.borderedProminent)
+            button.prominentButton()
         } else {
             button.buttonStyle(.bordered)
         }
