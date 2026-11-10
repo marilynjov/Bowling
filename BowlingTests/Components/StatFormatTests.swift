@@ -47,4 +47,10 @@ import Testing
         #expect(StatFormat.sample(1, .leaves) == "1 leave")
         #expect(StatFormat.sample(9, .leaves) == "9 leaves")
     }
+
+    @Test func spareAttemptsSample() {
+        #expect(StatFormat.sample(0, .spareAttempts) == "No spare attempts yet")
+        #expect(StatFormat.sample(1, .spareAttempts) == "1 spare attempt")
+        #expect(StatFormat.sample(3, .spareAttempts) == "3 spare attempts")
+    }
 }

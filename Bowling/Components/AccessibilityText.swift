@@ -92,6 +92,11 @@ enum AccessibilityText {
         String(localized: "What if, \(sample), your average \(actual), \(note)")
     }
 
+    /// Read-only filter chips: "Filter: All time, All games, Sam".
+    static func filterChips(_ chips: [String]) -> String {
+        String(localized: "Filter: \(chips.joined(separator: ", "))")
+    }
+
     /// A Stats card that explains instead of showing a number: "Strike %, Enter frames to
     /// see strikes and spares."
     static func explainedCard(title: String, text: String) -> String {

@@ -138,6 +138,14 @@ import Testing
         #expect(maintenance.isResurfaceDue == due)
     }
 
+    @Test func aRetiredBallIsNeverDueButStillCountsItsWear() {
+        let maintenance = BallMaintenance(
+            ball: Self.ball, games: Self.games, events: Self.events, resurfaceIntervalGames: 2, isRetired: true
+        )
+        #expect(maintenance.gamesSinceResurface == 3)
+        #expect(!maintenance.isResurfaceDue)
+    }
+
     @Test func noIntervalIsNeverDue() {
         let maintenance = BallMaintenance(ball: Self.ball, games: Self.games, events: [], resurfaceIntervalGames: nil)
         #expect(maintenance.gamesSinceResurface == 5)

@@ -107,9 +107,9 @@ enum StatsCards {
         case .trendChart:
             return .trend(trend(report))
         case .leavesTable:
-            return .leaves(report.leaves.map(row))
+            return .leaves(report.leaves.map(LeaveRowContent.init))
         case .leftMostMadeLeast:
-            return .leftMost(report.leftMostMadeLeast.map(row))
+            return .leftMost(report.leftMostMadeLeast.map(LeaveRowContent.init))
         case .byFrameStrike:
             return .byFrame(byFrame(.strikes, report, locale))
         case .byFrameAverage:
@@ -225,10 +225,12 @@ enum StatsCards {
         let gainValue = gainMean.value ?? 0
         let gain = StatFormat.average(gainMean, locale: locale)
         let tenth = (0.1).formatted(.number.locale(locale))
-        // Under 0.05 would round to "+0"; exactly 1 is singular.
+        // Under 0.05 would round to "+0". Singular when the shown, rounded gain is 1, so
+        // 29 pins over 30 games isn't "+1 pins".
+        let one = 1.formatted(.number.locale(locale))
         let (shown, spoken) = gainValue < 0.05
             ? (String(localized: "Less than \(tenth) pins a game"), String(localized: "less than \(tenth) more pins a game"))
-            : gainValue == 1
+            : gain == one
                 ? (String(localized: "+1 pin a game"), String(localized: "1 more pin a game"))
                 : (String(localized: "+\(gain) pins a game"), String(localized: "\(gain) more pins a game"))
         let missed = whatIf.rewritten == 1
@@ -240,19 +242,22 @@ enum StatsCards {
         )
     }
 
-    private static func row(_ row: LeaveRow) -> LeaveRowContent {
-        let made = row.conversion.hits, count = row.conversion.attempts
-        return LeaveRowContent(
-            leave: row.leave, made: String(localized: "Made \(made) of \(count)"),
-            rate: StatFormat.percent(row.conversion),
-            accessibilityLabel: AccessibilityText.leaveRow(row.leave, made: made, of: count)
-        )
-    }
-
     private static func day(_ date: Date, _ calendar: Calendar) -> String {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.calendar = calendar
         style.timeZone = calendar.timeZone
         return date.formatted(style)
+    }
+}
+
+extension LeaveRowContent {
+    /// A leave row's text; Stats and ball detail share it.
+    init(_ row: LeaveRow) {
+        let made = row.conversion.hits, count = row.conversion.attempts
+        self.init(
+            leave: row.leave, made: String(localized: "Made \(made) of \(count)"),
+            rate: StatFormat.percent(row.conversion),
+            accessibilityLabel: AccessibilityText.leaveRow(row.leave, made: made, of: count)
+        )
     }
 }

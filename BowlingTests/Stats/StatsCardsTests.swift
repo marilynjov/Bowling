@@ -164,6 +164,12 @@ import Testing
         let one = try whatIf(whatIfReport(rewritten: 2, allMade: 1182))
         #expect(one.detail == "+1 pin a game · 2 missed single pins")
         #expect(one.accessibilityLabel.hasSuffix("1 more pin a game"))
+        // The shown gain is rounded: 29 or 31 pins over 30 games also read "1".
+        for allMade in [6029, 6031] {
+            let rounded = try whatIf(whatIfReport(rewritten: 3, actual: 6000, allMade: allMade, games: 30))
+            #expect(rounded.detail == "+1 pin a game · 3 missed single pins")
+            #expect(rounded.accessibilityLabel.hasSuffix("1 more pin a game"))
+        }
     }
 
     @Test func whatIfTinyGainDoesNotRoundToZero() throws {

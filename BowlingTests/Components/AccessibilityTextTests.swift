@@ -15,6 +15,9 @@ import Testing
         #expect(AccessibilityText.whatIf(sample: "6 pin-by-pin games", actual: "196", note: "you made every single-pin spare.")
             == "What if, 6 pin-by-pin games, your average 196, you made every single-pin spare.")
     }
+    @Test func filterChips() {
+        #expect(AccessibilityText.filterChips(["All time", "All games", "Sam"]) == "Filter: All time, All games, Sam")
+    }
     @Test func pins() {
         #expect(AccessibilityText.pin(7, standing: true) == "Pin 7, standing")
         #expect(AccessibilityText.pin(7, standing: false) == "Pin 7, down")

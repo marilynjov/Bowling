@@ -30,14 +30,30 @@ jobs:
     name: Build app
     runs-on: xcode-27
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
-    timeout-minutes: 30
+    # Room for the build plus two tries of the tests.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - run: xcodebuild -version
-      - name: Build and test for iOS Simulator
+      - name: Build for testing
         run: |
-          xcodebuild build test \
+          xcodebuild build-for-testing \
             -project Bowling.xcodeproj \
             -scheme Bowling \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
             CODE_SIGNING_ALLOWED=NO
+      # The simulator has stalled before any test ran: the test runner crashed while
+      # bootstrapping on a cold device, or the app launch timed out (#130). Boot the device
+      # first, and run the step a second time if it fails; a real failure fails both tries.
+      - name: Test on iOS Simulator
+        run: |
+          xcrun simctl boot 'iPhone 18 Pro' || true
+          xcrun simctl bootstatus 'iPhone 18 Pro' -b
+          run_tests() {
+            xcodebuild test-without-building \
+              -project Bowling.xcodeproj \
+              -scheme Bowling \
+              -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+              CODE_SIGNING_ALLOWED=NO
+          }
+          run_tests || { echo "::warning::Tests failed; running them once more"; run_tests; }
