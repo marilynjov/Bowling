@@ -3,7 +3,7 @@ import BowlingData
 import SwiftUI
 
 /// The Arsenal tab (spec §7, Arsenal 1b): active balls, a collapsed Retired group, and Add
-/// ball. Rows are display only until ball detail (#30); Compare arrives with its table (#31).
+/// ball. A row opens ball detail (#30); Compare arrives with its table (#31).
 struct ArsenalScreen: View {
     @Environment(AppModel.self) private var app
     @State private var list: ArsenalList?
@@ -24,6 +24,11 @@ struct ArsenalScreen: View {
             }
         }
         .navigationTitle("Arsenal")
+        .navigationDestination(for: ArsenalRoute.self) { route in
+            switch route {
+            case .ball(let id): BallDetailScreen(id: id)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { app.ballForm = .add } label: {
@@ -63,8 +68,7 @@ struct ArsenalScreen: View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(spacing: 12))
-        // Opens Edit until ball detail (#30) takes the tap.
-        return Button { app.ballForm = .edit(row.id) } label: {
+        return NavigationLink(value: ArsenalRoute.ball(row.id)) {
             layout {
                 BallThumbnail(id: row.id, hasPhoto: row.hasPhoto, placeholder: row.placeholder)
                     .saturation(row.isRetired ? 0 : 1)
@@ -82,9 +86,7 @@ struct ArsenalScreen: View {
                 }
                 Spacer(minLength: 0)
             }
-            .contentShape(.rect)
         }
-        .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel)
         .accessibilityAddTraits(.isButton)
@@ -98,18 +100,6 @@ struct ArsenalScreen: View {
             Button("Add ball") { app.ballForm = .add }
                 .buttonStyle(.borderedProminent)
         }
-    }
-}
-
-/// "Resurface due" on an Arsenal row (spec §7).
-private struct ResurfaceDueBadge: View {
-    var body: some View {
-        Text("Resurface due")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.cautionText)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(.cautionSoft, in: .capsule)
     }
 }
 

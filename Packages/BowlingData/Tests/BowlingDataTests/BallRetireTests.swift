@@ -53,6 +53,26 @@ import Testing
         #expect(balls.retiredBalls().first?.gamesBowled == 1)
     }
 
+    /// A retired ball isn't thrown, so the Arsenal list shows no "Resurface due" on it (#122).
+    @Test func aRetiredBallIsNeverResurfaceDue() throws {
+        let id = try balls.addBall(BallFields(name: "Old Ball", weightPounds: 15, resurfaceIntervalGames: 1)).id
+        let record = GameRecord(
+            gameIndex: 1, entryMode: .finalOnly, defaultBallID: id, finalScore: 180, isComplete: true,
+            frames: [], sessionID: SessionID(), sessionDate: .now, eventType: .league
+        )
+        _ = try insertGame(record, into: store.context)
+        #expect(balls.activeBalls().first?.isResurfaceDue == true)
+        #expect(try balls.maintenance(for: id).isResurfaceDue)
+
+        try balls.setRetired(true, for: id)
+        #expect(balls.retiredBalls().first?.isResurfaceDue == false)
+        #expect(try !balls.maintenance(for: id).isResurfaceDue)
+
+        try balls.setRetired(false, for: id)
+        #expect(balls.activeBalls().first?.isResurfaceDue == true)
+        #expect(try balls.maintenance(for: id).isResurfaceDue)
+    }
+
     @Test func settingTheSameStateLeavesUpdatedAtAlone() throws {
         let id = try balls.addBall(BallFields(name: "Ball", weightPounds: 15)).id
         let before = try store.context.ball(id).updatedAt

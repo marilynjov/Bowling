@@ -11,19 +11,23 @@ extension BowlingStore {
     ///
     /// Each call writes into its own folder in the temporary directory; the system purges
     /// it, and the caller may delete `url.deletingLastPathComponent()` once the file is sent.
-    /// - Parameter now: Names the zip, "Bowling Export 2026-10-14.zip", in the device's time zone.
+    /// - Parameters:
+    ///   - now: Names the zip, "Bowling Export 2026-10-14.zip", in the device's time zone.
+    ///   - locale: Where decimals use a comma, columns are separated by `;` and decimals
+    ///     written with `,`, so Excel opens the files in columns there (#126).
     /// - Returns: The zip's URL.
-    public func exportCSV(now: Date = .now) throws -> URL {
-        try exportCSV(now: now, workspace: FileManager.default.temporaryDirectory.appending(path: "CSVExport-\(UUID().uuidString)"))
+    public func exportCSV(now: Date = .now, locale: Locale = .current) throws -> URL {
+        try exportCSV(now: now, format: CSVFormat(locale: locale),
+                      workspace: FileManager.default.temporaryDirectory.appending(path: "CSVExport-\(UUID().uuidString)"))
     }
 
     /// - Parameter workspace: The folder the export writes into; deleted if the export fails.
-    func exportCSV(now: Date, workspace: URL) throws -> URL {
+    func exportCSV(now: Date, format: CSVFormat = .comma, workspace: URL) throws -> URL {
         let name = "Bowling Export \(now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day()))"
         do {
             let folder = workspace.appending(path: name)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            for table in try csvTables() {
+            for table in try csvTables(format: format) {
                 try table.data.write(to: folder.appending(path: table.fileName))
             }
 
@@ -46,7 +50,8 @@ extension BowlingStore {
 
     /// Every exported table, in file order. Games are ordered by session date, lineup, and
     /// game index, and frames and rolls follow their game; everything else by creation.
-    func csvTables() throws -> [CSVTable] {
+    /// `format` defaults to commas so tests don't depend on the machine's region.
+    func csvTables(format: CSVFormat = .comma) throws -> [CSVTable] {
         let sessions = try context.fetch(FetchDescriptor<Session>())
             .sorted { ($0.date, $0.id.uuidString) < ($1.date, $1.id.uuidString) }
         let sessionOrder = Self.positions(sessions)
@@ -63,18 +68,18 @@ extension BowlingStore {
         }
 
         return [
-            CSVTable("bowlers.csv", try fetchByCreation(Bowler.self), [
+            CSVTable("bowlers.csv", format: format, try fetchByCreation(Bowler.self), [
                 .init("name", \.name), .init("isOwner", \.isOwner), .init("handedness", \.handedness),
                 .init("email", \.email), .init("statsProfile", \.statsProfile),
                 .init("statsLayout", \.statsLayout), .init("homeLayout", \.homeLayout),
                 .init("statsScope", \.statsScope),
             ]),
-            CSVTable("sessions.csv", sessions, [
+            CSVTable("sessions.csv", format: format, sessions, [
                 .init("date", \.date), .init("eventType", \.eventType),
                 .init("centerID") { $0.center?.id }, .init("leagueID") { $0.league?.id },
                 .init("oilPatternID") { $0.oilPattern?.id }, .init("lanes", \.lanes), .init("notes", \.notes),
             ]),
-            CSVTable("games.csv", games, [
+            CSVTable("games.csv", format: format, games, [
                 .init("sessionID") { $0.session?.id }, .init("bowlerID") { $0.bowlerID },
                 .init("gameIndex", \.gameIndex), .init("lineupIndex", \.lineupIndex),
                 .init("entryMode", \.entryMode), .init("defaultBallID") { $0.defaultBall?.id },
@@ -82,16 +87,16 @@ extension BowlingStore {
                 .init("scanConfidence", \.scanConfidence), .init("invitationStatus", \.invitationStatus),
                 .init("scoredByName", \.scoredByName),
             ]),
-            CSVTable("frames.csv", frames, [
+            CSVTable("frames.csv", format: format, frames, [
                 .init("gameID") { $0.game?.id }, .init("frameIndex", \.frameIndex),
                 .init("rotationSlot", \.rotationSlot),
             ]),
-            CSVTable("rolls.csv", rolls, [
+            CSVTable("rolls.csv", format: format, rolls, [
                 .init("frameID") { $0.frame?.id }, .init("rollIndex", \.rollIndex),
                 .init("pinsDownMask", \.pinsDownMask), .init("pinCount", \.pinCount),
                 .init("pinsKnown", \.pinsKnown), .init("isFoul", \.isFoul), .init("ballID") { $0.ball?.id },
             ]),
-            CSVTable("balls.csv", try fetchByCreation(Ball.self), [
+            CSVTable("balls.csv", format: format, try fetchByCreation(Ball.self), [
                 .init("name", \.name), .init("brand", \.brand), .init("weightPounds", \.weightPounds),
                 .init("coverstock", \.coverstock), .init("coverstockName", \.coverstockName),
                 .init("coreType", \.coreType), .init("coreName", \.coreName), .init("rg", \.rg),
@@ -103,21 +108,21 @@ extension BowlingStore {
                 .init("surfaceGrit", \.surfaceGrit), .init("resurfaceIntervalGames", \.resurfaceIntervalGames),
                 .init("isRetired", \.isRetired), .init("notes", \.notes),
             ]),
-            CSVTable("maintenance.csv", try fetchByCreation(MaintenanceEvent.self), [
+            CSVTable("maintenance.csv", format: format, try fetchByCreation(MaintenanceEvent.self), [
                 .init("ballID") { $0.ball?.id }, .init("date", \.date), .init("kind", \.kind),
                 .init("surfaceGritAfter", \.surfaceGritAfter), .init("gamesOnBallAtTime", \.gamesOnBallAtTime),
                 .init("notes", \.notes),
             ]),
-            CSVTable("centers.csv", try fetchByCreation(BowlingCenter.self), [
+            CSVTable("centers.csv", format: format, try fetchByCreation(BowlingCenter.self), [
                 .init("name", \.name), .init("notes", \.notes), .init("city", \.city),
                 .init("latitude", \.latitude), .init("longitude", \.longitude),
             ]),
-            CSVTable("leagues.csv", try fetchByCreation(League.self), [
+            CSVTable("leagues.csv", format: format, try fetchByCreation(League.self), [
                 .init("name", \.name), .init("notes", \.notes), .init("centerID") { $0.center?.id },
                 .init("seasonLabel", \.seasonLabel), .init("seasonStart", \.seasonStart),
                 .init("seasonEnd", \.seasonEnd), .init("gamesPerSession", \.gamesPerSession),
             ]),
-            CSVTable("oilPatterns.csv", try fetchByCreation(OilPattern.self), [
+            CSVTable("oilPatterns.csv", format: format, try fetchByCreation(OilPattern.self), [
                 .init("name", \.name), .init("notes", \.notes), .init("lengthFeet", \.lengthFeet),
                 .init("volumeMilliliters", \.volumeMilliliters), .init("patternKey", \.patternKey),
             ]),
@@ -165,58 +170,64 @@ extension OilPattern: ExportedModel {}
 
 private struct CSVColumn<Model> {
     let name: String
-    let field: (Model) -> String
+    let field: (Model, CSVFormat) -> String
 
     init<Value: CSVField>(_ name: String, _ value: @escaping (Model) -> Value) {
         self.name = name
-        field = { value($0).csvField }
+        field = { value($0).csvField($1) }
     }
 }
 
 extension CSVTable {
-    fileprivate init<Model: ExportedModel>(_ fileName: String, _ models: [Model], _ columns: [CSVColumn<Model>]) {
+    fileprivate init<Model: ExportedModel>(
+        _ fileName: String, format: CSVFormat, _ models: [Model], _ columns: [CSVColumn<Model>]
+    ) {
         let all: [CSVColumn<Model>] = [
             .init("id", \.id), .init("createdAt", \.createdAt), .init("updatedAt", \.updatedAt),
             .init("remoteID", \.remoteID),
         ] + columns
-        self.init(fileName: fileName, columns: all.map(\.name), rows: models.map { model in all.map { $0.field(model) } })
+        self.init(fileName: fileName, columns: all.map(\.name),
+                  rows: models.map { model in all.map { $0.field(model, format) } }, format: format)
     }
 }
 
 /// How a stored value is written. Nil is an empty field; enums are their stored raw string,
 /// so a value from a newer app version is exported unchanged.
 private protocol CSVField {
-    var csvField: String { get }
+    func csvField(_ format: CSVFormat) -> String
 }
 
 extension String: CSVField {
-    var csvField: String { self }
+    func csvField(_ format: CSVFormat) -> String { self }
 }
 
 extension Int: CSVField {
-    var csvField: String { String(self) }
+    func csvField(_ format: CSVFormat) -> String { String(self) }
 }
 
 /// "true" and "false", which Numbers and Excel both read as booleans.
 extension Bool: CSVField {
-    var csvField: String { self ? "true" : "false" }
+    func csvField(_ format: CSVFormat) -> String { self ? "true" : "false" }
 }
 
-/// The shortest decimal that reads back as the same Double, with "." whatever the locale.
+/// The shortest decimal that reads back as the same Double, with the format's decimal
+/// separator: "2.52", or "2,52" in a `;` file.
 extension Double: CSVField {
-    var csvField: String { String(self) }
+    func csvField(_ format: CSVFormat) -> String {
+        String(self).replacingOccurrences(of: ".", with: format.decimalSeparator)
+    }
 }
 
 extension UUID: CSVField {
-    var csvField: String { uuidString }
+    func csvField(_ format: CSVFormat) -> String { uuidString }
 }
 
 /// ISO 8601 in UTC with milliseconds, for example "2026-10-12T12:00:00.000Z", so the
 /// export reads the same on every device and `createdAt` ties stay ordered on re-import.
 extension Date: CSVField {
-    var csvField: String { formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)) }
+    func csvField(_ format: CSVFormat) -> String { formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)) }
 }
 
 extension Optional: CSVField where Wrapped: CSVField {
-    var csvField: String { self?.csvField ?? "" }
+    func csvField(_ format: CSVFormat) -> String { self?.csvField(format) ?? "" }
 }

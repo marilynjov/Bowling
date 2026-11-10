@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import BowlingData
 
@@ -25,6 +26,30 @@ import Testing
     func fieldsWithCommasQuotesOrNewlinesAreQuoted(_ field: String, _ expected: String) {
         let table = CSVTable(fileName: "t.csv", columns: ["notes"], rows: [[field]])
         #expect(table.encoded == "notes\r\n\(expected)\r\n")
+    }
+
+    @Test func theSemicolonFormatSeparatesWithSemicolons() {
+        let table = CSVTable(fileName: "t.csv", columns: ["id", "name"], rows: [["1", "Sam"]], format: .semicolon)
+        #expect(table.encoded == "id;name\r\n1;Sam\r\n")
+    }
+
+    @Test(arguments: [
+        ("a;b", "\"a;b\""),
+        ("a,b", "a,b"),
+        ("say \"hi\"", "\"say \"\"hi\"\"\""),
+    ])
+    func theSemicolonFormatQuotesFieldsWithASemicolon(_ field: String, _ expected: String) {
+        let table = CSVTable(fileName: "t.csv", columns: ["notes"], rows: [[field]], format: .semicolon)
+        #expect(table.encoded == "notes\r\n\(expected)\r\n")
+    }
+
+    /// Excel takes its column separator from the region: `;` where decimals use a comma (#126).
+    @Test(arguments: [
+        ("en_US", CSVFormat.comma), ("en_GB", .comma), ("en_CO", .semicolon), ("es_CO", .semicolon),
+        ("de_DE", .semicolon),
+    ])
+    func theFormatFollowsTheLocalesDecimalSeparator(_ identifier: String, _ expected: CSVFormat) {
+        #expect(CSVFormat(locale: Locale(identifier: identifier)) == expected)
     }
 
     // A non-ASCII name, so the encoding question is not hypothetical.
