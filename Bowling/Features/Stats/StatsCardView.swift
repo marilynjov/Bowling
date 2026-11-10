@@ -45,7 +45,7 @@ struct StatsCardView: View {
         case .leaves(let rows):
             LeavesCard(rows: rows)
         case .leftMost(let row?):
-            LeaveRowView(row: row, size: .regular)
+            LeaveRowLink(row: row, size: .regular)
         case .leftMost(nil):
             muted(String(localized: "No leave seen 3 times yet."))
         case .notApplicable(let text):
