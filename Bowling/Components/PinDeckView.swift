@@ -77,6 +77,8 @@ struct PinDeckView: View {
             .opacity(isAvailable ? 1 : 0.35)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(AccessibilityText.pin(pin, standing: isStanding))
+            // The number stops growing at AX2 to fit its circle; a long press shows it large.
+            .accessibilityShowsLargeContentViewer()
             .accessibilityAddTraits(isAvailable ? .isButton : [])
             .accessibilityIdentifier("pin.\(pin)")
             .accessibilityAction {

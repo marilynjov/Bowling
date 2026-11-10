@@ -9,7 +9,7 @@ struct QuickScoreSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
-                TextField("Score", text: $text, prompt: Text("0"))
+                TextField("Score", text: $text, prompt: Text(verbatim: "0"))
                     .keyboardType(.numberPad)
                     .focused($focused)
                     .font(.scoreHero)

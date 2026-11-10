@@ -26,7 +26,7 @@ struct NamedRefPicker<Item: NamedItem>: View {
     var body: some View {
         List {
             if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                row("None", isPicked: selection == nil) { pick(nil) }
+                row(String(localized: "None"), isPicked: selection == nil) { pick(nil) }
             }
             ForEach(NameSearch.filter(items, by: search, name: \.name)) { item in
                 row(item.name, isPicked: selection == item.id) { pick(item.id) }
@@ -107,7 +107,7 @@ private struct NamedRefPickerPreview: View {
     var body: some View {
         NavigationStack {
             let _ = app.revision
-            NamedRefPicker(title: "Center", items: app.store.sessions.centers(), selection: $selection) { name in
+            NamedRefPicker(title: String(localized: "Center"), items: app.store.sessions.centers(), selection: $selection) { name in
                 try app.write { try $0.sessions.createCenter(name: name) }
             }
         }

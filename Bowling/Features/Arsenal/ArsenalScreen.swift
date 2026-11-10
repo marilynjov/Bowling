@@ -98,7 +98,7 @@ struct ArsenalScreen: View {
             Label("No balls yet.", systemImage: "circle.circle")
         } actions: {
             Button("Add ball") { app.ballForm = .add }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
         }
     }
 }

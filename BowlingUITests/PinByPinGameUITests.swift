@@ -19,38 +19,23 @@ final class PinByPinGameUITests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
         app.launch()
+        let flow = GameFlow(app: app)
 
-        tap("home.startSession", wait: true)
-        tap("newSession.start", wait: true)
-        XCTAssertTrue(app.buttons["scoring.next"].waitForExistence(timeout: 5))
+        flow.startSession()
 
-        tap("scoring.strike")                                  // 1
-        pins(4, 7, 10); tap("scoring.spare")                   // 2
-        pins(10); tap("scoring.miss")                          // 3
-        tap("scoring.strike")                                  // 4
-        tap("scoring.strike")                                  // 5
-        pins(7, 10); tap("scoring.spare")                      // 6
-        pins(10); tap("scoring.spare")                         // 7
-        tap("scoring.strike")                                  // 8
-        pins(4, 7, 10); pins(10)                               // 9
-        tap("scoring.strike"); tap("scoring.strike"); tap("scoring.strike") // 10
+        flow.tap("scoring.strike")                              // 1
+        flow.pins(4, 7, 10); flow.tap("scoring.spare")          // 2
+        flow.pins(10); flow.tap("scoring.miss")                 // 3
+        flow.tap("scoring.strike")                              // 4
+        flow.tap("scoring.strike")                              // 5
+        flow.pins(7, 10); flow.tap("scoring.spare")             // 6
+        flow.pins(10); flow.tap("scoring.spare")                // 7
+        flow.tap("scoring.strike")                              // 8
+        flow.pins(4, 7, 10); flow.pins(10)                      // 9
+        flow.tap("scoring.strike"); flow.tap("scoring.strike"); flow.tap("scoring.strike") // 10
 
         let score = app.staticTexts["summary.score"]
         XCTAssertTrue(score.waitForExistence(timeout: 10))
         XCTAssertEqual(score.label, "193")
-    }
-
-    /// Marks `standing` as the pins left, then records the ball with Next.
-    @MainActor
-    private func pins(_ standing: Int...) {
-        for pin in standing { tap("pin.\(pin)") }
-        tap("scoring.next")
-    }
-
-    @MainActor
-    private func tap(_ identifier: String, wait: Bool = false) {
-        let button = app.buttons[identifier]
-        if wait { XCTAssertTrue(button.waitForExistence(timeout: 5), "\(identifier) not found") }
-        button.tap()
     }
 }

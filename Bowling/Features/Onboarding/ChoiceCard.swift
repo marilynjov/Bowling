@@ -59,7 +59,7 @@ struct OnboardingButton: View {
         Button(action: action) {
             Text(title).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        .prominentButton()
         .controlSize(.large)
         .padding(16)
         .background(.canvas)

@@ -14,7 +14,7 @@ struct SessionPlaceSection: View {
     var body: some View {
         Section {
             NavigationLink {
-                NamedRefPicker(title: "Center", items: centers, selection: $details.centerID) { name in
+                NamedRefPicker(title: String(localized: "Center"), items: centers, selection: $details.centerID) { name in
                     try app.write { try $0.sessions.createCenter(name: name) }
                 }
             } label: {
@@ -22,7 +22,7 @@ struct SessionPlaceSection: View {
             }
             if details.eventType == .league {
                 NavigationLink {
-                    NamedRefPicker(title: "League", items: details.leagues(from: leagues), selection: $details.leagueID) { name in
+                    NamedRefPicker(title: String(localized: "League"), items: details.leagues(from: leagues), selection: $details.leagueID) { name in
                         let centerID = details.centerID
                         return try app.write { try $0.sessions.createLeague(name: name, centerID: centerID) }
                     }
@@ -31,7 +31,7 @@ struct SessionPlaceSection: View {
                 }
             }
             NavigationLink {
-                NamedRefPicker(title: "Oil pattern", items: oilPatterns, selection: $details.oilPatternID) { name in
+                NamedRefPicker(title: String(localized: "Oil pattern"), items: oilPatterns, selection: $details.oilPatternID) { name in
                     try app.write { try $0.sessions.createOilPattern(name: name) }
                 }
             } label: {
@@ -46,6 +46,6 @@ struct SessionPlaceSection: View {
     }
 
     private func name(of id: UUID?, in items: [some NamedItem]) -> String {
-        items.first { $0.id == id }?.name ?? "None"
+        items.first { $0.id == id }?.name ?? String(localized: "None")
     }
 }

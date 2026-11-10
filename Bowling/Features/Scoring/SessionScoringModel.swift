@@ -63,7 +63,7 @@ import Observation
     var current: ScoringModel { bowlers[currentIndex] }
 
     /// "Game 2 · Alex", with the current bowler's own game number.
-    var title: String { "Game \(current.game.gameIndex) · \(current.bowlerName)" }
+    var title: String { String(localized: "Game \(current.game.gameIndex) · \(current.bowlerName)") }
 
     var allFinished: Bool { bowlers.allSatisfy { Rotation.isFinished($0.game) } }
 
