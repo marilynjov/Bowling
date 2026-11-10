@@ -4,6 +4,9 @@ import Testing
 @testable import Bowling
 
 @Suite struct AccessibilityTextTests {
+    @Test func filterChips() {
+        #expect(AccessibilityText.filterChips(["All time", "All games", "Sam"]) == "Filter: All time, All games, Sam")
+    }
     @Test func pins() {
         #expect(AccessibilityText.pin(7, standing: true) == "Pin 7, standing")
         #expect(AccessibilityText.pin(7, standing: false) == "Pin 7, down")

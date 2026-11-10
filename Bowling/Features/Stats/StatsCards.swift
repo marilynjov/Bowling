@@ -73,9 +73,9 @@ enum StatsCards {
         case .trendChart:
             return .trend(trend(report))
         case .leavesTable:
-            return .leaves(report.leaves.map(row))
+            return .leaves(report.leaves.map(LeaveRowContent.init))
         case .leftMostMadeLeast:
-            return .leftMost(report.leftMostMadeLeast.map(row))
+            return .leftMost(report.leftMostMadeLeast.map(LeaveRowContent.init))
         default:
             guard var tile = StatTileContent.make(card, report) else { return .comingSoon }
             switch card {
@@ -133,19 +133,22 @@ enum StatsCards {
         )
     }
 
-    private static func row(_ row: LeaveRow) -> LeaveRowContent {
-        let made = row.conversion.hits, count = row.conversion.attempts
-        return LeaveRowContent(
-            leave: row.leave, made: String(localized: "Made \(made) of \(count)"),
-            rate: StatFormat.percent(row.conversion),
-            accessibilityLabel: AccessibilityText.leaveRow(row.leave, made: made, of: count)
-        )
-    }
-
     private static func day(_ date: Date, _ calendar: Calendar) -> String {
         var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
         style.calendar = calendar
         style.timeZone = calendar.timeZone
         return date.formatted(style)
+    }
+}
+
+extension LeaveRowContent {
+    /// A leave row's text; Stats and ball detail share it.
+    init(_ row: LeaveRow) {
+        let made = row.conversion.hits, count = row.conversion.attempts
+        self.init(
+            leave: row.leave, made: String(localized: "Made \(made) of \(count)"),
+            rate: StatFormat.percent(row.conversion),
+            accessibilityLabel: AccessibilityText.leaveRow(row.leave, made: made, of: count)
+        )
     }
 }
