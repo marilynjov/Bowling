@@ -11,10 +11,10 @@ struct StatsCard: Hashable, Identifiable {
         case leaves([LeaveRowContent])
         /// Nil when no leave was seen 3 times and missed.
         case leftMost(LeaveRowContent?)
+        case byFrame(ByFrameContent)
+        case whatIf(WhatIfContent)
         /// The card's games don't apply: the text says what to enter.
         case notApplicable(String)
-        /// A 1b card whose view lands with #35.
-        case comingSoon
     }
 
     var id: StatsCardID
@@ -30,6 +30,39 @@ struct TrendContent: Hashable {
     var accessibilityLabel: String
 }
 
+/// Frames 1 to 10 as bars: strike rate, or pins on the frame's first rack.
+struct ByFrameContent: Hashable {
+    enum Kind: Hashable { case strikes, average }
+
+    struct Bar: Hashable {
+        /// 1...10.
+        var frame: Int
+        /// 0...1 for strikes, 0...10 pins for the average.
+        var value: Double
+        /// "25%" / "7.5".
+        var text: String
+        /// Over the bar: "25" / "7.5"; the strike axis already says percent.
+        var annotation: String
+        var accessibilityLabel: String
+    }
+
+    var kind: Kind
+    var bars: [Bar]
+    /// "22 games".
+    var sample: String
+}
+
+/// The real average next to the one with every single-pin spare made.
+struct WhatIfContent: Hashable {
+    var actual: String
+    var allMade: String
+    /// "+8.4 pins a game · 12 missed single pins", or that none were missed.
+    var detail: String
+    /// "6 pin-by-pin games": the games both averages cover.
+    var sample: String
+    var accessibilityLabel: String
+}
+
 struct LeaveRowContent: Hashable {
     var leave: Leave
     /// "Made 7 of 9".
@@ -41,25 +74,26 @@ struct LeaveRowContent: Hashable {
 /// Turns card IDs and a report into the Stats screen's cards (spec §3).
 enum StatsCards {
     /// One card per ID, in order. A card whose games group is empty explains what to enter.
-    static func make(cards: [StatsCardID], report: StatsReport, calendar: Calendar = .current) -> [StatsCard] {
-        cards.map { StatsCard(id: $0, title: title($0), body: body($0, report, calendar)) }
+    static func make(cards: [StatsCardID], report: StatsReport, calendar: Calendar = .current,
+                     locale: Locale = .current) -> [StatsCard] {
+        cards.map { StatsCard(id: $0, title: title($0), body: body($0, report, calendar, locale)) }
     }
 
     private enum Group { case score, roll, pin }
 
-    private static func group(_ card: StatsCardID) -> Group? {
+    private static func group(_ card: StatsCardID) -> Group {
         switch card {
         case .average, .highGame, .highSeries, .trendChart: .score
-        case .strikePct, .sparePct, .fouls, .openPct, .cleanGamePct, .firstBallAverage: .roll
+        case .strikePct, .sparePct, .fouls, .openPct, .cleanGamePct, .firstBallAverage, .byFrameStrike,
+             .byFrameAverage: .roll
         case .headPinRate, .leavesTable, .leftMostMadeLeast, .splitConversion, .makeableConversion,
-             .singlePinConversion: .pin
-        case .byFrameStrike, .byFrameAverage, .whatIfSinglePins: nil
+             .singlePinConversion, .whatIfSinglePins: .pin
         }
     }
 
-    private static func body(_ card: StatsCardID, _ report: StatsReport, _ calendar: Calendar) -> StatsCard.Body {
-        guard let group = group(card) else { return .comingSoon }
-        switch group {
+    private static func body(_ card: StatsCardID, _ report: StatsReport, _ calendar: Calendar,
+                             _ locale: Locale) -> StatsCard.Body {
+        switch group(card) {
         case .score where report.scoreGames == 0:
             return .notApplicable(String(localized: "No complete games yet."))
         case .roll where report.rollGames == 0:
@@ -76,8 +110,16 @@ enum StatsCards {
             return .leaves(report.leaves.map(LeaveRowContent.init))
         case .leftMostMadeLeast:
             return .leftMost(report.leftMostMadeLeast.map(LeaveRowContent.init))
+        case .byFrameStrike:
+            return .byFrame(byFrame(.strikes, report, locale))
+        case .byFrameAverage:
+            return .byFrame(byFrame(.average, report, locale))
+        case .whatIfSinglePins:
+            return .whatIf(whatIf(report, locale))
         default:
-            guard var tile = StatTileContent.make(card, report) else { return .comingSoon }
+            guard var tile = StatTileContent.make(card, report) else {
+                preconditionFailure("\(card) has no tile")
+            }
             switch card {
             case .average:
                 return .tile(tile, footnote: averageFootnote(report))
@@ -130,6 +172,73 @@ enum StatsCards {
                 latest: latest.map { StatFormat.average($0.sessionAverage) } ?? "–",
                 rolling: latest.map { StatFormat.average($0.rollingAverage) } ?? "–"
             )
+        )
+    }
+
+    private static func byFrame(_ kind: ByFrameContent.Kind, _ report: StatsReport, _ locale: Locale) -> ByFrameContent {
+        let bars = report.byFrame.map { frame in
+            switch kind {
+            case .strikes:
+                let text = StatFormat.percent(frame.strikes, locale: locale)
+                return ByFrameContent.Bar(
+                    frame: frame.frameIndex, value: frame.strikes.value ?? 0, text: text,
+                    annotation: StatFormat.percentNumber(frame.strikes, locale: locale),
+                    accessibilityLabel: AccessibilityText.byFrameBar(frame.frameIndex, text)
+                )
+            case .average:
+                let text = StatFormat.average(frame.pins, locale: locale)
+                return ByFrameContent.Bar(
+                    frame: frame.frameIndex, value: frame.pins.value ?? 0, text: text, annotation: text,
+                    accessibilityLabel: AccessibilityText.byFrameBar(frame.frameIndex, pins: text)
+                )
+            }
+        }
+        let games = StatFormat.sample(report.rollGames, .games)
+        // The average names its unit, so 0–10 doesn't read as score per frame.
+        let sample = kind == .average ? String(localized: "Pins on the first rack") + " · " + games : games
+        return ByFrameContent(kind: kind, bars: bars, sample: sample)
+    }
+
+    private static func whatIf(_ report: StatsReport, _ locale: Locale) -> WhatIfContent {
+        let whatIf = report.whatIfSinglePins
+        let actual = StatFormat.average(whatIf.actual, locale: locale)
+        let allMade = StatFormat.average(whatIf.allMade, locale: locale)
+        // The averages cover pin-by-pin games only, so the card says so: the Average card
+        // also counts final-only and count-only games and can differ.
+        let games = whatIf.actual.count
+        let sample = games == 1 ? String(localized: "1 pin-by-pin game") : String(localized: "\(games) pin-by-pin games")
+        guard whatIf.rewritten > 0 else {
+            // No single pin ever left is not the same as every one made.
+            let none = report.singlePinConversion.attempts == 0
+            return WhatIfContent(
+                actual: actual, allMade: allMade,
+                detail: none ? String(localized: "No single-pin leaves yet.") : String(localized: "You made every single-pin spare."),
+                sample: sample,
+                accessibilityLabel: AccessibilityText.whatIf(
+                    sample: sample, actual: actual,
+                    note: none ? String(localized: "no single-pin leaves yet.") : String(localized: "you made every single-pin spare.")
+                )
+            )
+        }
+        // Subtracting totals first keeps 56/6 exact (see `WhatIfSinglePins.difference`).
+        let gainMean = Mean(total: whatIf.allMade.total - whatIf.actual.total, count: games)
+        let gainValue = gainMean.value ?? 0
+        let gain = StatFormat.average(gainMean, locale: locale)
+        let tenth = (0.1).formatted(.number.locale(locale))
+        // Under 0.05 would round to "+0". Singular when the shown, rounded gain is 1, so
+        // 29 pins over 30 games isn't "+1 pins".
+        let one = 1.formatted(.number.locale(locale))
+        let (shown, spoken) = gainValue < 0.05
+            ? (String(localized: "Less than \(tenth) pins a game"), String(localized: "less than \(tenth) more pins a game"))
+            : gain == one
+                ? (String(localized: "+1 pin a game"), String(localized: "1 more pin a game"))
+                : (String(localized: "+\(gain) pins a game"), String(localized: "\(gain) more pins a game"))
+        let missed = whatIf.rewritten == 1
+            ? String(localized: "1 missed single pin")
+            : String(localized: "\(whatIf.rewritten) missed single pins")
+        return WhatIfContent(
+            actual: actual, allMade: allMade, detail: shown + " · " + missed, sample: sample,
+            accessibilityLabel: AccessibilityText.whatIf(sample: sample, actual: actual, allMade: allMade, gain: spoken)
         )
     }
 
