@@ -11,6 +11,8 @@ import Observation
     let sessionDefaults: SessionDefaultsStore
     /// Scoring's on-device settings.
     let scoringSettings: ScoringSettings
+    /// Schedules the resurface notification after each write.
+    let resurfaceReminder: ResurfaceReminder
     private(set) var revision = 0
     /// The New session sheet is up, shown by the root.
     var isStartingSession = false
@@ -18,6 +20,8 @@ import Observation
     var isQuickScoring = false
     /// The ball form sheet, add or edit, shown by Arsenal.
     var ballForm: BallFormTarget?
+    /// The ball whose Log maintenance sheet is up, shown by ball detail.
+    var loggingMaintenance: BallID?
     /// The last quick score, which Home's banner can undo; nil hides the banner.
     var savedQuickScore: SavedQuickScore?
     /// The root's tab.
@@ -38,17 +42,22 @@ import Observation
     init(
         store: BowlingStore,
         sessionDefaults: SessionDefaultsStore = SessionDefaultsStore(),
-        scoringSettings: ScoringSettings = ScoringSettings()
+        scoringSettings: ScoringSettings = ScoringSettings(),
+        reminderCenter: any ReminderCenter = SystemReminderCenter()
     ) {
         self.store = store
         self.sessionDefaults = sessionDefaults
         self.scoringSettings = scoringSettings
+        resurfaceReminder = ResurfaceReminder(store: store, center: reminderCenter)
     }
 
-    /// Bumps `revision` even when `body` throws: the repository rolls back a failed write,
-    /// so a reload after one is harmless.
+    /// Bumps `revision` and updates the resurface reminder even when `body` throws: the
+    /// repository rolls back a failed write, so a reload after one is harmless.
     func write<T>(_ body: (BowlingStore) throws -> T) rethrows -> T {
-        defer { revision += 1 }
+        defer {
+            resurfaceReminder.update(from: store)
+            revision += 1
+        }
         return try body(store)
     }
 
@@ -59,6 +68,7 @@ import Observation
         let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
             : ballForm != nil ? .ballForm
+            : loggingMaintenance != nil ? .maintenanceForm
             : isQuickScoring ? .quickScore
             : editingSessionDetails != nil ? .sessionDetails
             : .root
@@ -90,12 +100,17 @@ import Observation
     }
 
     /// The ball form's Save: adds or updates the ball and closes the sheet. Does nothing once
-    /// the sheet is closed, so a second tap on Save can't add the ball twice.
+    /// the sheet is closed, so a second tap on Save can't add the ball twice. With a
+    /// resurface interval set, asks for notification permission (spec §7: when the bowler
+    /// first sets an interval, not at launch; iOS asks only once).
     /// - Throws: whatever `BallForm.save` throws; the sheet stays with its values. When only
     ///   the photo failed, the ball exists, so the sheet closes (another Save would add it
     ///   again) and the repository's error shows at the root.
     func saveBall(_ form: BallForm) throws {
         guard ballForm != nil else { return }
+        if form.fields()?.resurfaceIntervalGames != nil {
+            resurfaceReminder.requestAuthorization()
+        }
         do {
             _ = try write { try form.save(to: $0) }
         } catch let failure as BallForm.PhotoNotSaved {
@@ -117,6 +132,15 @@ import Observation
     func deleteBall(_ id: BallID) throws {
         try write { try $0.balls.deleteBall(id) }
         ballForm = nil
+    }
+
+    /// The Log maintenance sheet's Save: logs the event and closes the sheet. Does nothing
+    /// once the sheet is closed, so a second tap can't log twice.
+    /// - Throws: whatever `logMaintenance` throws; the sheet stays with its values.
+    func logMaintenance(_ draft: MaintenanceDraft) throws {
+        guard let ball = loggingMaintenance else { return }
+        try write { try draft.log(for: ball, in: $0) }
+        loggingMaintenance = nil
     }
 
     /// Home's Resume: opens Scoring on the unfinished game.
@@ -218,7 +242,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, ballForm
+    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, ballForm, maintenanceForm
 }
 
 /// What the ball form sheet opens on.
