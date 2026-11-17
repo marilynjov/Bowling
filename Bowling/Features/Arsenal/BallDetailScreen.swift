@@ -6,8 +6,8 @@ import SwiftUI
 import BowlingFixtures
 #endif
 
-/// A ball's page (spec §7 "Ball detail"): header, specs, maintenance (read-only until
-/// #32), performance under the Stats filter (chips read-only until #33), by condition,
+/// A ball's page (spec §7 "Ball detail"): header, specs, maintenance with Log maintenance,
+/// performance under the Stats filter (chips read-only until #33), by condition,
 /// strike % over time with maintenance markers, and recent games.
 struct BallDetailScreen: View {
     @Environment(AppModel.self) private var app
@@ -42,6 +42,10 @@ struct BallDetailScreen: View {
             ToolbarItem(placement: .primaryAction) {
                 Button("Edit") { app.ballForm = .edit(id) }
             }
+        }
+        .sheet(isPresented: Binding(get: { app.loggingMaintenance == id }, set: { if !$0 { app.loggingMaintenance = nil } })) {
+            MaintenanceFormSheet()
+                .sharedErrorAlert(in: .maintenanceForm)
         }
         // The Stats filter changes without a write, so it is part of the key: a ball detail
         // left open on Arsenal follows a filter changed on Stats.
@@ -145,6 +149,9 @@ struct BallDetailScreen: View {
                     .accessibilityElement(children: .combine)
                 }
             }
+            Button("Log maintenance") { app.loggingMaintenance = id }
+                .buttonStyle(.borderless)
+                .padding(.top, 4)
         }
     }
 
