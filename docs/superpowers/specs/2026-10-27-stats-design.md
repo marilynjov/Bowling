@@ -18,7 +18,7 @@ league, competitive).
 
 | Question | Decision |
 |---|---|
-| 1b cards in the presets (#105 made them available) | `openPct`, `cleanGamePct`, `firstBallAverage`, `headPinRate` render as plain tiles now; `byFrameStrike`, `byFrameAverage`, `whatIfSinglePins` show "Coming soon" until #35. No card disappears. |
+| 1b cards in the presets (#105 made them available) | `openPct`, `cleanGamePct`, `firstBallAverage`, `headPinRate` render as plain tiles now; `byFrameStrike`, `byFrameAverage`, `whatIfSinglePins` showed "Coming soon" until #35, which renders them. No card disappears. |
 | Card wording on Home and Stats | One shared tile mapping; Home's `HomeTiles` uses it, so the same number reads the same on both. |
 | Filter lifetime | Kept on `AppModel` while the app runs; not saved. |
 | Customize | #36 (1b). |
