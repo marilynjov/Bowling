@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The first ten leaves, then "Show all N leaves" to expand the rest in place. Each leave
-/// opens its occurrence list.
+/// The first ten leaves, then "Show all N leaves" to expand the rest in place. With
+/// `opensOccurrences`, each leave opens its occurrence list on the Stats stack; ball detail
+/// leaves it off, since its rows count only that ball's attempts.
 struct LeavesCard: View {
     var rows: [LeaveRowContent]
+    var opensOccurrences = false
     @State private var showsAll = false
 
     private static let shown = 10
@@ -13,7 +15,11 @@ struct LeavesCard: View {
             let visible = showsAll ? rows : Array(rows.prefix(Self.shown))
             ForEach(Array(visible.enumerated()), id: \.offset) { index, row in
                 if index > 0 { Divider().overlay(Color.hairline) }
-                LeaveRowLink(row: row)
+                if opensOccurrences {
+                    LeaveRowLink(row: row)
+                } else {
+                    LeaveRowView(row: row)
+                }
             }
             if !showsAll, rows.count > Self.shown {
                 Button(String(localized: "Show all \(rows.count) leaves")) { showsAll = true }

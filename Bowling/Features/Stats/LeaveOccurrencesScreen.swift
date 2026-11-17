@@ -34,6 +34,7 @@ struct LeaveOccurrencesScreen: View {
                 .padding(.vertical, 8)
                 .accessibilityElement(children: .combine)
             }
+            .listRowBackground(Color.surface)
             Section {
                 if rows.isEmpty {
                     Text("No attempts at this leave in these games.")
@@ -44,7 +45,10 @@ struct LeaveOccurrencesScreen: View {
                         .accessibilityHint(Text("Opens the game in History."))
                 }
             }
+            .listRowBackground(Color.surface)
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.canvas)
         .navigationTitle(leave.name)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: LoadKey(revision: app.revision, filter: app.statsFilter)) { load() }
@@ -58,8 +62,7 @@ struct LeaveOccurrencesScreen: View {
             return
         }
         let occurrences = store.stats.leaveOccurrences(of: leave, matching: draft.filter, now: .now, calendar: .current)
-        let owner = draft.filter.bowlerID
-        let sessions = Dictionary(store.sessions.sessions().map { ($0.id, RecentRow($0, owner: owner).detailsText) },
+        let sessions = Dictionary(store.sessions.sessions().map { ($0.id, RecentRow.detailsText($0)) },
                                   uniquingKeysWith: { first, _ in first })
         let balls = Dictionary((store.balls.activeBalls() + store.balls.retiredBalls()).map { ($0.id, $0.name) },
                                uniquingKeysWith: { first, _ in first })

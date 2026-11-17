@@ -6,6 +6,16 @@ import Testing
 @Suite struct StatFormatTests {
     let us = Locale(identifier: "en_US")
 
+    @Test func dayAddsTheYearOnlyOutsideNowsYear() {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let us = Locale(identifier: "en_US")
+        let october = Date(timeIntervalSince1970: 1_792_008_000) // Oct 14, 2026
+        #expect(StatFormat.day(october, calendar: utc, locale: us, now: october) == "Oct 14")
+        #expect(StatFormat.day(october, calendar: utc, locale: us, now: october.addingTimeInterval(86_400 * 120))
+            == "Oct 14, 2026")
+    }
+
     @Test func percents() {
         #expect(StatFormat.percent(Rate(hits: 89, attempts: 216), locale: us) == "41%")
         #expect(StatFormat.percent(Rate(hits: 0, attempts: 0), locale: us) == "–")

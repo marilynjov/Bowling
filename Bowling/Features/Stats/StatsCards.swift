@@ -243,10 +243,7 @@ enum StatsCards {
     }
 
     private static func day(_ date: Date, _ calendar: Calendar) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        style.calendar = calendar
-        style.timeZone = calendar.timeZone
-        return date.formatted(style)
+        StatFormat.day(date, calendar: calendar)
     }
 }
 

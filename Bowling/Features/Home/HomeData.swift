@@ -30,6 +30,17 @@ struct RecentRow: Hashable, Identifiable {
 
     /// "League · AMF Bowl · Tuesday Mixed"; a missing center or league is left out.
     var detailsText: String {
+        Self.detailsText(eventType: eventType, centerName: centerName, leagueName: leagueName)
+    }
+
+    /// `detailsText` for any session, without building its scores: the leave occurrence
+    /// list shows the line for a friend's sessions too.
+    static func detailsText(_ session: SessionSummary) -> String {
+        detailsText(eventType: session.eventType, centerName: session.centerName,
+                    leagueName: session.eventType == .league ? session.leagueName : nil)
+    }
+
+    private static func detailsText(eventType: EventType, centerName: String?, leagueName: String?) -> String {
         [eventType.title, centerName, leagueName].compactMap { $0 }.joined(separator: " · ")
     }
 

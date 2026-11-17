@@ -20,9 +20,9 @@ import Testing
                         gameIndex: game, frameIndex: frame, ballID: ball, isConverted: made)
     }
 
-    func rows(_ occurrences: [LeaveOccurrence]) -> [LeaveOccurrenceRow] {
+    func rows(_ occurrences: [LeaveOccurrence], now: Date? = nil) -> [LeaveOccurrenceRow] {
         LeaveOccurrenceRows.make(occurrences, sessions: [session: "League · AMF Bowl · Tuesday Mixed"],
-                                 balls: [phaze: "Phaze II"], calendar: utc, locale: us)
+                                 balls: [phaze: "Phaze II"], calendar: utc, locale: us, now: now ?? date)
     }
 
     @Test func rowText() throws {
@@ -37,6 +37,13 @@ import Testing
         #expect(row.result == "Made")
         #expect(row.isConverted)
         #expect(row.accessibilityLabel == "Oct 14, League, AMF Bowl, Tuesday Mixed, game 2, frame 7, Phaze II, made")
+    }
+
+    @Test func anAttemptFromAnotherYearShowsTheYear() throws {
+        let nextYear = date.addingTimeInterval(86_400 * 120)
+        let row = try #require(rows([occurrence(ball: phaze, made: true)], now: nextYear).first)
+        #expect(row.date == "Oct 14, 2026")
+        #expect(row.accessibilityLabel.hasPrefix("Oct 14, 2026, League"))
     }
 
     @Test func ballFallbacks() {

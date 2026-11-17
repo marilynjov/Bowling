@@ -6,7 +6,7 @@ struct LeaveOccurrenceRow: Hashable, Identifiable {
     var id: LeaveOccurrence.ID
     var gameID: GameID
     var sessionID: SessionID?
-    /// "Oct 14".
+    /// "Oct 14", with the year when it isn't this year's.
     var date: String
     /// History's line for the session, "League · AMF Bowl · Tuesday Mixed"; empty when the
     /// session isn't found.
@@ -26,9 +26,10 @@ enum LeaveOccurrenceRows {
     ///   - balls: Active and retired balls' names, by ID; a ball missing here (only from
     ///     sync) reads "Unknown ball".
     static func make(_ occurrences: [LeaveOccurrence], sessions: [SessionID: String], balls: [BallID: String],
-                     calendar: Calendar = .current, locale: Locale = .current) -> [LeaveOccurrenceRow] {
+                     calendar: Calendar = .current, locale: Locale = .current,
+                     now: Date = .now) -> [LeaveOccurrenceRow] {
         occurrences.map { occurrence in
-            let date = day(occurrence.game.date, calendar, locale)
+            let date = StatFormat.day(occurrence.game.date, calendar: calendar, locale: locale, now: now)
             let session = occurrence.game.sessionID.flatMap { sessions[$0] } ?? ""
             let ball = occurrence.ballID.map { balls[$0] ?? String(localized: "Unknown ball") }
                 ?? String(localized: "No ball")
@@ -51,12 +52,5 @@ enum LeaveOccurrenceRows {
         let made = occurrences.count(where: \.isConverted)
         let rate = StatFormat.percent(Rate(hits: made, attempts: occurrences.count), locale: locale)
         return String(localized: "Made \(made) of \(occurrences.count)") + " · " + rate
-    }
-
-    private static func day(_ date: Date, _ calendar: Calendar, _ locale: Locale) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
-        style.calendar = calendar
-        style.timeZone = calendar.timeZone
-        return date.formatted(style)
     }
 }
