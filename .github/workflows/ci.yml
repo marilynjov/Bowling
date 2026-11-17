@@ -13,10 +13,12 @@ env:
   # Same Xcode as local development; the project file is written by Xcode 27.
   DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
 
+# Standard macOS runners: free on a public repo, unlike the larger `xcode-27` runner,
+# which is billed per minute whatever the repo's visibility.
 jobs:
   packages:
     name: Test ${{ matrix.package }}
-    runs-on: xcode-27
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
@@ -28,7 +30,7 @@ jobs:
 
   app:
     name: Build app
-    runs-on: xcode-27
+    runs-on: macos-26
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
     # Room for the build plus two tries of the tests.
     timeout-minutes: 45
