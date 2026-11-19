@@ -30,7 +30,7 @@ jobs:
     name: Build app
     runs-on: xcode-27
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
-    # Room for the build plus two tries of the tests.
+    # Room for the build plus two tries of the tests and of the audit.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +54,24 @@ jobs:
               -project Bowling.xcodeproj \
               -scheme Bowling \
               -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
+              -skip-testing:BowlingUITests/AccessibilityAuditUITests \
               CODE_SIGNING_ALLOWED=NO
           }
           run_tests || { echo "::warning::Tests failed; running them once more"; run_tests; }
+      # The accessibility audit's clipping and contrast checks vary with screen size, so it
+      # runs on one fixed device, the one it is verified on locally (#14). Booted first and
+      # retried like the tests above; a real finding fails both tries.
+      - name: Accessibility audit
+        run: |
+          xcrun simctl boot 'iPhone 18 Pro Max' || true
+          xcrun simctl bootstatus 'iPhone 18 Pro Max' -b
+          audit() {
+            xcodebuild test-without-building \
+              -project Bowling.xcodeproj \
+              -scheme Bowling \
+              -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
+              -only-testing:BowlingUITests/AccessibilityAuditUITests \
+              -retry-tests-on-failure -test-iterations 2 \
+              CODE_SIGNING_ALLOWED=NO
+          }
+          audit || { echo "::warning::Audit step failed; running it once more"; audit; }

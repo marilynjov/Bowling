@@ -37,6 +37,12 @@ extension Font {
 }
 
 extension View {
+    /// The app's prominent action: an AccentColor fill with OnAccent text, the pair
+    /// ThemeTests checks. The system's white label falls to 2.7:1 on the dark-mode accent.
+    func prominentButton() -> some View {
+        buttonStyle(.borderedProminent).foregroundStyle(.onAccent)
+    }
+
     /// Uppercase monospaced card label, such as "SCORECARD" or "TOTAL LEFT".
     func monoLabel() -> some View {
         font(.system(.caption, design: .monospaced, weight: .medium))

@@ -8,9 +8,12 @@ struct EntryModeMenu: View {
     @State private var isConfirmingClear = false
     @State private var discardingFor: EntryMode?
 
-    private static let modes: [(mode: EntryMode, title: String)] = [
-        (.pinByPin, "Pin by pin"), (.countOnly, "Count"), (.finalOnly, "Final score"),
-    ]
+    private static var modes: [(mode: EntryMode, title: String)] {
+        [
+            (.pinByPin, String(localized: "Pin by pin")), (.countOnly, String(localized: "Count")),
+            (.finalOnly, String(localized: "Final score")),
+        ]
+    }
 
     var body: some View {
         Menu {

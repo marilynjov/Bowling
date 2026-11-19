@@ -40,8 +40,8 @@ struct ProfileStep: View {
                         .font(.headline)
                         .foregroundStyle(.ink)
                     handLayout {
-                        hand("Right", .right)
-                        hand("Left", .left)
+                        hand(String(localized: "Right"), .right)
+                        hand(String(localized: "Left"), .left)
                     }
                 }
             }
@@ -52,7 +52,7 @@ struct ProfileStep: View {
         .navigationTitle("Welcome")
         .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .bottom) {
-            OnboardingButton(title: "Continue", action: onContinue)
+            OnboardingButton(title: String(localized: "Continue"), action: onContinue)
                 .disabled(!draft.canLeaveProfile)
         }
         .onAppear { nameFocused = true }
