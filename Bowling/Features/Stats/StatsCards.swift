@@ -74,9 +74,10 @@ struct LeaveRowContent: Hashable {
 /// Turns card IDs and a report into the Stats screen's cards (spec §3).
 enum StatsCards {
     /// One card per ID, in order. A card whose games group is empty explains what to enter.
+    /// - Parameter now: Dates outside its year show the year.
     static func make(cards: [StatsCardID], report: StatsReport, calendar: Calendar = .current,
-                     locale: Locale = .current) -> [StatsCard] {
-        cards.map { StatsCard(id: $0, title: title($0), body: body($0, report, calendar, locale)) }
+                     locale: Locale = .current, now: Date = .now) -> [StatsCard] {
+        cards.map { StatsCard(id: $0, title: title($0), body: body($0, report, calendar, locale, now)) }
     }
 
     private enum Group { case score, roll, pin }
@@ -92,7 +93,7 @@ enum StatsCards {
     }
 
     private static func body(_ card: StatsCardID, _ report: StatsReport, _ calendar: Calendar,
-                             _ locale: Locale) -> StatsCard.Body {
+                             _ locale: Locale, _ now: Date) -> StatsCard.Body {
         switch group(card) {
         case .score where report.scoreGames == 0:
             return .notApplicable(String(localized: "No complete games yet."))
@@ -124,9 +125,9 @@ enum StatsCards {
             case .average:
                 return .tile(tile, footnote: averageFootnote(report))
             case .highGame:
-                if let high = report.highGame { tile.sample = day(high.game.date, calendar) }
+                if let high = report.highGame { tile.sample = day(high.game.date, calendar, locale, now) }
             case .highSeries:
-                if let series = StatTileContent.threeGameSeries(report) { tile.sample = day(series.date, calendar) }
+                if let series = StatTileContent.threeGameSeries(report) { tile.sample = day(series.date, calendar, locale, now) }
             default:
                 break
             }
@@ -242,11 +243,8 @@ enum StatsCards {
         )
     }
 
-    private static func day(_ date: Date, _ calendar: Calendar) -> String {
-        var style = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        style.calendar = calendar
-        style.timeZone = calendar.timeZone
-        return date.formatted(style)
+    private static func day(_ date: Date, _ calendar: Calendar, _ locale: Locale, _ now: Date) -> String {
+        StatFormat.day(date, calendar: calendar, locale: locale, now: now)
     }
 }
 

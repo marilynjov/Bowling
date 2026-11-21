@@ -174,6 +174,12 @@ import Observation
         historyPath = [.session(id)]
     }
 
+    /// Shows game `id` on the History tab over its session, so Back goes to the session.
+    func openGame(_ id: GameID, in session: SessionID?) {
+        selectedTab = .history
+        historyPath = (session.map { [.session($0)] } ?? []) + [.game(id)]
+    }
+
     /// Removes `route` and everything above it, as after deleting what it shows. Does
     /// nothing when `route` isn't on the path.
     func popHistory(from route: HistoryRoute) {

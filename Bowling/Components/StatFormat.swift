@@ -33,6 +33,18 @@ enum StatFormat {
         return value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))
     }
 
+    /// A game's day, "Oct 14", with the year when it isn't `now`'s, "Oct 14, 2025", so an
+    /// All time list never reads two Octobers the same.
+    static func day(_ date: Date, calendar: Calendar = .current, locale: Locale = .current, now: Date = .now) -> String {
+        var style = Date.FormatStyle.dateTime.month(.abbreviated).day().locale(locale)
+        if calendar.component(.year, from: date) != calendar.component(.year, from: now) {
+            style = style.year()
+        }
+        style.calendar = calendar
+        style.timeZone = calendar.timeZone
+        return date.formatted(style)
+    }
+
     static func sample(_ count: Int, _ unit: Unit) -> String {
         switch (unit, count) {
         case (.games, 0): String(localized: "No games yet")

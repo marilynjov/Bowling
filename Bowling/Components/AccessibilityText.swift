@@ -71,6 +71,20 @@ enum AccessibilityText {
         return String(localized: "Trend, \(count), latest session \(latest), rolling average \(rolling)")
     }
 
+    /// An occurrence-list row: "Oct 14, League, AMF Bowl, Tuesday Mixed, game 2, frame 7,
+    /// Phaze II, made". The session's " · " separators read as pauses.
+    static func leaveOccurrence(date: String, session: String, game: Int, frame: Int, ball: String,
+                                made: Bool) -> String {
+        let session = session.replacingOccurrences(of: " · ", with: ", ")
+        return [
+            date,
+            session.isEmpty ? nil : session,
+            String(localized: "game \(game), frame \(frame)"),
+            ball,
+            made ? String(localized: "made") : String(localized: "missed"),
+        ].compactMap { $0 }.joined(separator: ", ")
+    }
+
     /// A by-frame bar: "Frame 1, 25%".
     static func byFrameBar(_ frame: Int, _ rate: String) -> String {
         String(localized: "Frame \(frame), \(rate)")

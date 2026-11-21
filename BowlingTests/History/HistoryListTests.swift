@@ -74,6 +74,8 @@ import Testing
         let row = try #require(try rows().first)
         #expect(row.detailsText == "League · AMF Bowl · Tuesday Mixed")
         #expect(row.bowlersText == "3 bowlers")
+        // The occurrence list's line, built without the scores.
+        #expect(RecentRow.detailsText(try #require(store.sessions.sessions().first)) == row.detailsText)
     }
 
     @Test func oneBowlerHasNoBowlerCount() throws {
@@ -90,6 +92,7 @@ import Testing
         let league = try store.sessions.createLeague(name: "Tuesday Mixed", centerID: nil)
         try session(SessionMetadata(date: date(10, 21), eventType: .practice, leagueID: league))
         #expect(try rows().first?.leagueName == nil)
+        #expect(RecentRow.detailsText(try #require(store.sessions.sessions().first)) == "Practice")
     }
 
     @Test func inProgressRow() throws {

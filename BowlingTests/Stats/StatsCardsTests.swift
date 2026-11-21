@@ -1,4 +1,5 @@
 import BowlingCore
+import BowlingFixtures
 import Foundation
 import Testing
 @testable import Bowling
@@ -20,8 +21,9 @@ import Testing
         StatsEngine.report(games: games, filter: StatsFilter(bowlerID: bowler))
     }
 
-    func card(_ id: StatsCardID, _ report: StatsReport) throws -> StatsCard {
-        try #require(StatsCards.make(cards: [id], report: report, locale: Locale(identifier: "en_US")).first)
+    /// The demo's dates are in `DemoFixture.referenceDate`'s year, so they show no year.
+    func card(_ id: StatsCardID, _ report: StatsReport, now: Date = DemoFixture.referenceDate) throws -> StatsCard {
+        try #require(StatsCards.make(cards: [id], report: report, locale: Locale(identifier: "en_US"), now: now).first)
     }
 
     @Test(arguments: [StatsProfile.casual, .league, .competitive])
@@ -217,7 +219,21 @@ import Testing
             return
         }
         #expect(tile.value == "\(high.score)")
-        #expect(tile.sample == high.game.date.formatted(.dateTime.month(.abbreviated).day()))
+        let us = Locale(identifier: "en_US")
+        #expect(tile.sample == StatFormat.day(high.game.date, locale: us, now: DemoFixture.referenceDate))
+        #expect(tile.sample?.contains(",") == false)
+    }
+
+    @Test func highGameFromAnotherYearShowsTheYear() throws {
+        let report = PreviewData.report
+        let high = try #require(report.highGame)
+        let nextYear = try #require(Calendar.current.date(byAdding: .year, value: 1, to: DemoFixture.referenceDate))
+        guard case .tile(let tile, _) = try card(.highGame, report, now: nextYear).body else {
+            Issue.record("high game is not a tile")
+            return
+        }
+        let year = Calendar.current.component(.year, from: high.game.date)
+        #expect(tile.sample?.hasSuffix(", \(year)") == true)
     }
 
     @Test func leftMostNilHasNoLeave() throws {

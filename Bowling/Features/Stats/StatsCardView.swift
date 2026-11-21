@@ -42,9 +42,9 @@ struct StatsCardView: View {
         case .trend(let trend):
             TrendCard(trend: trend)
         case .leaves(let rows):
-            LeavesCard(rows: rows)
+            LeavesCard(rows: rows, opensOccurrences: true)
         case .leftMost(let row?):
-            LeaveRowView(row: row, size: .regular)
+            LeaveRowLink(row: row, size: .regular)
         case .leftMost(nil):
             muted(String(localized: "No leave seen 3 times yet."))
         case .byFrame(let content):
