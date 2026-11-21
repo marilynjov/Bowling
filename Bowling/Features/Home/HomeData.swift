@@ -36,8 +36,12 @@ struct RecentRow: Hashable, Identifiable {
     /// `detailsText` for any session, without building its scores: the leave occurrence
     /// list shows the line for a friend's sessions too.
     static func detailsText(_ session: SessionSummary) -> String {
-        detailsText(eventType: session.eventType, centerName: session.centerName,
-                    leagueName: session.eventType == .league ? session.leagueName : nil)
+        detailsText(eventType: session.eventType, centerName: session.centerName, leagueName: leagueName(session))
+    }
+
+    /// The league's name only for a league session.
+    fileprivate static func leagueName(_ session: SessionSummary) -> String? {
+        session.eventType == .league ? session.leagueName : nil
     }
 
     private static func detailsText(eventType: EventType, centerName: String?, leagueName: String?) -> String {
@@ -58,7 +62,7 @@ extension RecentRow {
             centerName: session.centerName,
             scores: games.map { $0.isComplete ? "\($0.finalScore)" : "\($0.finalScore)…" }
                 .joined(separator: " · "),
-            leagueName: session.eventType == .league ? session.leagueName : nil,
+            leagueName: Self.leagueName(session),
             bowlerCount: session.bowlerCount, gameCount: session.games.count,
             ownerScores: games.map(\.finalScore), isInProgress: !session.isComplete
         )

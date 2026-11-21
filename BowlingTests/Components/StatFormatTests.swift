@@ -9,7 +9,6 @@ import Testing
     @Test func dayAddsTheYearOnlyOutsideNowsYear() {
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = TimeZone(identifier: "UTC")!
-        let us = Locale(identifier: "en_US")
         let october = Date(timeIntervalSince1970: 1_792_008_000) // Oct 14, 2026
         #expect(StatFormat.day(october, calendar: utc, locale: us, now: october) == "Oct 14")
         #expect(StatFormat.day(october, calendar: utc, locale: us, now: october.addingTimeInterval(86_400 * 120))
