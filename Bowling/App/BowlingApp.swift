@@ -6,7 +6,8 @@ import SwiftUI
     init() {
         #if DEBUG
         let loader = UITestLaunch.isActive()
-            ? StoreLoader(open: UITestLaunch.openStore, defaults: UITestLaunch.defaults())
+            ? StoreLoader(open: UITestLaunch.openStore, defaults: UITestLaunch.defaults(),
+                          reminderCenter: NoReminderCenter())
             : StoreLoader()
         #else
         let loader = StoreLoader()

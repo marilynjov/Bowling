@@ -9,10 +9,13 @@ import Observation
     private(set) var failure: (any Error)?
     private let open: () throws -> BowlingStore
     private let defaults: UserDefaults
+    private let reminderCenter: any ReminderCenter
 
-    init(open: @escaping () throws -> BowlingStore = { try BowlingStore() }, defaults: UserDefaults = .standard) {
+    init(open: @escaping () throws -> BowlingStore = { try BowlingStore() }, defaults: UserDefaults = .standard,
+         reminderCenter: any ReminderCenter = SystemReminderCenter()) {
         self.open = open
         self.defaults = defaults
+        self.reminderCenter = reminderCenter
     }
 
     /// Sets exactly one of `app` and `failure`.
@@ -21,7 +24,8 @@ import Observation
             app = AppModel(
                 store: try open(),
                 sessionDefaults: SessionDefaultsStore(defaults),
-                scoringSettings: ScoringSettings(defaults)
+                scoringSettings: ScoringSettings(defaults),
+                reminderCenter: reminderCenter
             )
             failure = nil
         } catch {
