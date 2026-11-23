@@ -13,11 +13,11 @@ env:
   # Same Xcode as local development; the project file is written by Xcode 27.
   DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
 
-# Standard macOS runners: free on a public repo, unlike the larger `xcode-27` runner,
-# which is billed per minute whatever the repo's visibility.
 jobs:
   packages:
     name: Test ${{ matrix.package }}
+    # Standard macOS runner: no per-minute charge on a public repo, unlike the larger
+    # `xcode-27` runner. Not yet run while the account's Actions billing is locked.
     runs-on: macos-26
     strategy:
       fail-fast: false
@@ -25,6 +25,8 @@ jobs:
         package: [BowlingCore, BowlingData]
     steps:
       - uses: actions/checkout@v4
+      # If DEVELOPER_DIR is missing on the image, this shows which Xcodes it has.
+      - run: ls -d /Applications/Xcode*
       - run: swift --version
       - run: swift test --package-path Packages/${{ matrix.package }}
 
@@ -36,6 +38,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - run: ls -d /Applications/Xcode*
       - run: xcodebuild -version
       - name: Build for testing
         run: |
