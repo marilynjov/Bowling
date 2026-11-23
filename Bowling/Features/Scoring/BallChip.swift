@@ -10,14 +10,14 @@ struct BallChip: View {
     var body: some View {
         Menu {
             if model.offersNoBall {
-                pick("No ball", id: nil)
+                pick(String(localized: "No ball"), id: nil)
             }
             ForEach(model.balls) { ball in
                 pick(BallPicker.label(ball), id: ball.id)
             }
         } label: {
             Text(name)
-                .lineLimit(1)
+                .lineLimit(1...2)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, minHeight: 48)
         }

@@ -10,7 +10,7 @@ struct FinalScoreEntry: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            TextField("Score", text: $text, prompt: Text("0"))
+            TextField("Score", text: $text, prompt: Text(verbatim: "0"))
                 .keyboardType(.numberPad)
                 .focused($focused)
                 .font(.scoreHero)
@@ -20,7 +20,7 @@ struct FinalScoreEntry: View {
             Button { model.saveFinalScore(text) } label: {
                 Text("Save").frame(maxWidth: .infinity, minHeight: 48)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentButton()
             .controlSize(.large)
             .disabled(QuickScoreEntry.score(text) == nil)
         }

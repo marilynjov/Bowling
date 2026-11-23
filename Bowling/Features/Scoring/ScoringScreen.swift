@@ -145,7 +145,7 @@ private struct ScoringContent: View {
                 Button(action: model.next) {
                     Text(model.edit == nil ? "Next" : "Replace").frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .controlSize(.large)
                 .accessibilityIdentifier("scoring.next")
             }

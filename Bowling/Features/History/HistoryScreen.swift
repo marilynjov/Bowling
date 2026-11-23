@@ -59,7 +59,7 @@ struct HistoryScreen: View {
             Button { app.isStartingSession = true } label: {
                 Text("Start session").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentButton()
             .tint(.accent)
             .controlSize(.large)
         }

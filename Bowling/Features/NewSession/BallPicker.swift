@@ -12,7 +12,7 @@ struct BallPicker: View {
     var body: some View {
         List {
             Section {
-                PickerRow(name: "No ball", isPicked: selection == nil) { pick(nil) }
+                PickerRow(name: String(localized: "No ball"), isPicked: selection == nil) { pick(nil) }
             } footer: {
                 if balls.isEmpty {
                     Text("No balls yet. Add them in Arsenal.")
@@ -35,7 +35,7 @@ struct BallPicker: View {
 
     /// "Phaze · 15 lb"
     static func label(_ ball: BallSummary) -> String {
-        "\(ball.name) · \(ball.weightPounds) lb"
+        String(localized: "\(ball.name) · \(ball.weightPounds) lb")
     }
 
     private func pick(_ id: BallID?) {

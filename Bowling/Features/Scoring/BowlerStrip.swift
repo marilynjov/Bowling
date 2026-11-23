@@ -36,7 +36,7 @@ struct BowlerStrip: View {
             name: model.bowlerName, score: model.currentScore, isCurrent: isCurrent, isFinished: isFinished
         ))
         if isCurrent {
-            button.buttonStyle(.borderedProminent)
+            button.prominentButton()
         } else {
             button.buttonStyle(.bordered)
         }

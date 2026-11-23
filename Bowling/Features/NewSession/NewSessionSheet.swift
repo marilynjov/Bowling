@@ -55,7 +55,7 @@ struct NewSessionSheet: View {
                 details: draft.details, centers: centers, leagues: leagues, oilPatterns: oilPatterns
             )
 
-            Section("Bowlers") {
+            Section {
                 ForEach(draft.lineup) { $entry in
                     if entry.isOwner {
                         NavigationLink {
@@ -84,6 +84,10 @@ struct NewSessionSheet: View {
                     Label("Add bowler", systemImage: "person.badge.plus")
                         .foregroundStyle(Color.accentText)
                 }
+            } header: {
+                // InkMuted rather than the system header gray, which the audit found just
+                // short of 4.5:1 on Canvas (#14).
+                Text("Bowlers").foregroundStyle(.inkMuted)
             }
             .listRowBackground(Color.surface)
 
@@ -121,7 +125,7 @@ struct NewSessionSheet: View {
     }
 
     private func ballName(_ id: BallID?) -> String {
-        balls.first { $0.id == id }.map(BallPicker.label) ?? "No ball"
+        balls.first { $0.id == id }.map(BallPicker.label) ?? String(localized: "No ball")
     }
 
     /// Lists reload after every write; the draft is made once, from the remembered values.

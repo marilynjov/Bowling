@@ -29,7 +29,7 @@ struct GameSummarySheet: View {
                 Button(action: session.nextGame) {
                     Text("Next game").frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .controlSize(.large)
                 Button(action: app.closeScoring) {
                     Text("End session").frame(maxWidth: .infinity, minHeight: 48)
@@ -39,7 +39,7 @@ struct GameSummarySheet: View {
                 Button(action: app.closeScoring) {
                     Text("Done").frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .buttonStyle(.borderedProminent)
+                .prominentButton()
                 .controlSize(.large)
             }
         }

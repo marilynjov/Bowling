@@ -37,6 +37,14 @@ extension Font {
 }
 
 extension View {
+    /// The app's prominent action: an AccentColor fill with OnAccent text, the pair
+    /// ThemeTests checks. The system's white label falls to 2.7:1 on the dark-mode accent.
+    /// Disabled, it keeps the system's disabled colours: OnAccent on the gray fill was
+    /// barely visible.
+    func prominentButton() -> some View {
+        buttonStyle(.borderedProminent).modifier(OnAccentWhenEnabled())
+    }
+
     /// Uppercase monospaced card label, such as "SCORECARD" or "TOTAL LEFT".
     func monoLabel() -> some View {
         font(.system(.caption, design: .monospaced, weight: .medium))
@@ -61,7 +69,7 @@ private struct ThemePreview: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Colors").monoLabel()
+                Text(verbatim: "Colors").monoLabel()
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
                     ForEach(swatches, id: \.0) { name, color in
                         VStack(alignment: .leading, spacing: 4) {
@@ -74,34 +82,34 @@ private struct ThemePreview: View {
                     }
                 }
 
-                Text("Marks").monoLabel()
+                Text(verbatim: "Marks").monoLabel()
                 HStack(spacing: 12) {
                     ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
                         Text(symbol(mark)).font(.frameMark).foregroundStyle(Color(Theme.color(for: mark)))
                     }
-                    Text("7-10").font(.frameMark).foregroundStyle(Color(Theme.color(for: LeaveKind.split)))
+                    Text(verbatim: "7-10").font(.frameMark).foregroundStyle(Color(Theme.color(for: LeaveKind.split)))
                 }
 
-                Text("Text styles").monoLabel()
+                Text(verbatim: "Text styles").monoLabel()
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("105").font(.scoreHero).foregroundStyle(.accentText)
-                    Text("68.5%").font(.tileValue)
-                    Text("Frame total 98").font(.frameTotal)
-                    Text("87 / 127 chances").font(.figure).foregroundStyle(.inkMuted)
-                    Text("10").font(.pinNumber)
+                    Text(verbatim: "105").font(.scoreHero).foregroundStyle(.accentText)
+                    Text(verbatim: "68.5%").font(.tileValue)
+                    Text(verbatim: "Frame total 98").font(.frameTotal)
+                    Text(verbatim: "87 / 127 chances").font(.figure).foregroundStyle(.inkMuted)
+                    Text(verbatim: "10").font(.pinNumber)
                 }
 
-                Text("Buttons and pins").monoLabel()
+                Text(verbatim: "Buttons and pins").monoLabel()
                 HStack(spacing: 8) {
-                    Text("STRIKE").fontWeight(.heavy).foregroundStyle(.onStrike)
+                    Text(verbatim: "STRIKE").fontWeight(.heavy).foregroundStyle(.onStrike)
                         .frame(maxWidth: .infinity, minHeight: 54).background(.strike, in: .rect(cornerRadius: 12))
-                    Text("/ SPARE").fontWeight(.heavy).foregroundStyle(.onAccent)
+                    Text(verbatim: "/ SPARE").fontWeight(.heavy).foregroundStyle(.onAccent)
                         .frame(maxWidth: .infinity, minHeight: 54).background(.accent, in: .rect(cornerRadius: 12))
                 }
                 HStack(spacing: 16) {
-                    Text("6").font(.pinNumber).foregroundStyle(.onPinStanding)
+                    Text(verbatim: "6").font(.pinNumber).foregroundStyle(.onPinStanding)
                         .frame(width: 48, height: 48).background(.pinStanding, in: .circle)
-                    Text("5").font(.pinNumber).foregroundStyle(.inkMuted)
+                    Text(verbatim: "5").font(.pinNumber).foregroundStyle(.inkMuted)
                         .frame(width: 48, height: 48).overlay(Circle().stroke(.pinOutline, lineWidth: 1.5))
                 }
             }
@@ -126,3 +134,16 @@ private struct ThemePreview: View {
 #Preview("Theme, light") { ThemePreview().preferredColorScheme(.light) }
 #Preview("Theme, dark") { ThemePreview().preferredColorScheme(.dark) }
 #endif
+
+/// OnAccent text only while enabled; `.disabled` is applied outside `prominentButton()`.
+private struct OnAccentWhenEnabled: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.foregroundStyle(.onAccent)
+        } else {
+            content
+        }
+    }
+}
