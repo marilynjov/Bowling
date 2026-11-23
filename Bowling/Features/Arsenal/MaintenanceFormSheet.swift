@@ -3,10 +3,20 @@ import BowlingData
 import SwiftUI
 
 /// Ball detail's Log maintenance (spec §7 "Ball detail", Maintenance): kind, date, the
-/// surface after a resurface or polish, and notes. A refused save keeps the sheet.
+/// surface after a resurface or polish, and notes. A refused save keeps the sheet. The date
+/// has a time because a resurface counts a same-day session's games only when it comes
+/// before the session's start (contract §2.9).
 struct MaintenanceFormSheet: View {
     @Environment(AppModel.self) private var app
-    @State private var draft = MaintenanceDraft()
+    @State private var draft: MaintenanceDraft
+    /// The values the sheet opened with; a swipe down can't drop changes to them.
+    private let opened: MaintenanceDraft
+
+    init() {
+        let draft = MaintenanceDraft()
+        _draft = State(initialValue: draft)
+        opened = draft
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,7 +27,7 @@ struct MaintenanceFormSheet: View {
                             Text(BallDetailData.kindTitle(kind)).tag(kind)
                         }
                     }
-                    DatePicker("Date", selection: $draft.date, in: ...Date.now, displayedComponents: .date)
+                    DatePicker("Date", selection: $draft.date, in: ...Date.now, displayedComponents: [.date, .hourAndMinute])
                     if draft.takesGrit {
                         LabeledContent("Surface after") {
                             TextField("Surface after", text: $draft.surfaceGrit, prompt: Text("e.g. 2000 Abralon"))
@@ -25,7 +35,9 @@ struct MaintenanceFormSheet: View {
                         }
                     }
                 } footer: {
-                    if draft.takesGrit {
+                    if draft.kind == .resurface {
+                        Text("Becomes the ball's current surface. Games from sessions that start after this time count toward the next resurface.")
+                    } else if draft.takesGrit {
                         Text("Becomes the ball's current surface.")
                     }
                 }
@@ -38,6 +50,7 @@ struct MaintenanceFormSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.canvas)
+            .interactiveDismissDisabled(draft != opened)
             .navigationTitle("Log maintenance")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

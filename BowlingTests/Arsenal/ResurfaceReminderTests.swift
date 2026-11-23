@@ -83,6 +83,25 @@ final class FakeReminderCenter: ReminderCenter {
         #expect(fire.minute == 0)
     }
 
+    @Test func crossingAfterMidnightFiresThatMorning() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+        let now = try #require(calendar.date(from: DateComponents(year: 2027, month: 1, day: 1, hour: 0, minute: 30)))
+        let store = try BowlingStore(inMemory: true)
+        let reminder = ResurfaceReminder(store: store, center: center, calendar: calendar, now: { now })
+        let owner = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        let ball = try store.balls.addBall(BallFields(name: "Phaze", weightPounds: 15, resurfaceIntervalGames: 1)).id
+        _ = try store.sessions.startSession(
+            SessionMetadata(date: now.addingTimeInterval(-3_600), eventType: .league),
+            bowlers: [(bowlerID: owner.id, defaultBallID: ball)], entryMode: .finalOnly
+        )
+
+        reminder.update(from: store)
+
+        let fire = try #require(center.added.first?.fireDate)
+        #expect([fire.year, fire.month, fire.day, fire.hour] == [2027, 1, 1, 9])
+    }
+
     @Test func ballAlreadyDueAtLaunchSchedulesNothing() throws {
         let ball = try addBall(interval: 1)
         try bowl(ball)
@@ -126,5 +145,14 @@ final class FakeReminderCenter: ReminderCenter {
         app.ballForm = .add
         try app.saveBall(form)
         #expect(center.authorizationRequests == 1)
+    }
+
+    @Test func refusedSaveAsksNothing() throws {
+        var form = BallForm()
+        form.resurfaceInterval = "60"
+        app.ballForm = .add
+        #expect(throws: (any Error).self) { try app.saveBall(form) }
+        #expect(app.ballForm == .add)
+        #expect(center.authorizationRequests == 0)
     }
 }

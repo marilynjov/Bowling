@@ -805,9 +805,14 @@ per-roll ball picker and ball tagging.
   Retire and delete live here, with the warnings from section 3.3.
 - **Resurface reminder.** When a saved game pushes a ball to or past its interval, the
   badge appears and a local notification is scheduled for 9:00 the next morning, when
-  the bowler is away from the lanes and can plan the resurface. The app asks for
-  notification permission the first time the user sets a resurface interval, not at
-  launch.
+  the bowler is away from the lanes and can plan the resurface (the same morning when the
+  crossing comes after midnight, before 5:00). The app asks for
+  notification permission the first time the user saves a resurface interval, not at
+  launch. A game counts toward the interval from its session's start, as the badge does,
+  so the notification is scheduled when the crossing game starts, not when it is saved.
+  Lowering the interval to or below the games already bowled is a crossing too. Each
+  crossing schedules one notification; resurfacing, retiring the ball, or raising the
+  interval withdraws it.
 
 ### Settings
 

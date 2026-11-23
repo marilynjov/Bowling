@@ -43,7 +43,7 @@ import Observation
         store: BowlingStore,
         sessionDefaults: SessionDefaultsStore = SessionDefaultsStore(),
         scoringSettings: ScoringSettings = ScoringSettings(),
-        reminderCenter: any ReminderCenter = SystemReminderCenter()
+        reminderCenter: any ReminderCenter = NoReminderCenter()
     ) {
         self.store = store
         self.sessionDefaults = sessionDefaults
@@ -101,15 +101,18 @@ import Observation
 
     /// The ball form's Save: adds or updates the ball and closes the sheet. Does nothing once
     /// the sheet is closed, so a second tap on Save can't add the ball twice. With a
-    /// resurface interval set, asks for notification permission (spec §7: when the bowler
+    /// resurface interval set, once saved, asks for notification permission (spec §7: when the bowler
     /// first sets an interval, not at launch; iOS asks only once).
     /// - Throws: whatever `BallForm.save` throws; the sheet stays with its values. When only
     ///   the photo failed, the ball exists, so the sheet closes (another Save would add it
     ///   again) and the repository's error shows at the root.
     func saveBall(_ form: BallForm) throws {
         guard ballForm != nil else { return }
-        if form.fields()?.resurfaceIntervalGames != nil {
-            resurfaceReminder.requestAuthorization()
+        defer {
+            // After the save, so a refused one shows no prompt over the open sheet.
+            if ballForm == nil, form.fields()?.resurfaceIntervalGames != nil {
+                resurfaceReminder.requestAuthorization()
+            }
         }
         do {
             _ = try write { try form.save(to: $0) }

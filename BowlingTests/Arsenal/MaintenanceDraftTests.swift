@@ -47,6 +47,36 @@ import Testing
         #expect(try app.store.balls.maintenance(for: ball).events.count == 1)
     }
 
+    /// Contract §2.9: a resurface before a same-day session's start counts that session's
+    /// games as since the resurface, which is why the sheet asks for the time.
+    @Test func resurfaceBeforeASameDaySessionCountsItsGames() throws {
+        let owner = try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
+        let league = Date.now.addingTimeInterval(-3_600)
+        _ = try app.write {
+            try $0.sessions.startSession(
+                SessionMetadata(date: league, eventType: .league),
+                bowlers: [(bowlerID: owner.id, defaultBallID: ball)], entryMode: .finalOnly
+            )
+        }
+        app.loggingMaintenance = ball
+        try app.logMaintenance(MaintenanceDraft(kind: .resurface, date: league.addingTimeInterval(-3_600)))
+        #expect(try app.store.balls.maintenance(for: ball).gamesSinceResurface == 1)
+    }
+
+    @Test func resurfaceAfterTheSessionCountsNone() throws {
+        let owner = try app.write { try $0.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league) }
+        let league = Date.now.addingTimeInterval(-7_200)
+        _ = try app.write {
+            try $0.sessions.startSession(
+                SessionMetadata(date: league, eventType: .league),
+                bowlers: [(bowlerID: owner.id, defaultBallID: ball)], entryMode: .finalOnly
+            )
+        }
+        app.loggingMaintenance = ball
+        try app.logMaintenance(MaintenanceDraft(kind: .resurface, date: league.addingTimeInterval(3_600)))
+        #expect(try app.store.balls.maintenance(for: ball).gamesSinceResurface == 0)
+    }
+
     @Test func refusedSaveKeepsTheSheet() throws {
         app.loggingMaintenance = ball
         #expect(throws: RepositoryError.invalidMaintenance(.dateInFuture)) {

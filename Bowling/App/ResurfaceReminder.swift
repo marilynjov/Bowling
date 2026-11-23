@@ -5,7 +5,9 @@ import UserNotifications
 
 /// Spec §7 "Resurface reminder": when a write makes an active ball due for a resurface, a
 /// local notification for 9:00 the next morning, when the bowler is away from the lanes and
-/// can plan it. When a ball stops being due (resurfaced, retired, interval raised, deleted),
+/// can plan it. A game counts from its session's start, as the badge does, so the write
+/// that starts the crossing game schedules it. Lowering the interval below the games since
+/// the last resurface is a crossing too. When a ball stops being due (resurfaced, retired, interval raised, deleted),
 /// its pending notification is withdrawn.
 ///
 /// Only a change counts: a ball already due at launch, or still due after another game,
@@ -17,7 +19,7 @@ final class ResurfaceReminder {
     /// The balls due after the last write.
     private var due: Set<BallID>
 
-    init(store: BowlingStore, center: any ReminderCenter = SystemReminderCenter(),
+    init(store: BowlingStore, center: any ReminderCenter = NoReminderCenter(),
          calendar: Calendar = .autoupdatingCurrent, now: @escaping () -> Date = { .now }) {
         self.center = center
         self.calendar = calendar
@@ -53,10 +55,15 @@ final class ResurfaceReminder {
         due = current
     }
 
-    /// 9:00 tomorrow in the bowler's calendar.
+    /// 9:00 the next morning in the bowler's calendar: tomorrow, or today when a late league
+    /// runs past midnight (before 5:00).
     private func fireDate() -> DateComponents {
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now())) ?? now()
-        var components = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+        let now = now()
+        let today = calendar.startOfDay(for: now)
+        let morning = calendar.component(.hour, from: now) < 5
+            ? today
+            : calendar.date(byAdding: .day, value: 1, to: today) ?? now
+        var components = calendar.dateComponents([.year, .month, .day], from: morning)
         components.hour = 9
         components.minute = 0
         return components
@@ -82,6 +89,14 @@ protocol ReminderCenter {
     /// Replaces a pending notification with the same ID.
     func add(_ notification: ResurfaceNotification)
     func cancel(ids: [String])
+}
+
+/// Schedules nothing: the default for previews and tests, so a permission prompt or a real
+/// notification never comes from them. The app passes `SystemReminderCenter`.
+struct NoReminderCenter: ReminderCenter {
+    func requestAuthorization() {}
+    func add(_ notification: ResurfaceNotification) {}
+    func cancel(ids: [String]) {}
 }
 
 struct SystemReminderCenter: ReminderCenter {
