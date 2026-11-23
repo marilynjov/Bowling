@@ -79,7 +79,8 @@ the layout, not by lowering the size cap.
 ## Done when
 
 - `StringCatalogTests` and both `AccessibilityAuditUITests` methods pass on CI.
-- The VoiceOver checklist run is recorded in the PR as passed.
+- The VoiceOver checklist run on an iPhone is recorded as passed. It needs a device, so
+  #14 tracks it after this pass merges, with the Large Content Viewer check on the deck.
 
 ## Not in scope
 

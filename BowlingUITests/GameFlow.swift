@@ -9,8 +9,8 @@ struct GameFlow {
 
     /// Home › Start session › Start, then waits for Scoring.
     func startSession() {
-        tap("home.startSession", wait: true)
-        tap("newSession.start", wait: true)
+        tap("home.startSession")
+        tap("newSession.start")
         XCTAssertTrue(app.buttons["scoring.next"].waitForExistence(timeout: 5))
     }
 
@@ -20,9 +20,11 @@ struct GameFlow {
         tap("scoring.next")
     }
 
-    func tap(_ identifier: String, wait: Bool = false) {
+    /// Waits for the button first: after a ball, the shortcut bar swaps Strike for Spare
+    /// only once Scoring has taken the tap.
+    func tap(_ identifier: String) {
         let button = app.buttons[identifier]
-        if wait { XCTAssertTrue(button.waitForExistence(timeout: 5), "\(identifier) not found") }
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "\(identifier) not found")
         button.tap()
     }
 }

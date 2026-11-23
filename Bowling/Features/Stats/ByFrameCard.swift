@@ -22,7 +22,7 @@ struct ByFrameCard: View {
                             .foregroundStyle(.inkMuted)
                     }
                     .accessibilityLabel(bar.accessibilityLabel)
-                    .accessibilityValue("")
+                    .accessibilityValue(Text(verbatim: ""))
             }
             .chartYScale(domain: content.kind == .strikes ? 0...1 : 0...10)
             .chartYAxis {

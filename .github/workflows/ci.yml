@@ -42,6 +42,9 @@ jobs:
             -scheme Bowling \
             -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
             CODE_SIGNING_ALLOWED=NO
+      # A command-line build doesn't update the catalog, so a new string can miss it (#14).
+      - name: Check the String Catalog
+        run: python3 .github/scripts/check-string-catalog.py
       # The simulator has stalled before any test ran: the test runner crashed while
       # bootstrapping on a cold device, or the app launch timed out (#130). Boot the device
       # first, and run the step a second time if it fails; a real failure fails both tries.
@@ -71,7 +74,6 @@ jobs:
               -scheme Bowling \
               -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
               -only-testing:BowlingUITests/AccessibilityAuditUITests \
-              -retry-tests-on-failure -test-iterations 2 \
               CODE_SIGNING_ALLOWED=NO
           }
           audit || { echo "::warning::Audit step failed; running it once more"; audit; }

@@ -4,7 +4,8 @@ import Testing
 @testable import Bowling
 
 /// The source String Catalog. The app bundle carries only the compiled `.strings`, so the
-/// tests read the committed file next to the sources.
+/// tests read the committed file next to the sources. They can't see a key missing from it;
+/// `.github/scripts/check-string-catalog.py` compares it with the build's strings in CI.
 enum StringCatalog {
     struct Entry {
         var extractionState: String?
@@ -73,6 +74,8 @@ enum StringCatalog {
         "Show all %lld leaves", "Delete this session? Its %lld games will be deleted.",
         "This ball was used in %lld games. Retire it instead.",
         "This bowler has %lld games. Delete them first.",
+        "%lld games since resurface", "Never resurfaced · %lld games", "%lld spare attempts",
+        "%lld pin-by-pin games", "%lld missed single pins",
     ])
     func countedStringsHavePluralForms(key: String) throws {
         let entry = try #require(try StringCatalog.load().strings[key])
@@ -83,6 +86,9 @@ enum StringCatalog {
     @Test func appReadsThePluralForms() {
         #expect(String(localized: "\(1) games") == "1 game")
         #expect(String(localized: "\(3) games") == "3 games")
+        #expect(String(localized: "\(1) games since resurface") == "1 game since resurface")
+        #expect(String(localized: "\(1) of \(1) games since resurface") == "1 of 1 game since resurface")
+        #expect(String(localized: "\(0) of \(60) games since resurface") == "0 of 60 games since resurface")
         #expect(AccessibilityText.deckSummary(standing: PinSet(pins: [4, 7, 10])) == "3 pins standing: 4, 7, 10")
     }
 }

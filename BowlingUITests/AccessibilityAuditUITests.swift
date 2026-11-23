@@ -43,16 +43,15 @@ final class AccessibilityAuditUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home.startSession"].waitForExistence(timeout: 5))
         try audit(app, "Home")
 
-        flow.tap("home.startSession", wait: true)
+        flow.tap("home.startSession")
         XCTAssertTrue(app.buttons["newSession.start"].waitForExistence(timeout: 5))
-        settle()
         try audit(app, "New session")
 
         flow.tap("newSession.start")
         XCTAssertTrue(app.buttons["scoring.next"].waitForExistence(timeout: 5))
         flow.tap("scoring.strike")                              // 1
         flow.pins(4, 7, 10)                                     // 2, first ball
-        flow.tap("scoring.undo", wait: true)                    // takes it back
+        flow.tap("scoring.undo")                    // takes it back
         flow.pins(4, 7, 10); flow.tap("scoring.spare")          // 2
         try audit(app, "Scoring")
 
@@ -71,14 +70,27 @@ final class AccessibilityAuditUITests: XCTestCase {
         try audit(app, "Game summary")
     }
 
-    /// Lets a sheet finish presenting: an audit taken mid-animation reports text that hasn't
-    /// reached its size yet.
-    private func settle() {
-        _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: 1)
+    /// Waits until nothing on screen moves between two looks, up to 5 seconds: an audit taken
+    /// mid-animation reports text that hasn't reached its size yet while a sheet presents,
+    /// or a frame the scorecard strip's edge cuts on its way past as low contrast.
+    @MainActor
+    private func settle(_ app: XCUIApplication) {
+        var last: [CGRect] = []
+        for _ in 0..<20 {
+            _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: 0.25)
+            let frames = (try? app.snapshot()).map(Self.frames) ?? []
+            if !frames.isEmpty, frames == last { return }
+            last = frames
+        }
+    }
+
+    private static func frames(_ element: any XCUIElementSnapshot) -> [CGRect] {
+        [element.frame] + element.children.flatMap(frames)
     }
 
     @MainActor
     private func audit(_ app: XCUIApplication, _ screen: String) throws {
+        settle(app)
         try XCTContext.runActivity(named: "Audit \(screen)") { _ in
             try app.performAccessibilityAudit { issue in
                 self.exclusion(issue, on: screen, in: app)
@@ -101,7 +113,7 @@ final class AccessibilityAuditUITests: XCTestCase {
             && (element?.identifier == "newSession.start" || element?.label == "Cancel")
         let isUnderTabBar = screen == "Home" && app.tabBars.firstMatch.frame.intersects(frame)
         let isCutByScreenEdge = screen == "Scoring" && frame.maxX > app.windows.firstMatch.frame.maxX
-        let isEmptyStatValue = element?.elementType == .staticText && element?.label == "–"
+        let isEmptyStatValue = screen == "Home" && element?.elementType == .staticText && element?.label == "–"
         let isNewSessionFormText = screen == "New session" && element?.elementType == .staticText
             && ["Bowlers", "Sam", "You can switch before the first roll."].contains(element?.label ?? "")
         // A pin's number stops growing at AX2 so it fits its circle while the deck still fits

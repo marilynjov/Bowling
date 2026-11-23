@@ -132,15 +132,15 @@ private struct ScorecardStripPreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("In progress").monoLabel()
+            Text(verbatim: "In progress").monoLabel()
             ScorecardStrip(
                 scorecard: Scorer.scorecard(for: inProgress),
                 currentFrame: Scorer.nextRoll(in: inProgress)?.frameIndex,
                 onSelectFrame: { _ in }
             )
-            Text("Perfect game").monoLabel()
+            Text(verbatim: "Perfect game").monoLabel()
             ScorecardStrip(scorecard: PreviewData.scorecard(.tournament1), currentFrame: nil)
-            Text("All spares").monoLabel()
+            Text(verbatim: "All spares").monoLabel()
             ScorecardStrip(scorecard: PreviewData.scorecard(.earlyLeague1), currentFrame: nil)
         }
         .padding(16)

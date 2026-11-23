@@ -35,7 +35,7 @@ struct BallPicker: View {
 
     /// "Phaze · 15 lb"
     static func label(_ ball: BallSummary) -> String {
-        "\(ball.name) · \(ball.weightPounds) lb"
+        String(localized: "\(ball.name) · \(ball.weightPounds) lb")
     }
 
     private func pick(_ id: BallID?) {

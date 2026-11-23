@@ -1,7 +1,7 @@
 # VoiceOver-only scoring checklist
 
-Run once on an iPhone before merging an accessibility change (#14), and after changes to
-Scoring, the pin deck or the scorecard. The pass condition: a full game can be scored by
+Run on an iPhone after changes to Scoring, the pin deck or the scorecard. The first run is
+tracked in #14, since the accessibility pass merged before a device was available. The pass condition: a full game can be scored by
 ear, without looking at the screen.
 
 The phrases below come from `AccessibilityText`:
@@ -75,6 +75,8 @@ checklist again.
 ## Rule for later
 
 - **Build in Xcode before committing new copy**, so `Localizable.xcstrings` picks it up.
-  `StringCatalogTests.noKeyIsStale` catches stale keys, but not missing ones.
+  `StringCatalogTests.noKeyIsStale` catches stale keys; CI's
+  `.github/scripts/check-string-catalog.py` catches missing ones. To run it locally, build,
+  then `python3 .github/scripts/check-string-catalog.py`.
 - **A string passed into a `String` parameter never reaches the catalog.** Wrap it in
   `String(localized:)` at the call site.

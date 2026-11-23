@@ -1,6 +1,19 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ more pins a game" : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "%@ · %@ · %lld open" : {
       "localizations" : {
         "en" : {
@@ -10,6 +23,22 @@
           }
         }
       }
+    },
+    "%@ · %lld lb" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld lb"
+          }
+        }
+      }
+    },
+    "%@ · Left-handed" : {
+
+    },
+    "%@ · Right-handed" : {
+
     },
     "%@ · frame %@" : {
       "localizations" : {
@@ -31,10 +60,7 @@
         }
       }
     },
-    "%@ · Left-handed" : {
-
-    },
-    "%@ · Right-handed" : {
+    "%@'s turn" : {
 
     },
     "%@, %lld, current turn" : {
@@ -90,8 +116,15 @@
         }
       }
     },
-    "%@'s turn" : {
-
+    "%@, strikes %@, first ball average %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, strikes %2$@, first ball average %3$@"
+          }
+        }
+      }
     },
     "%lld" : {
 
@@ -206,6 +239,28 @@
         }
       }
     },
+    "%lld games since resurface" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld game since resurface"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld games since resurface"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld lb" : {
 
     },
@@ -224,6 +279,82 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld leaves"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld missed single pins" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld missed single pin"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld missed single pins"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld games since resurface" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %#@games@ since resurface"
+          },
+          "substitutions" : {
+            "games" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg game"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg games"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pin-by-pin games" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pin-by-pin game"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pin-by-pin games"
                 }
               }
             }
@@ -297,6 +428,28 @@
         }
       }
     },
+    "%lld spare attempts" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld spare attempt"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld spare attempts"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld spares" : {
       "localizations" : {
         "en" : {
@@ -341,6 +494,12 @@
         }
       }
     },
+    "+%@ pins a game" : {
+
+    },
+    "+1 pin a game" : {
+
+    },
     "1 chance" : {
 
     },
@@ -356,13 +515,25 @@
     "1 leave" : {
 
     },
+    "1 missed single pin" : {
+
+    },
+    "1 more pin a game" : {
+
+    },
     "1 pin standing: %@" : {
+
+    },
+    "1 pin-by-pin game" : {
 
     },
     "1 session" : {
 
     },
     "1 spare" : {
+
+    },
+    "1 spare attempt" : {
 
     },
     "1 strike" : {
@@ -377,13 +548,19 @@
     "About" : {
 
     },
-    "Add “%@”" : {
-
-    },
     "Add ball" : {
 
     },
     "Add bowler" : {
+
+    },
+    "Add purchase date" : {
+
+    },
+    "Add release date" : {
+
+    },
+    "Add “%@”" : {
 
     },
     "All 10 pins standing" : {
@@ -401,10 +578,22 @@
     "Arsenal" : {
 
     },
+    "As a spare ball" : {
+
+    },
+    "As a strike ball" : {
+
+    },
+    "Asymmetric" : {
+
+    },
     "Auto-advance on spares" : {
 
     },
     "Average" : {
+
+    },
+    "Average as main ball" : {
 
     },
     "Average by frame" : {
@@ -425,9 +614,6 @@
     "Balls used" : {
 
     },
-    "both" : {
-
-    },
     "Both" : {
 
     },
@@ -446,6 +632,15 @@
     "Brand" : {
 
     },
+    "By center" : {
+
+    },
+    "By pattern" : {
+
+    },
+    "Can't delete this ball" : {
+
+    },
     "Cancel" : {
 
     },
@@ -458,6 +653,9 @@
     "Center" : {
 
     },
+    "Change photo" : {
+
+    },
     "Change score" : {
 
     },
@@ -467,10 +665,19 @@
     "Choose a maintenance type." : {
 
     },
+    "Choose photo" : {
+
+    },
     "Clean games %" : {
 
     },
     "Clear all rolls in this game?" : {
+
+    },
+    "Clear purchase date" : {
+
+    },
+    "Clear release date" : {
 
     },
     "Clear rolls" : {
@@ -482,10 +689,10 @@
     "Close" : {
 
     },
-    "Coming soon" : {
+    "Color" : {
 
     },
-    "Coming soon." : {
+    "Coming soon" : {
 
     },
     "Competition" : {
@@ -497,7 +704,19 @@
     "Competitively" : {
 
     },
+    "Construction" : {
+
+    },
     "Continue" : {
+
+    },
+    "Core name" : {
+
+    },
+    "Core type" : {
+
+    },
+    "Couldn't use that photo." : {
 
     },
     "Count" : {
@@ -506,7 +725,19 @@
     "Count only" : {
 
     },
+    "Coverstock" : {
+
+    },
+    "Coverstock name" : {
+
+    },
+    "Current surface" : {
+
+    },
     "Custom" : {
+
+    },
+    "Data" : {
 
     },
     "Date" : {
@@ -518,10 +749,10 @@
     "Default" : {
 
     },
-    "Default · %@" : {
+    "Default games" : {
 
     },
-    "Default games" : {
+    "Default · %@" : {
 
     },
     "Delete" : {
@@ -543,10 +774,16 @@
     "Delete all data?" : {
 
     },
+    "Delete ball" : {
+
+    },
     "Delete everything" : {
 
     },
     "Delete game" : {
+
+    },
+    "Delete this ball? Its photo and maintenance log are deleted too." : {
 
     },
     "Delete this session? It has no other games." : {
@@ -580,6 +817,9 @@
     "Deleted ball" : {
 
     },
+    "Differential" : {
+
+    },
     "Discard" : {
 
     },
@@ -593,6 +833,9 @@
 
     },
     "Edit" : {
+
+    },
+    "Edit ball" : {
 
     },
     "Edit filters" : {
@@ -614,6 +857,12 @@
     "Enter a name." : {
 
     },
+    "Enter a number" : {
+
+    },
+    "Enter a whole number of at least 1" : {
+
+    },
     "Enter frames to see strikes and spares." : {
 
     },
@@ -632,10 +881,28 @@
     "Event" : {
 
     },
+    "Every single pin made" : {
+
+    },
+    "Export CSV" : {
+
+    },
+    "Exports a zip with one CSV per table. Photos aren't included." : {
+
+    },
+    "Factory finish" : {
+
+    },
+    "Filter: %@" : {
+
+    },
     "Filters" : {
 
     },
     "Final score" : {
+
+    },
+    "First ball average" : {
 
     },
     "First-ball average" : {
@@ -647,13 +914,13 @@
     "Follow bowling style (Competition)" : {
 
     },
-    "foul" : {
-
-    },
     "Foul" : {
 
     },
     "Fouls" : {
+
+    },
+    "Frame" : {
 
     },
     "Frame %lld" : {
@@ -661,6 +928,26 @@
     },
     "Frame %lld was cleared. Enter it again." : {
 
+    },
+    "Frame %lld, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld, %2$@"
+          }
+        }
+      }
+    },
+    "Frame %lld, %@ pins" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld, %2$@ pins"
+          }
+        }
+      }
     },
     "Frame %lld: %@" : {
       "localizations" : {
@@ -727,10 +1014,10 @@
     "Give the ball a name." : {
 
     },
-    "gutter" : {
+    "Hand" : {
 
     },
-    "Hand" : {
+    "Head pin" : {
 
     },
     "Head pin %" : {
@@ -751,16 +1038,16 @@
     "How do you bowl?" : {
 
     },
-    "iCloud sync" : {
+    "Identity" : {
 
     },
     "In a league" : {
 
     },
-    "in progress" : {
+    "In progress" : {
 
     },
-    "In progress" : {
+    "Intermediate differential" : {
 
     },
     "Just type the game's score." : {
@@ -806,18 +1093,11 @@
     "Left most, made least" : {
 
     },
-    "Line" : {
+    "Less than %@ pins a game" : {
 
     },
-    "made %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "made %1$lld of %2$lld"
-          }
-        }
-      }
+    "Line" : {
+
     },
     "Made %lld of %lld" : {
       "localizations" : {
@@ -829,7 +1109,7 @@
         }
       }
     },
-    "makeable" : {
+    "Maintenance" : {
 
     },
     "Makeable conversion %" : {
@@ -838,8 +1118,33 @@
     "Miss" : {
 
     },
+    "Month" : {
+
+    },
     "Name" : {
 
+    },
+    "Never resurfaced · %lld games" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Never resurfaced · %lld game"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Never resurfaced · %lld games"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "New session" : {
 
@@ -865,7 +1170,7 @@
     "No complete games yet." : {
 
     },
-    "no data" : {
+    "No first balls with this ball in these games." : {
 
     },
     "No first balls yet" : {
@@ -874,7 +1179,7 @@
     "No frames yet" : {
 
     },
-    "no games yet" : {
+    "No games with this ball in this filter." : {
 
     },
     "No games yet" : {
@@ -892,10 +1197,28 @@
     "No leaves yet" : {
 
     },
+    "No maintenance logged." : {
+
+    },
     "No pins standing" : {
 
     },
+    "No single-pin leaves yet." : {
+
+    },
+    "No spare attempts with this ball in these games." : {
+
+    },
+    "No spare attempts yet" : {
+
+    },
     "None" : {
+
+    },
+    "Not enough sessions yet." : {
+
+    },
+    "Not set" : {
 
     },
     "Notes" : {
@@ -904,16 +1227,25 @@
     "Now and then, for fun." : {
 
     },
-    "Oil pattern" : {
+    "OK" : {
 
     },
-    "OK" : {
+    "Oil extraction" : {
+
+    },
+    "Oil pattern" : {
 
     },
     "Open %" : {
 
     },
     "Other" : {
+
+    },
+    "Over time" : {
+
+    },
+    "Pancake" : {
 
     },
     "Pin %lld, down" : {
@@ -928,13 +1260,46 @@
     "Pin entry" : {
 
     },
+    "Pins on the first rack" : {
+
+    },
+    "Plastic" : {
+
+    },
+    "Plug and redrill" : {
+
+    },
+    "Polish" : {
+
+    },
     "Practice" : {
 
     },
     "Profile" : {
 
     },
+    "Purchase date" : {
+
+    },
     "Quick score" : {
+
+    },
+    "RG" : {
+
+    },
+    "RG and differentials can't be negative." : {
+
+    },
+    "Reactive hybrid" : {
+
+    },
+    "Reactive pearl" : {
+
+    },
+    "Reactive solid" : {
+
+    },
+    "Recent games" : {
 
     },
     "Recent sessions" : {
@@ -943,19 +1308,34 @@
     "Records the second ball once it makes a spare." : {
 
     },
+    "Release date" : {
+
+    },
+    "Remove photo" : {
+
+    },
     "Replace" : {
 
     },
     "Resume" : {
 
     },
-    "resurface due" : {
+    "Resurface" : {
 
     },
     "Resurface due" : {
 
     },
-    "retired" : {
+    "Resurface every … games" : {
+
+    },
+    "Retire" : {
+
+    },
+    "Retire ball" : {
+
+    },
+    "Retired" : {
 
     },
     "Retired (%lld)" : {
@@ -964,7 +1344,7 @@
     "Retry" : {
 
     },
-    "RG and differentials can't be negative." : {
+    "Return to arsenal" : {
 
     },
     "Right" : {
@@ -974,6 +1354,9 @@
 
     },
     "Rotate bowlers" : {
+
+    },
+    "Same as factory finish" : {
 
     },
     "Save" : {
@@ -992,6 +1375,12 @@
 
     },
     "Scoring" : {
+
+    },
+    "Serial %@" : {
+
+    },
+    "Serial number" : {
 
     },
     "Series %lld" : {
@@ -1025,7 +1414,7 @@
         }
       }
     },
-    "single pin" : {
+    "Single pins" : {
 
     },
     "Single-pin conversion %" : {
@@ -1034,22 +1423,28 @@
     "Something went wrong" : {
 
     },
-    "spare" : {
-
-    },
     "Spare" : {
 
     },
     "Spare %" : {
 
     },
-    "split" : {
+    "Spare ball" : {
+
+    },
+    "Spares" : {
+
+    },
+    "Specs" : {
 
     },
     "Split" : {
 
     },
     "Split conversion %" : {
+
+    },
+    "Splits" : {
 
     },
     "Start" : {
@@ -1061,19 +1456,41 @@
     "Stats" : {
 
     },
-    "strike" : {
-
-    },
     "Strike" : {
 
     },
     "Strike %" : {
 
     },
+    "Strike and spare" : {
+
+    },
+    "Strike ball" : {
+
+    },
+    "Strike rate over %lld sessions, latest %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Strike rate over %1$lld sessions, latest %2$@."
+          }
+        }
+      }
+    },
+    "Strikes" : {
+
+    },
     "Strikes by frame" : {
 
     },
     "Summary" : {
+
+    },
+    "Surface: %@" : {
+
+    },
+    "Symmetric" : {
 
     },
     "Tap standing" : {
@@ -1186,9 +1603,6 @@
     "This week" : {
 
     },
-    "total %lld" : {
-
-    },
     "Tournament" : {
 
     },
@@ -1211,10 +1625,16 @@
     "Undo" : {
 
     },
-    "Version" : {
+    "Urethane" : {
 
     },
-    "washout" : {
+    "Use" : {
+
+    },
+    "Value" : {
+
+    },
+    "Version" : {
 
     },
     "Washout" : {
@@ -1232,7 +1652,30 @@
     "What if" : {
 
     },
+    "What if, %@, your average %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "What if, %1$@, your average %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "What if, %@, your average %@, %@ with every single-pin spare made, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "What if, %1$@, your average %2$@, %3$@ with every single-pin spare made, %4$@"
+          }
+        }
+      }
+    },
     "Where Stats and Home start. You can still change it on Stats." : {
+
+    },
+    "Year" : {
 
     },
     "You bowl" : {
@@ -1247,7 +1690,13 @@
     "You can't delete your own profile." : {
 
     },
+    "You made every single-pin spare." : {
+
+    },
     "You pick one for each session." : {
+
+    },
+    "Your average" : {
 
     },
     "Your bowling data couldn't be opened" : {
@@ -1260,6 +1709,73 @@
 
     },
     "Your sessions show up here." : {
+
+    },
+    "both" : {
+
+    },
+    "foul" : {
+
+    },
+    "gutter" : {
+
+    },
+    "iCloud sync" : {
+
+    },
+    "in progress" : {
+
+    },
+    "less than %@ more pins a game" : {
+
+    },
+    "made %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "made %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "makeable" : {
+
+    },
+    "no data" : {
+
+    },
+    "no games yet" : {
+
+    },
+    "no single-pin leaves yet." : {
+
+    },
+    "resurface due" : {
+
+    },
+    "retired" : {
+
+    },
+    "single pin" : {
+
+    },
+    "spare" : {
+
+    },
+    "split" : {
+
+    },
+    "strike" : {
+
+    },
+    "total %lld" : {
+
+    },
+    "washout" : {
+
+    },
+    "you made every single-pin spare." : {
 
     }
   },
