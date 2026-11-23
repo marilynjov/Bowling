@@ -16,24 +16,29 @@ env:
 jobs:
   packages:
     name: Test ${{ matrix.package }}
-    runs-on: xcode-27
+    # Standard macOS runner: no per-minute charge on a public repo, unlike the larger
+    # `xcode-27` runner. Not yet run while the account's Actions billing is locked.
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
         package: [BowlingCore, BowlingData]
     steps:
       - uses: actions/checkout@v4
+      # If DEVELOPER_DIR is missing on the image, this shows which Xcodes it has.
+      - run: ls -d /Applications/Xcode*
       - run: swift --version
       - run: swift test --package-path Packages/${{ matrix.package }}
 
   app:
     name: Build app
-    runs-on: xcode-27
+    runs-on: macos-26
     # xcodebuild can hang after a UI test finishes; fail instead of running for hours.
     # Room for the build plus two tries of the tests.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - run: ls -d /Applications/Xcode*
       - run: xcodebuild -version
       - name: Build for testing
         run: |
