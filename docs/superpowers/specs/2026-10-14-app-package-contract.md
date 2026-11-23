@@ -393,14 +393,17 @@ public struct BallMaintenance: Sendable, Hashable {
                                                    // none, since purchase (#107 review)
     public var lastResurface: Date?                // nil: never resurfaced
     public var resurfaceIntervalGames: Int?
+    public var isRetired: Bool                     // a retired ball is never due
     public var events: [MaintenanceRecord]         // newest first; the over-time chart markers
-    public var isResurfaceDue: Bool { get }        // interval set and gamesSinceResurface >= it
+    public var isResurfaceDue: Bool { get }        // not retired, interval set and
+                                                   // gamesSinceResurface >= it
     /// The latest resurface wins: a game counts when its session date is > it. Only with
     /// no resurface logged, a game counts when its session date is >= purchaseDate, so
     /// games logged before the purchase date do not count (1b, #32). Without either,
     /// every game. BallRepository passes the start of the purchase day in its calendar.
     public init(ball: BallID, games: [GameRecord], events: [MaintenanceRecord],
-                resurfaceIntervalGames: Int?, purchaseDate: Date? = nil)
+                resurfaceIntervalGames: Int?, purchaseDate: Date? = nil,
+                isRetired: Bool = false)
     /// The same rule over session dates only; BallSummary.isResurfaceDue uses it.
     public static func gamesSinceResurface(sessionDates: [Date], lastResurface: Date?,
                                            purchaseDate: Date?) -> Int
@@ -682,7 +685,7 @@ public struct BallSummary: Sendable, Hashable, Identifiable {      // Arsenal li
                                                    // roll override, each game once
     public var isRetired: Bool                     // 1b
     public var hasPhoto: Bool                      // 1b: photo(for:) or a placeholder
-    public var isResurfaceDue: Bool                // 1b: BallMaintenance.isResurfaceDue
+    public var isResurfaceDue: Bool                // 1b: equals BallMaintenance.isResurfaceDue
 }
 ```
 
@@ -880,6 +883,8 @@ unknown IDs kept. Settings "delete all data with double confirmation" (§7) is `
     // section 2.9. maintenance(for:) is also the resurface reminder's input (#32):
     // gamesSinceResurface counts from the latest resurface, else from the start of the
     // purchase day, else every game; compare isResurfaceDue before and after a save.
+    // isResurfaceDue is false for a retired ball (its wear still counts), so a retired
+    // ball never schedules the reminder; it equals BallSummary.isResurfaceDue.
 
     // 1b (#28, #29, #30, #32). Every method throws .notFound for an unknown ball.
     /// Retired balls, sorted by name: the Arsenal list's Retired group (#28).
@@ -1321,14 +1326,15 @@ starts.
 - Owner merge and duplicate frame repair are BowlingData-internal and never reach the
   app (§3.4).
 
-### 6.1 CSV export (1b, §7 Settings, §9 "CSV export", #43)
+### 6.1 CSV export (1b, §7 Settings, §9 "CSV export", #43, #126)
 
 ```swift
 extension BowlingStore {
     /// Writes one CSV per entity into a fresh folder in the temporary directory, zips it
     /// with NSFileCoordinator `.forUploading`, and returns the zip's URL for the file
     /// exporter or share sheet. The zip is "Bowling Export yyyy-MM-dd.zip" (device time zone).
-    @MainActor public func exportCSV(now: Date = .now) throws -> URL
+    /// `locale` picks the separators (below); the app passes nothing and gets the device's.
+    @MainActor public func exportCSV(now: Date = .now, locale: Locale = .current) throws -> URL
 }
 ```
 
@@ -1348,10 +1354,15 @@ starts with `id, createdAt, updatedAt, remoteID`; the remaining columns, in orde
 | leagues.csv | name, notes, centerID, seasonLabel, seasonStart, seasonEnd, gamesPerSession |
 | oilPatterns.csv | name, notes, lengthFeet, volumeMilliliters, patternKey |
 
-Encoding: RFC 4180 (CRLF, fields with a comma, quote, CR, or LF quoted, quotes doubled),
-UTF-8 with a byte order mark for Excel. UUIDs uppercase; dates ISO 8601 UTC with
-milliseconds; booleans `true`/`false`; nil is an empty field; enums are the stored raw
-string, unknown values included. Columns are only ever appended, never renamed or
+Encoding: RFC 4180 (CRLF, fields with the separator, a quote, CR, or LF quoted, quotes
+doubled), UTF-8 with a byte order mark for Excel. The separator follows the locale (#126):
+where decimals use a comma (`Locale.decimalSeparator == ","`, for example `es_CO`, `en_CO`,
+`de_DE`), columns are separated by `;` and decimals are written `2,52`, because Excel
+there opens a comma file as one column and reads `2.52` as text; everywhere else `,` and
+`2.52`. Phase 3's import tells the two apart from the header row (the character after
+`id`). UUIDs uppercase; dates ISO 8601 UTC with milliseconds in both formats; booleans
+`true`/`false`; nil is an empty field; enums are the stored raw string, unknown values
+included. Columns are only ever appended, never renamed or
 reordered, so phase 3 can re-import by UUID. Photos are not exported.
 Fields starting with `=`, `+`, `-`, or `@` are written as is, so a spreadsheet may read
 them as formulas; this is accepted for now and tracked in

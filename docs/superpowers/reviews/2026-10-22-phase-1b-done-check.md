@@ -6,6 +6,10 @@ have merged. Criteria from section 11 of
 `docs/superpowers/specs/2026-10-07-phase-1-core-scoring-design.md`. This PR changes no
 code.
 
+Corrected 2026-11-03: the league-night row said "pending" on #15. #15 closed with PR #120,
+which covers one bowler and one game, so the row is "missing" (gap 12). Gap 11 is resolved by
+PR #113. The rest of the doc, including the counts, is still the check at `b1f89f7`.
+
 ## Test runs on main
 
 | Run | Result |
@@ -38,7 +42,7 @@ apart and conflict only on main. See gap 11.
 |---|---|---|---|
 | Perfect game, all-spares game, fouls, and every tenth-frame variant score correctly in tests | met | #18 (PR #56) `ScorerScoreTests.fullGame` ("perfect game", "all spares with 5 count", ...), `ScorerScoreTests.tenthFrame` (every tenth-frame variant), `ScorerFoulTests` (`foulInTenthFrame`, `firstBallFoulThenFullRackIsASpare`, `foulCountsZeroAsAStrikeBonus`, ...), `ScorerValidationTests`. Passing in the BowlingCore run above. | Santiago |
 | Every 1a stat renders from fixture data, with the competition default applied, and each bowling style shows its preset | missing | Data side done: #23 (PR #59) `StatsEngineTests`, #24 (PR #58) `StatsFilterTests`, #25 (PR #54) `StatsPresetTests`, `StatsDefaultScopeTests`, #22 (PR #57) demo fixtures. Home tiles render (#11, PR #94, `HomeTilesTests`). The Stats screen is a placeholder (#10 open, PR #112 open). | marilynjov |
-| A full three-game league night for two bowlers can be entered offline, pin by pin | pending | One game scores (#8, PR #96); rotation, frame edits, next game and the game summary are in (#95, PR #101); every bowler's next game gets the same number (PR #111, `GameRepositoryTests`); History lists and edits the night (#9, PR #108). Data side done (#26, PR #61, `RollEntryTests`, `GameRepositoryTests`). The UI test for the full night is #15 (open). `SessionScoringModelTests.nextGameOnAnUnevenNightOpensTheReturnedGames` fails on main (gap 11). | marilynjov |
+| A full three-game league night for two bowlers can be entered offline, pin by pin | missing | One game scores (#8, PR #96); rotation, frame edits, next game and the game summary are in (#95, PR #101); every bowler's next game gets the same number (PR #111, `GameRepositoryTests`); History lists and edits the night (#9, PR #108). Data side done (#26, PR #61, `RollEntryTests`, `GameRepositoryTests`). #15 closed with PR #120, but `PinByPinGameUITests` plays one game for one bowler (Sam, 193). No test enters two bowlers over three games, so nothing shows the full night yet (gap 12). The uneven-night unit test was fixed by PR #113 (gap 11). | marilynjov |
 | Real bowlers on TestFlight have used the pin deck for a league night and feedback is addressed | missing | #2 and #3 open. The app icon is in (#75, PR #104). #27 (Sentry and privacy manifest) still blocks a TestFlight build. | human, marilynjov |
 
 ## Other open Phase 1b issues
@@ -73,7 +77,10 @@ None of these issues has been created.
    1a is not done either. #9 (History) closed with PR #108. No new issue. (marilynjov,
    human)
 10. **Licensing.** #47 is open. (human)
-11. **App test broken on main.** `SessionScoringModelTests.nextGameOnAnUnevenNightOpensTheReturnedGames`
-    still expects `[3, 2]`; after PR #111 the numbers are `[3, 3]`. Suggested issue
-    (owner:frontend, test, Phase 1a): "Update the uneven-night next-game test for #111".
-    `main` should build and pass, so this one is urgent. (marilynjov)
+11. **App test broken on main.** Resolved by PR #113, which updates
+    `SessionScoringModelTests.nextGameOnAnUnevenNightOpensTheReturnedGames` to expect `[3, 3]`
+    after PR #111.
+12. **No test for the full league night.** PR #120 (#15) plays one game for one bowler.
+    Suggested issue (owner:frontend, test, Phase 1a): "UI test: two bowlers, three games,
+    pin by pin", entering both bowlers' games in rotation, starting games 2 and 3, and
+    checking each bowler's three totals in History. (marilynjov)

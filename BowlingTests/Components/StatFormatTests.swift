@@ -14,6 +14,12 @@ import Testing
         #expect(StatFormat.percent(Rate(hits: 1, attempts: 201), locale: us) == "1%")
         #expect(StatFormat.percent(Rate(hits: 0, attempts: 201), locale: us) == "0%")
     }
+    @Test func percentNumbers() {
+        #expect(StatFormat.percentNumber(Rate(hits: 89, attempts: 216), locale: us) == "41")
+        #expect(StatFormat.percentNumber(Rate(hits: 199, attempts: 200), locale: us) == "99")
+        #expect(StatFormat.percentNumber(Rate(hits: 1, attempts: 201), locale: us) == "1")
+        #expect(StatFormat.percentNumber(Rate(hits: 0, attempts: 0), locale: us) == "–")
+    }
     @Test func averages() {
         #expect(StatFormat.average(Mean(total: 4464, count: 24), locale: us) == "186")
         #expect(StatFormat.average(Mean(total: 373, count: 2), locale: us) == "186.5")
@@ -40,5 +46,11 @@ import Testing
         #expect(StatFormat.sample(0, .leaves) == "No leaves yet")
         #expect(StatFormat.sample(1, .leaves) == "1 leave")
         #expect(StatFormat.sample(9, .leaves) == "9 leaves")
+    }
+
+    @Test func spareAttemptsSample() {
+        #expect(StatFormat.sample(0, .spareAttempts) == "No spare attempts yet")
+        #expect(StatFormat.sample(1, .spareAttempts) == "1 spare attempt")
+        #expect(StatFormat.sample(3, .spareAttempts) == "3 spare attempts")
     }
 }

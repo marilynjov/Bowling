@@ -11,15 +11,16 @@ struct HistoryScreen: View {
     @State private var pendingDelete: DeleteRequest?
 
     var body: some View {
-        Group {
+        // The canvas is always there, so `.task` runs before the first load (#134): on an
+        // empty Group SwiftUI drops the modifiers, and the screen stayed blank.
+        ZStack {
+            Color.canvas.ignoresSafeArea()
             if let months, months.isEmpty {
                 empty
             } else if let months {
                 list(months)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.canvas)
         .navigationTitle("History")
         .deleteConfirmation($pendingDelete)
         .task(id: app.revision) { reload() }

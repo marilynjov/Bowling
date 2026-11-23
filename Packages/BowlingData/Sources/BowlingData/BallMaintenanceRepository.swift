@@ -48,7 +48,7 @@ extension Ball {
             ball: id, games: gamesUsing.map { $0.record() },
             events: (maintenance ?? []).map { $0.record() },
             resurfaceIntervalGames: resurfaceIntervalGames,
-            purchaseDate: purchaseDate.map(calendar.startOfDay)
+            purchaseDate: purchaseDate.map(calendar.startOfDay), isRetired: isRetired
         )
     }
 
@@ -56,7 +56,7 @@ extension Ball {
     /// every ball on Scoring and New session, so it skips converting games to records.
     /// `games` is `gamesUsing`, passed in so the caller walks the relationships once.
     func isResurfaceDue(games: [Game], calendar: Calendar) -> Bool {
-        guard let interval = resurfaceIntervalGames else { return false }
+        guard !isRetired, let interval = resurfaceIntervalGames else { return false }
         let lastResurface = (maintenance ?? [])
             .filter { $0.kindRecord == .resurface }
             .map(\.date).max()

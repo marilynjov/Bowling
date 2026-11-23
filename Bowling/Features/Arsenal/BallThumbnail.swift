@@ -30,12 +30,20 @@ struct BallThumbnail: View {
     }
 
     @Environment(AppModel.self) private var app
-    @ScaledMetric(relativeTo: .headline) private var size: CGFloat = 44
+    @ScaledMetric private var size: CGFloat
     @State private var image: UIImage?
 
     var id: BallID
     var hasPhoto: Bool
     var placeholder: Placeholder
+
+    /// `size` is the diameter at the default text size; it scales with Dynamic Type.
+    init(id: BallID, hasPhoto: Bool, placeholder: Placeholder, size: CGFloat = 44) {
+        self.id = id
+        self.hasPhoto = hasPhoto
+        self.placeholder = placeholder
+        _size = ScaledMetric(wrappedValue: size, relativeTo: .headline)
+    }
 
     var body: some View {
         Group {
@@ -43,7 +51,7 @@ struct BallThumbnail: View {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 Text(placeholder.initial)
-                    .font(.headline)
+                    .font(size > 60 ? .largeTitle.weight(.semibold) : .headline)
                     .foregroundStyle(Color(placeholder.colors.ink))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(placeholder.colors.fill))

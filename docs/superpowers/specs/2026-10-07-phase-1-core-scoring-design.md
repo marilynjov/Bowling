@@ -300,8 +300,9 @@ Derived values, computed by the repository:
 - **Games since last resurface**: games bowled since the most recent event of kind
   resurface, or since purchase if none. The latest resurface always wins over the
   purchase date.
-- **Resurface due**: `resurfaceIntervalGames` is set and games since last resurface meets
-  or exceeds it.
+- **Resurface due**: the ball is not retired, `resurfaceIntervalGames` is set, and games
+  since last resurface meets or exceeds it. A retired ball's games still count toward its
+  wear.
 
 #### BowlingCenter, League, OilPattern
 

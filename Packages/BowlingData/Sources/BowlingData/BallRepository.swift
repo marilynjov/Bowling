@@ -14,7 +14,8 @@ public struct BallSummary: Sendable, Hashable, Identifiable {
     public var isRetired: Bool
     /// The row shows the photo from `photo(for:)` or a placeholder.
     public var hasPhoto: Bool
-    /// `BallMaintenance.isResurfaceDue`: the Arsenal list's "Resurface due" badge.
+    /// The Arsenal list's "Resurface due" badge. Always equal to
+    /// `maintenance(for:).isResurfaceDue`, so false for a retired ball.
     public var isResurfaceDue: Bool
 }
 

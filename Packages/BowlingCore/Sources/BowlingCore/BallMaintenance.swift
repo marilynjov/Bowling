@@ -53,12 +53,15 @@ public struct BallMaintenance: Sendable, Hashable {
     /// Date of the latest resurface; nil when the ball has never been resurfaced.
     public var lastResurface: Date?
     public var resurfaceIntervalGames: Int?
+    /// A retired ball isn't thrown, so it is never due, though its wear still counts.
+    public var isRetired: Bool
     /// Newest first.
     public var events: [MaintenanceRecord]
 
-    /// The interval is set and games since the last resurface meet or exceed it.
+    /// The ball is active, the interval is set, and games since the last resurface meet or
+    /// exceed it.
     public var isResurfaceDue: Bool {
-        resurfaceIntervalGames.map { gamesSinceResurface >= $0 } ?? false
+        !isRetired && resurfaceIntervalGames.map { gamesSinceResurface >= $0 } ?? false
     }
 
     /// A game played at the very instant of a resurface counts as before it: the bowler
@@ -69,7 +72,7 @@ public struct BallMaintenance: Sendable, Hashable {
     /// the purchase day so that day's games count whatever time the date picker stored.
     public init(
         ball: BallID, games: [GameRecord], events: [MaintenanceRecord], resurfaceIntervalGames: Int?,
-        purchaseDate: Date? = nil
+        purchaseDate: Date? = nil, isRetired: Bool = false
     ) {
         let used = games.filter { $0.uses(ball) }
         let resurface = events.filter { $0.kind == .resurface }.map(\.date).max()
@@ -79,6 +82,7 @@ public struct BallMaintenance: Sendable, Hashable {
         )
         lastResurface = resurface
         self.resurfaceIntervalGames = resurfaceIntervalGames
+        self.isRetired = isRetired
         self.events = events.sorted { $0.date > $1.date }
     }
 

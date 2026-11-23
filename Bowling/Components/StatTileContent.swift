@@ -54,12 +54,12 @@ struct StatTileContent: Hashable {
         report.highSeries.first { $0.gameCount == 3 }
     }
 
-    private static func rate(_ title: String, _ rate: Rate, _ unit: StatFormat.Unit) -> StatTileContent {
+    static func rate(_ title: String, _ rate: Rate, _ unit: StatFormat.Unit) -> StatTileContent {
         StatTileContent(title: title, value: StatFormat.percent(rate),
                         sample: StatFormat.sample(rate.attempts, unit), progress: rate.value)
     }
 
-    private static func mean(_ title: String, _ mean: Mean, _ unit: StatFormat.Unit) -> StatTileContent {
+    static func mean(_ title: String, _ mean: Mean, _ unit: StatFormat.Unit) -> StatTileContent {
         StatTileContent(title: title, value: StatFormat.average(mean), sample: StatFormat.sample(mean.count, unit))
     }
 }
