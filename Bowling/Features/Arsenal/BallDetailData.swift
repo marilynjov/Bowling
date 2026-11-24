@@ -124,25 +124,13 @@ struct BallDetailData: Hashable {
         }
     }
 
-    /// Reads the ball, its games under `filter`, and the names the screen shows.
-    /// The filter's dates and event types apply, but always to the owner's games: balls are
-    /// the owner's, so a friend in the Stats filter would empty every ball's page.
+    /// Reads the ball, its games under `filter`, and the names the screen shows. The filter
+    /// applies to the owner's games (`forOwnersBalls`).
     /// - Throws: `.notFound` for an unknown ball.
     static func load(id: BallID, store: BowlingStore, filter: StatsFilterDraft, now: Date = .now,
                      calendar: Calendar = .current, locale: Locale = .current) throws -> BallDetailData {
         let detail = try store.balls.detail(for: id)
-        var draft = filter
-        if let owner = store.bowlers.owner(), filter.filter.bowlerID != owner.id {
-            // A friend's default scope came from the friend's games, so it becomes the owner's.
-            // Event types picked by hand, including Competition or All games, are kept.
-            let friend = store.bowlers.bowlers().first { $0.id == filter.filter.bowlerID }
-            let friendDefault = friend.map { StatsFilterDraft.defaults(for: $0, owner: owner, in: store) }
-            if friendDefault == nil || filter.filter.eventTypes == friendDefault?.filter.eventTypes {
-                draft.filter.eventTypes = StatsFilterDraft.defaults(for: owner, owner: owner, in: store).filter.eventTypes
-            }
-            draft.filter.bowlerID = owner.id
-            draft.bowlerName = owner.name
-        }
+        let draft = filter.forOwnersBalls(in: store)
         let games = store.stats.games(matching: draft.filter, now: now, calendar: calendar)
         let report = StatsEngine.ballReport(for: id, games: games, maintenance: try store.balls.maintenance(for: id))
         let recent = games.filter { $0.isComplete && $0.uses(id) }.suffix(10).reversed()
@@ -318,5 +306,25 @@ struct BallDetailData: Hashable {
             style.locale = locale
             return style
         }
+    }
+}
+
+extension StatsFilterDraft {
+    /// The filter for a page about the owner's balls (ball detail, Compare): its dates and
+    /// event types, but always on the owner's games, since a friend in the Stats filter
+    /// would empty every ball's page. A friend's default scope came from the friend's
+    /// games, so it becomes the owner's; event types picked by hand, including Competition
+    /// or All games, are kept.
+    func forOwnersBalls(in store: BowlingStore) -> StatsFilterDraft {
+        guard let owner = store.bowlers.owner(), filter.bowlerID != owner.id else { return self }
+        var draft = self
+        let friend = store.bowlers.bowlers().first { $0.id == filter.bowlerID }
+        let friendDefault = friend.map { Self.defaults(for: $0, owner: owner, in: store) }
+        if friendDefault == nil || filter.eventTypes == friendDefault?.filter.eventTypes {
+            draft.filter.eventTypes = Self.defaults(for: owner, owner: owner, in: store).filter.eventTypes
+        }
+        draft.filter.bowlerID = owner.id
+        draft.bowlerName = owner.name
+        return draft
     }
 }

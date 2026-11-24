@@ -3,7 +3,8 @@ import BowlingData
 import SwiftUI
 
 /// The Arsenal tab (spec §7, Arsenal 1b): active balls, a collapsed Retired group, and Add
-/// ball. A row opens ball detail (#30); Compare arrives with its table (#31).
+/// ball. A row opens ball detail; Compare opens the active balls side by side, once there
+/// are two to compare.
 struct ArsenalScreen: View {
     @Environment(AppModel.self) private var app
     @State private var list: ArsenalList?
@@ -27,9 +28,14 @@ struct ArsenalScreen: View {
         .navigationDestination(for: ArsenalRoute.self) { route in
             switch route {
             case .ball(let id): BallDetailScreen(id: id)
+            case .compare: BallCompareScreen()
             }
         }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink("Compare", value: ArsenalRoute.compare)
+                    .disabled((list?.active.count ?? 0) < 2)
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { app.ballForm = .add } label: {
                     Label("Add ball", systemImage: "plus")
