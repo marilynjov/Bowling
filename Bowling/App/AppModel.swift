@@ -18,6 +18,8 @@ import Observation
     var isQuickScoring = false
     /// The ball form sheet, add or edit, shown by Arsenal.
     var ballForm: BallFormTarget?
+    /// The layout Customize is editing, shown by the root's sheet; nil when closed.
+    var customizing: LayoutDestination?
     /// The last quick score, which Home's banner can undo; nil hides the banner.
     var savedQuickScore: SavedQuickScore?
     /// The root's tab.
@@ -59,6 +61,7 @@ import Observation
         let topmost: ErrorPresenter = scoring != nil ? (isShowingGameSummary ? .gameSummary : .scoring)
             : isStartingSession ? .newSession
             : ballForm != nil ? .ballForm
+            : customizing != nil ? .customize
             : isQuickScoring ? .quickScore
             : editingSessionDetails != nil ? .sessionDetails
             : .root
@@ -218,7 +221,7 @@ import Observation
 
 /// The views that can show the shared error alert.
 enum ErrorPresenter {
-    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, ballForm
+    case root, newSession, quickScore, sessionDetails, scoring, gameSummary, ballForm, customize
 }
 
 /// What the ball form sheet opens on.
