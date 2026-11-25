@@ -22,9 +22,9 @@ enum StatsCardText {
         case .highGame: String(localized: "Your best single game.")
         case .highSeries: String(localized: "Your best three games in a row.")
         case .trendChart: String(localized: "Your average over time, session by session.")
-        case .strikePct: String(localized: "How often you strike when you can.")
-        case .sparePct: String(localized: "How often you make a spare when you can.")
-        case .fouls: String(localized: "How many times you crossed the foul line.")
+        case .strikePct: String(localized: "How often a frame is a strike.")
+        case .sparePct: String(localized: "How often you make a spare after a miss.")
+        case .fouls: String(localized: "Your average fouls per game.")
         case .openPct: String(localized: "How often a frame ends without a strike or spare.")
         case .cleanGamePct: String(localized: "How often a game has no open frames.")
         case .firstBallAverage: String(localized: "Pins you knock down on your first ball.")
@@ -35,7 +35,7 @@ enum StatsCardText {
         case .makeableConversion: String(localized: "How often you convert a spare you should make.")
         case .singlePinConversion: String(localized: "How often you convert a single-pin spare.")
         case .byFrameStrike: String(localized: "How often you strike in each frame.")
-        case .byFrameAverage: String(localized: "Your average pins on the first ball in each frame.")
+        case .byFrameAverage: String(localized: "Your average pins down in each frame.")
         case .whatIfSinglePins: String(localized: "Your average if you made every single-pin spare.")
         }
     }
