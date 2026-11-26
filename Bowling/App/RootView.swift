@@ -34,6 +34,10 @@ struct RootView: View {
             NewSessionSheet()
                 .sharedErrorAlert(in: .newSession)
         }
+        .sheet(item: $app.customizing) { destination in
+            CustomizeSheet(destination: destination)
+                .sharedErrorAlert(in: .customize)
+        }
         .fullScreenCover(item: $app.scoring) { target in
             ScoringScreen(target: target)
                 .sharedErrorAlert(in: .scoring)

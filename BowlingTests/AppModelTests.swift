@@ -136,6 +136,13 @@ import Testing
         #expect(!app.showsError(in: .root))
     }
 
+    @Test func customizeSheetShowsErrors() {
+        app.customizing = .stats
+        app.error = RepositoryError.notFound
+        #expect(app.showsError(in: .customize))
+        #expect(!app.showsError(in: .root))
+    }
+
     @Test func needsOnboardingUntilOwnerExists() throws {
         #expect(app.needsOnboarding)
         _ = try createOwner()

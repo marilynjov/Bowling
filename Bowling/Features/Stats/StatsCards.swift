@@ -76,7 +76,7 @@ enum StatsCards {
     /// One card per ID, in order. A card whose games group is empty explains what to enter.
     static func make(cards: [StatsCardID], report: StatsReport, calendar: Calendar = .current,
                      locale: Locale = .current) -> [StatsCard] {
-        cards.map { StatsCard(id: $0, title: title($0), body: body($0, report, calendar, locale)) }
+        cards.map { StatsCard(id: $0, title: StatsCardText.title($0), body: body($0, report, calendar, locale)) }
     }
 
     private enum Group { case score, roll, pin }
@@ -133,21 +133,6 @@ enum StatsCards {
             return .tile(tile, footnote: nil)
         }
     }
-
-    private static func title(_ card: StatsCardID) -> String {
-        switch card {
-        case .trendChart: String(localized: "Trend")
-        case .leavesTable: String(localized: "Leaves")
-        case .leftMostMadeLeast: String(localized: "Left most, made least")
-        case .byFrameStrike: String(localized: "Strikes by frame")
-        case .byFrameAverage: String(localized: "Average by frame")
-        case .whatIfSinglePins: String(localized: "What if")
-        default: StatTileContent.make(card, emptyReport)?.title ?? card.rawValue
-        }
-    }
-
-    /// Titles don't depend on the numbers; this report only lets `StatTileContent` name a card.
-    private static let emptyReport = StatsEngine.report(games: [], filter: StatsFilter(bowlerID: BowlerID()))
 
     /// "Last 10 201 · Last 30 195", each part only once there are more games than it covers.
     private static func averageFootnote(_ report: StatsReport) -> String? {

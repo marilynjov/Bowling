@@ -30,6 +30,11 @@ struct StatsScreen: View {
             }
         }
         .navigationTitle("Stats")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Customize", systemImage: "slider.horizontal.3") { app.customizing = .stats }
+            }
+        }
         .sheet(isPresented: $isEditingFilter) {
             if let filter = app.statsFilter {
                 StatsFilterSheet(draft: filter)

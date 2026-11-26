@@ -46,6 +46,19 @@ import Testing
         #expect(SettingsRows.DefaultGames.allCases.map(\.scope) == [nil, .competition, .all])
     }
 
+    @Test func presetLayoutsAreNotCustom() throws {
+        let sam = try owner()
+        #expect(!SettingsRows(owner: sam).hasCustomLayout)
+    }
+
+    @Test func aSavedLayoutIsCustom() throws {
+        _ = try owner()
+        try store.bowlers.setHomeLayout([.average])
+        #expect(try SettingsRows(owner: #require(store.bowlers.owner())).hasCustomLayout)
+        try store.bowlers.resetLayouts()
+        #expect(try !SettingsRows(owner: #require(store.bowlers.owner())).hasCustomLayout)
+    }
+
     @Test func styleFromTheProfile() throws {
         var sam = try owner(.league)
         #expect(SettingsRows(owner: sam).style == .league)

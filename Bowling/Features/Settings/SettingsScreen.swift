@@ -11,6 +11,7 @@ struct SettingsScreen: View {
     @State private var scoring = ScoringValues()
     @State private var isConfirmingDelete: Bool
     @State private var isConfirmingAgain = false
+    @State private var pendingLayoutChoice = false
     @State private var export: ExportedZip?
     @State private var isExporting = false
 
@@ -62,6 +63,13 @@ struct SettingsScreen: View {
         } message: {
             Text("This deletes every session, game, ball and your profile from this iPhone.")
         }
+        .confirmationDialog("Use the stats for your new bowling style?", isPresented: $pendingLayoutChoice,
+                            titleVisibility: .visible) {
+            Button("Use the new preset") {
+                do { try app.write { try $0.bowlers.resetLayouts() } } catch { app.error = error }
+            }
+            Button("Keep my layout", role: .cancel) {}
+        }
         .alert("This can't be undone.", isPresented: $isConfirmingAgain) {
             Button("Delete everything", role: .destructive) {
                 do { try app.deleteAllData() } catch { app.error = error }
@@ -73,7 +81,7 @@ struct SettingsScreen: View {
     private func profileSection(_ rows: SettingsRows, owner: BowlerRecord) -> some View {
         Section {
             NavigationLink(rows.profileSummary) { ProfileScreen(owner: owner) }
-            Picker("Bowling style", selection: Binding(get: { rows.style }, set: setStyle)) {
+            Picker("Bowling style", selection: Binding(get: { rows.style }, set: { setStyle($0, hadCustomLayout: rows.hasCustomLayout, was: rows.style) })) {
                 ForEach(SettingsRows.styles, id: \.self) { style in
                     Text(SettingsRows.title(style)).tag(Optional(style))
                 }
@@ -158,9 +166,13 @@ struct SettingsScreen: View {
         }
     }
 
-    private func setStyle(_ style: StatsProfile?) {
+    /// A saved layout would hide the new preset, so offer it once the style changes.
+    private func setStyle(_ style: StatsProfile?, hadCustomLayout: Bool, was oldStyle: StatsProfile?) {
         guard let style else { return }
-        do { try app.write { try $0.bowlers.setStatsProfile(style) } } catch { app.error = error }
+        do {
+            try app.write { try $0.bowlers.setStatsProfile(style) }
+            if hadCustomLayout, style != oldStyle { pendingLayoutChoice = true }
+        } catch { app.error = error }
     }
 
     private func setDefaultGames(_ games: SettingsRows.DefaultGames) {

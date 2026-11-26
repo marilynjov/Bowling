@@ -61,9 +61,17 @@ struct HomeScreen: View {
         let columns = dynamicTypeSize.isAccessibilitySize
             ? [GridItem(.flexible())]
             : [GridItem(.flexible(), spacing: 10), GridItem(.flexible())]
-        return LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(data.tiles) { tile in
-                StatTile(title: tile.title, value: tile.value, sample: tile.sample, progress: tile.progress)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Your stats").monoLabel()
+                Spacer()
+                Button("Edit") { app.customizing = .home }
+                    .tint(.accentText)
+            }
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(data.tiles) { tile in
+                    StatTile(title: tile.title, value: tile.value, sample: tile.sample, progress: tile.progress)
+                }
             }
         }
     }

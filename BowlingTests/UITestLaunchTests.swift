@@ -10,6 +10,11 @@ import Testing
         #expect(!UITestLaunch.isActive(["Bowling"]))
     }
 
+    @Test func persistentOnlyWithTheArgument() {
+        #expect(UITestLaunch.isPersistent(["Bowling", "-uiTesting", "-persistentStore"]))
+        #expect(!UITestLaunch.isPersistent(["Bowling", "-uiTesting"]))
+    }
+
     @Test func storeHasOwnerSam() throws {
         let store = try UITestLaunch.openStore()
         let owner = try #require(store.bowlers.owner())

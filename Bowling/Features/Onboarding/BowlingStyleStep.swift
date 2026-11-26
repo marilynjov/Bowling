@@ -16,7 +16,7 @@ struct BowlingStyleStep: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("This decides which stats you see. You can change it anytime in Settings.")
+                Text("This decides which stats you see. You can change it anytime in Settings, or pick exactly the stats you want.")
                     .font(.subheadline)
                     .foregroundStyle(.inkMuted)
                     .padding(.bottom, 8)

@@ -26,6 +26,8 @@ struct SettingsRows: Hashable {
     /// A scope from a newer version reads as Follow.
     var defaultGames: DefaultGames
     private var prefersCompetition: Bool
+    /// True when the owner saved a Stats or Home layout, so a style change would not show.
+    var hasCustomLayout: Bool
 
     init(owner: BowlerRecord) {
         profileSummary = switch owner.handedness {
@@ -40,6 +42,7 @@ struct SettingsRows: Hashable {
         case nil, .unknown: .follow
         }
         prefersCompetition = StatsPreset.prefersCompetition(owner.statsProfile)
+        hasCustomLayout = !owner.statsLayout.isEmpty || !owner.homeLayout.isEmpty
     }
 
     /// Follow names what the bowling style picks: "Follow bowling style (Competition)".

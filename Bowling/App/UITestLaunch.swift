@@ -7,15 +7,33 @@ import Foundation
 /// on Home, and settings that start empty on every run. Debug builds only.
 enum UITestLaunch {
     static let argument = "-uiTesting"
+    /// With `-uiTesting`: keep the store on disk between launches, so a test can relaunch the
+    /// app and find what it saved. Without it the store is in memory and starts fresh.
+    /// This writes to the simulator's real app store, not a copy: tests change the owner's
+    /// settings and layouts there. On a simulator with no owner it creates "Sam", who then
+    /// stays. Run it on a dedicated simulator.
+    /// TODO: when CloudKit is enabled (BowlingSchema's cloudKitDatabase), this flag must not
+    /// sync test writes.
+    static let persistentArgument = "-persistentStore"
     static let suiteName = "com.marilynjov.bowling.uitesting"
 
     static func isActive(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
         arguments.contains(argument)
     }
 
+    static func isPersistent(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        arguments.contains(persistentArgument)
+    }
+
     static func openStore() throws -> BowlingStore {
-        let store = try BowlingStore(inMemory: true)
-        _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        try openStore(persistent: isPersistent())
+    }
+
+    static func openStore(persistent: Bool) throws -> BowlingStore {
+        let store = persistent ? try BowlingStore() : try BowlingStore(inMemory: true)
+        if store.bowlers.owner() == nil {
+            _ = try store.bowlers.createOwner(name: "Sam", handedness: .right, statsProfile: .league)
+        }
         return store
     }
 
