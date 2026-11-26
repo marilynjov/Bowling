@@ -2,7 +2,8 @@ import XCTest
 
 /// The done criterion for Customize (#36): a changed layout survives a relaunch, and Reset to
 /// preset brings the preset back. Runs against the on-disk store (`-persistentStore`), so it
-/// resets first and leaves the store as it found it: league style, preset layouts.
+/// resets first. It ends with the bowling style it found and both layouts on their preset; a
+/// layout customized before the run is not preserved.
 @MainActor
 final class CustomizeUITests: XCTestCase {
     private let app = XCUIApplication()
@@ -71,16 +72,23 @@ final class CustomizeUITests: XCTestCase {
         confirm.tap()
     }
 
+    /// On an open Customize sheet: Reset to preset if it is enabled, otherwise Cancel. Never
+    /// asserts, so teardown can use it. Leaves the sheet closed.
+    private func resetIfCustomized() {
+        let reset = app.buttons["Reset to preset"]
+        for _ in 0..<12 where !reset.exists { app.swipeUp() }
+        if reset.exists, reset.isEnabled {
+            reset.tap()
+            let confirm = app.buttons.matching(identifier: "Reset to preset").element(boundBy: 1)
+            if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+        }
+        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
+    }
+
     /// Clears a previous run: reset if the layout is customized, then close the sheet.
     private func clearPreviousRun(open: () -> Void) {
         open()
-        let reset = app.buttons["Reset to preset"]
-        for _ in 0..<12 where !reset.exists { app.swipeUp() }
-        if reset.isEnabled {
-            resetToPreset()
-        } else {
-            app.buttons["Cancel"].tap()
-        }
+        resetIfCustomized()
     }
 
     /// "Keep my layout" is the dialog's cancel action. Where the dialog is a popover (anchored to
@@ -122,7 +130,7 @@ final class CustomizeUITests: XCTestCase {
     private func chooseStyle(_ name: String) {
         styleButton.tap()
         app.buttons[name].tap()
-        if app.staticTexts["Use the stats for your new bowling style?"].waitForExistence(timeout: 2) {
+        if app.staticTexts["Use the stats for your new bowling style?"].waitForExistence(timeout: 5) {
             keepMyLayout()
         }
     }
@@ -133,40 +141,35 @@ final class CustomizeUITests: XCTestCase {
         app.launch()
         waitForHome()
         // The store outlives runs, so pin the style the presets below assume (League) and
-        // put it back at the end. `CUSTOMIZE_RESTORE_STYLE` overrides what "back" means.
+        // put it back at the end.
         openSettings()
-        let original = ProcessInfo.processInfo.environment["CUSTOMIZE_RESTORE_STYLE"] ?? currentStyle()
+        let original = currentStyle()
         chooseStyle("League")
         closeSettings()
         // Leave the store as found even if an assertion stops the run.
         addTeardownBlock { [self] in
+            // Keep going after a failure so the style is still restored.
+            continueAfterFailure = true
             app.terminate()
             app.launch()
-            let edit = app.buttons["Edit"]
-            guard edit.waitForExistence(timeout: 15) else { return }
-            edit.tap()
-            let reset = app.buttons["Reset to preset"]
-            for _ in 0..<12 where !reset.exists { app.swipeUp() }
-            if reset.exists, reset.isEnabled {
-                reset.tap()
-                let confirm = app.buttons.matching(identifier: "Reset to preset").element(boundBy: 1)
-                if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+            guard app.buttons["Edit"].waitForExistence(timeout: 15) else {
+                return XCTFail("Teardown: Home did not load; style \(original) not restored")
             }
-            if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
+            app.buttons["Edit"].tap()
+            resetIfCustomized()
             app.tabBars.buttons["Stats"].tap()
-            let customize = app.buttons["Customize"]
-            guard customize.waitForExistence(timeout: 10) else { return }
-            customize.tap()
-            for _ in 0..<12 where !reset.exists { app.swipeUp() }
-            if reset.exists, reset.isEnabled {
-                reset.tap()
-                let confirm = app.buttons.matching(identifier: "Reset to preset").element(boundBy: 1)
-                if confirm.waitForExistence(timeout: 5) { confirm.tap() }
+            guard app.buttons["Customize"].waitForExistence(timeout: 10) else {
+                return XCTFail("Teardown: Stats did not load; style \(original) not restored")
             }
+            app.buttons["Customize"].tap()
+            resetIfCustomized()
             app.tabBars.buttons["Home"].tap()
-            guard styleButton.exists || app.buttons["Settings"].waitForExistence(timeout: 10) else { return }
+            guard app.buttons["Settings"].waitForExistence(timeout: 10) else {
+                return XCTFail("Teardown: no Settings button; style \(original) not restored")
+            }
             openSettings()
             chooseStyle(original)
+            XCTAssertEqual(currentStyle(), original, "Teardown: style not restored")
         }
 
         try homeFlow()

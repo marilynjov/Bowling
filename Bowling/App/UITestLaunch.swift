@@ -9,6 +9,11 @@ enum UITestLaunch {
     static let argument = "-uiTesting"
     /// With `-uiTesting`: keep the store on disk between launches, so a test can relaunch the
     /// app and find what it saved. Without it the store is in memory and starts fresh.
+    /// This writes to the simulator's real app store, not a copy: tests change the owner's
+    /// settings and layouts there. On a simulator with no owner it creates "Sam", who then
+    /// stays. Run it on a dedicated simulator.
+    /// TODO: when CloudKit is enabled (BowlingSchema's cloudKitDatabase), this flag must not
+    /// sync test writes.
     static let persistentArgument = "-persistentStore"
     static let suiteName = "com.marilynjov.bowling.uitesting"
 
