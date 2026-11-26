@@ -93,6 +93,7 @@ struct CustomizeSheet: View {
     private func layoutRow(_ card: StatsCardID, in current: LayoutDraft) -> some View {
         let index = current.cards.firstIndex(of: card) ?? 0
         return titleAndDescription(card)
+            .accessibilityElement(children: .combine)
             .accessibilityActions {
                 if index > 0 {
                     Button("Move up") { draft?.move(fromOffsets: [index], toOffset: index - 1) }

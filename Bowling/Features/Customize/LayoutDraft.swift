@@ -2,6 +2,7 @@ import BowlingCore
 import BowlingData
 import Foundation
 
+/// Which screen's card layout is being customized.
 enum LayoutDestination: Hashable, Identifiable {
     case stats, home
 
@@ -10,13 +11,14 @@ enum LayoutDestination: Hashable, Identifiable {
 
 /// The working copy of a Stats or Home layout while Customize is open.
 struct LayoutDraft: Hashable {
+    /// One catalog section: a card group and the cards from it still available to add.
     struct CatalogGroup: Hashable, Identifiable {
         var group: StatsCardGroup
         var cards: [StatsCardID]
         var id: StatsCardGroup { group }
     }
 
-    var destination: LayoutDestination
+    let destination: LayoutDestination
     private(set) var cards: [StatsCardID]
     /// Whether the owner's stored layout for this destination was non-empty at init.
     let isCustomized: Bool
@@ -55,16 +57,17 @@ struct LayoutDraft: Hashable {
         cards = cards.enumerated().filter { !offsets.contains($0.offset) }.map(\.element)
     }
 
-    mutating func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+    mutating func move(fromOffsets source: IndexSet, toOffset target: Int) {
         let moving = source.sorted().map { cards[$0] }
-        let before = source.filter { $0 < destination }.count
+        let before = source.filter { $0 < target }.count
         var rest = cards.enumerated().filter { !source.contains($0.offset) }.map(\.element)
-        rest.insert(contentsOf: moving, at: destination - before)
+        rest.insert(contentsOf: moving, at: target - before)
         cards = rest
     }
 
     static func offers(_ card: StatsCardID, for destination: LayoutDestination) -> Bool {
-        switch destination {
+        guard card.isAvailable else { return false }
+        return switch destination {
         case .stats: true
         case .home: StatTileContent.make(card, StatsCardText.emptyReport) != nil
         }
